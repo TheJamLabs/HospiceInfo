@@ -1,0 +1,1 @@
+I want to map the catchment areas for hospices in the UK starting with Lancashire and South Cumbria. It is a bit weird as they’re based on GPs not direct post codes but there must be a list somewhere. Can you help?
