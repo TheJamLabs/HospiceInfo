@@ -1,0 +1,25 @@
+// Name matchers used when attributing external records (OSM charity shops,
+// website shop lists) to one of our 20 hospices. Applied to lowercased name
+// text; more specific patterns come first.
+export const matchers = [
+  { id: 'hahcarlisle', regex: /hospice\s*at\s*home.*carlisle|carlisle.*hospice\s*at\s*home|carlisle\s*and\s*north\s*lakeland/ },
+  { id: 'hahwestcumbria', regex: /west\s*cumbria/ },
+  { id: 'stmaryfurness', regex: /furness|st\s*mary|saint\s*mary|mary\s*of\s*furness/ },
+  { id: 'queenscourt', regex: /queenscourt|queens\s*court/ },
+  { id: 'stcatherines', regex: /st\s*catherine|saint\s*catherine/ },
+  { id: 'eastlancs', regex: /east\s*lancashire/ },
+  { id: 'pendleside', regex: /pendleside|pendle\s*(side|aside)/ },
+  { id: 'rossendale', regex: /rossendale/ },
+  { id: 'bury', regex: /bury\s*hospice|hospice.*\bbury\b/ },
+  { id: 'bolton', regex: /bolton\s*hospice|hospice.*\bbolton\b/ },
+  { id: 'wiganleight', regex: /\bwigan/ },
+  { id: 'trinity', regex: /\btrinity/ },
+  { id: 'derianhouse', regex: /derian/ },
+  { id: 'haltonhaven', regex: /halton\s*haven|\bhalton\b/ },
+  { id: 'stroccos', regex: /rocco|saint\s*rocc|st\s*rocc/ },
+  { id: 'drkershaws', regex: /kershaw/ },
+  { id: 'springhill', regex: /spring\s*hill/ },
+  { id: 'willowwood', regex: /willow\s*wood/ },
+  { id: 'edenvalley', regex: /eden\s*valley/ },
+  { id: 'stjohns', regex: /st\s*john|saint\s*john/ },
+];

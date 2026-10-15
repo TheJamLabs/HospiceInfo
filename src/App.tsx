@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useAppData } from './lib/useAppData';
-import type { Hospice, Practice, Catchment } from './lib/types';
+import type { Hospice, Practice, Catchment, Shop } from './lib/types';
 import MapView from './components/MapView';
 import HospicePanel from './components/HospicePanel';
 import Legend from './components/Legend';
@@ -10,16 +10,23 @@ export default function App() {
   const { data: hospices, error: hospicesError } = useAppData<Hospice[]>('/data/hospices.json');
   const { data: practices, error: practicesError } = useAppData<Practice[]>('/data/practices.json');
   const { data: catchments, error: catchmentsError } = useAppData<Catchment[]>('/data/catchments.json');
+  const { data: shops, error: shopsError } = useAppData<Shop[]>('/data/shops.json');
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [showShops, setShowShops] = useState(true);
 
-  const error = hospicesError || practicesError || catchmentsError;
-  const loading = !error && (!hospices || !practices || !catchments);
+  const error = hospicesError || practicesError || catchmentsError || shopsError;
+  const loading = !error && (!hospices || !practices || !catchments || !shops);
 
   const selected = useMemo(
     () => (hospices && selectedId ? hospices.find((h) => h.id === selectedId) ?? null : null),
     [hospices, selectedId]
+  );
+
+  const selectedShops = useMemo(
+    () => (shops && selectedId ? shops.filter((s) => s.hospiceId === selectedId) : []),
+    [shops, selectedId]
   );
 
   if (loading) {
@@ -50,9 +57,20 @@ export default function App() {
                 Lancashire &amp; South Cumbria — catchments approximated from GP practice locations
               </div>
             </div>
-            <button className="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#methodologyModal">
-              Source &amp; Method
-            </button>
+            <div className="d-flex align-items-center gap-2">
+              <label className="form-check form-switch m-0" title="Toggle charity shop markers on the map">
+                <input
+                  className="form-check-input"
+                  type="checkbox"
+                  checked={showShops}
+                  onChange={(e) => setShowShops(e.target.checked)}
+                />
+                <span className="form-check-label small ms-1">Charity shops</span>
+              </label>
+              <button className="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#methodologyModal">
+                Source &amp; Method
+              </button>
+            </div>
           </div>
         </div>
       </header>
@@ -96,6 +114,19 @@ export default function App() {
                   <span className="badge bg-warning-subtle text-warning-emphasis">approximated</span>{' '} {selected.source}
                 </div>
               )}
+              {selectedShops.length > 0 ? (
+                <div className="small mt-1">
+                  {selectedShops.length} charity shop{selectedShops.length === 1 ? '' : 's'}
+                  {(() => {
+                    const out = selectedShops.filter((s) => s.outsideCatchment).length;
+                    return out > 0 ? (
+                      <>
+                        {' '}(<span className="fw-semibold text-warning-emphasis">{out} outside its own catchment</span>)
+                      </>
+                    ) : null;
+                  })()}
+                </div>
+              ) : null}
               <div className="small mt-1">
                 {selected.website ? (
                   <>
@@ -111,13 +142,15 @@ export default function App() {
             hospices={hospices!}
             practices={practices!}
             catchments={catchments!}
+            shops={shops!}
+            showShops={showShops}
             selectedId={selectedId}
             onSelect={setSelectedId}
           />
           <Legend hospices={hospices!} selectedId={selectedId} onSelect={setSelectedId} />
         </main>
       </div>
-      <Methodology hospices={hospices} practices={practices} catchments={catchments} />
+      <Methodology hospices={hospices} practices={practices} catchments={catchments} shops={shops} />
     </div>
   );
 }

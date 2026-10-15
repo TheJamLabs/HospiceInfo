@@ -143,6 +143,20 @@ body,
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
+.shop-marker-wrap {
+  background: none;
+  border: 0;
+}
+
+.shop-marker {
+  display: block;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid #fff;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
 .app-loading {
   font-size: 1.1rem;
   color: #6c757d;

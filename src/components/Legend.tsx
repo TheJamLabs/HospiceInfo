@@ -28,7 +28,20 @@ export default function Legend({ hospices, selectedId, onSelect }: Props) {
           <span className="dot me-1" style={{ background: '#999' }} />
           <span className="me-2">GP practice (dot coloured by catchment)</span>
           <span className="me-2">◇ hospice site</span>
-          Envelope = convex hull of assigned practices
+          <span
+            className="me-1"
+            style={{
+              display: 'inline-block',
+              width: 9,
+              height: 9,
+              background: '#e07b00',
+              borderRadius: 2,
+              verticalAlign: 'baseline',
+            }}
+          />
+          <span className="me-2">charity shop (orange = outside its own catchment)</span>
+          <br />
+          Areas tile the map — each practice belongs to exactly one catchment
         </div>
       </div>
     </div>

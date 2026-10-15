@@ -15,6 +15,9 @@ fetched at runtime).
 | `hospice-candidates.json` | Derived from the CQC directory during research | 2026-10-15 | The 20 in-target hospices used to build `scripts/catchment-map.mjs` |
 | `hospices-wikidata.json` | api.wikidata.org (endpoint unreachable from this machine) | 2026-10-14 | Research artifact — **not used**; the CQC directory won out |
 | `postcode-geo.csv` | OSM Nominatim (`?q=<unit>&countrycodes=gb&format=jsonv2&limit=1`, 1 req/s, User-Agent per Nominatim policy) | 2026-10-15 | 552 rows (533 practice postcodes + 19 hospice units). Unit-level geocoding; where OSM has no unit, the district (outcode) point is used. Resumable |
+| `shops-website.json` | Each hospice's own website (shop-list pages; 18 of 20 hospices — sites for Rossendale, Dr Kershaw's, Willow Wood are unreachable, Hospice at Home Carlisle publishes none) | 2026-10-15 | 138 curated shop entries: `{hospiceId, name, address[], postcode, source}` where `source` is the page the list was taken from |
+| `shops-geo.json` | OSM Nominatim (same policy as above) | 2026-10-15 | Geocoded `lat`/`lon` for each shop (postcode where present, else address). Three addresses with website postcode typos were geocoded by street + town |
+| `fetch-shops-osm.mjs` output (`shops-osm.json`) | OSM Overpass (shop POIs in target bbox) | — | Supplementary source; all public Overpass mirrors were down (502/500) at collection time, so the websites are the primary source |
 
 ## Generated app data (`public/data/`)
 
@@ -23,11 +26,14 @@ Produced by `scripts/build-data.mjs` from the raw files + `scripts/catchment-map
 | File | Contents |
 |---|---|
 | `hospices.json` | 20 hospices: id, name, town, postcode, lat/lon, colour, `published`/`approx` kind, source note, website, CQC register URL |
-| `practices.json` | 643 practices: id, name, address[], postcode, lat/lon, outcode, assigned `hospiceId` (null = outside every catchment) |
-| `catchments.json` | Per hospice: name, kind, outcode list, assigned practice count, buffered convex-hull polygon |
+| `practices.json` | 643 practices: id, name, address[], postcode, lat/lon, outcode, assigned `hospiceId` (complete partition — every practice is assigned) |
+| `catchments.json` | Per hospice: name, kind, outcode list, assigned practice count, Voronoi-derived polygon (one or more rings, union of that hospice's cells) |
+| `shops.json` | 138 charity shops: id, name, address, postcode, lat/lon, `hospiceId`, `outsideCatchment` (point-in-polygon test against the shop's own catchment), source page |
 
-Current state: **643 practices, 642 assigned, 1 unassigned** (Upper Eden
-Medical Practice, CA17 — beyond every catchment's 50 km fallback radius).
+Current state: **643 practices, all assigned** (complete partition), and
+**138 charity shops, 13 of them outside their own hospice's catchment**
+(most by Derian House, a children's hospice with a single-outcode catchment
+but shops across the district).
 
 ## Catchment definitions
 
@@ -60,8 +66,15 @@ Source & Method modal in the app.
   short distance from its dot.
 - The map shows where *practices* are, not who is *served*: real referral
   depends on the patient's location.
-- Several envelopes are estimates (see above); treat them as
-  indicative footprints, not boundaries.
+- The crisp shared boundaries are a **Voronoi tessellation derived from
+  practice and hospice-site locations** (see above for which catchments are
+  published vs inferred); the real service-area switch between two hospices
+  is fuzzier than the drawn line.
+- The `outsideCatchment` flag on shops is a geometry test (point inside the
+  shop's own Voronoi-derived catchment). A shop can be well within its
+  hospice's real service area and still be flagged if it sits across the
+  tessellated boundary, and vice versa. Treat it as an indicator of sites
+  that *could* be over-reaching fundraising, not a judgement of it.
 - North Cumbria sites (Carlisle, Workington) are included because their
   CQC areas touch the edge of the target postcodes; they are context, not
   part of the Lancashire/South Cumbria focus.

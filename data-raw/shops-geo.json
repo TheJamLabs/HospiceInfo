@@ -1,0 +1,677 @@
+{
+  "PR6 9NN": {
+    "lat": 53.6177399,
+    "lon": -2.5971346,
+    "source": "postcode"
+  },
+  "PR2 1DL": {
+    "lat": 53.7658983,
+    "lon": -2.7300488,
+    "source": "postcode"
+  },
+  "PR2 1BX": {
+    "lat": 53.765647,
+    "lon": -2.7299178,
+    "source": "postcode"
+  },
+  "PR5 6LA": {
+    "lat": 53.7306646,
+    "lon": -2.6612486,
+    "source": "postcode"
+  },
+  "PR7 1BH": {
+    "lat": 53.6530713,
+    "lon": -2.6316011,
+    "source": "postcode"
+  },
+  "PR2 3QA": {
+    "lat": 53.7823594,
+    "lon": -2.7195911,
+    "source": "postcode"
+  },
+  "PR25 2LD": {
+    "lat": 53.6942534,
+    "lon": -2.6947302,
+    "source": "postcode"
+  },
+  "PR3 3WH": {
+    "lat": 53.8329317,
+    "lon": -2.6062001,
+    "source": "postcode"
+  },
+  "PR4 5PD": {
+    "lat": 53.7290229,
+    "lon": -2.7827337,
+    "source": "postcode"
+  },
+  "PR5 5RY": {
+    "lat": 53.7272308,
+    "lon": -2.694209,
+    "source": "postcode"
+  },
+  "PR1 2UP": {
+    "lat": 53.7580221,
+    "lon": -2.7055852,
+    "source": "postcode"
+  },
+  "PR5 5XU": {
+    "lat": 53.7217678,
+    "lon": -2.6791314,
+    "source": "postcode"
+  },
+  "BB1 3HD": {
+    "lat": 53.75021,
+    "lon": -2.4603,
+    "source": "postcode"
+  },
+  "BB3 2AA": {
+    "lat": 53.69464,
+    "lon": -2.46619,
+    "source": "postcode"
+  },
+  "BB5 1PY": {
+    "lat": 53.7560065,
+    "lon": -2.3728415,
+    "source": "postcode"
+  },
+  "BB6 7QP": {
+    "lat": 53.7863341,
+    "lon": -2.4055296,
+    "source": "postcode"
+  },
+  "BB7 1BE": {
+    "lat": 53.8699709,
+    "lon": -2.3919971,
+    "source": "postcode"
+  },
+  "BB7 2BX": {
+    "lat": 53.871986,
+    "lon": -2.3916146,
+    "source": "postcode"
+  },
+  "29 MOOR LANE, CLITHEROE": {
+    "lat": 53.8694696,
+    "lon": -2.3925068,
+    "source": "address"
+  },
+  "BB10 2LW": {
+    "lat": 53.81929,
+    "lon": -2.23756,
+    "source": "postcode"
+  },
+  "BB18 5UR": {
+    "lat": 53.9157934,
+    "lon": -2.1887924,
+    "source": "postcode"
+  },
+  "BB9 6EW": {
+    "lat": 53.85232,
+    "lon": -2.21558,
+    "source": "postcode"
+  },
+  "BB8 9HT": {
+    "lat": 53.85772,
+    "lon": -2.16556,
+    "source": "postcode"
+  },
+  "BB10 1DZ": {
+    "lat": 53.80485,
+    "lon": -2.23435,
+    "source": "postcode"
+  },
+  "BB18 6UR": {
+    "lat": 53.9162333,
+    "lon": -2.144687,
+    "source": "postcode"
+  },
+  "BB11 2DL": {
+    "lat": 53.7918432,
+    "lon": -2.2393834,
+    "source": "postcode"
+  },
+  "BB11 2DE": {
+    "lat": 53.78974,
+    "lon": -2.23968,
+    "source": "postcode"
+  },
+  "BB9 7UY": {
+    "lat": 53.83857,
+    "lon": -2.21425,
+    "source": "postcode"
+  },
+  "BB12 8BL": {
+    "lat": 53.80023,
+    "lon": -2.31269,
+    "source": "postcode"
+  },
+  "BL9 0QF": {
+    "lat": 53.5936895,
+    "lon": -2.2943461,
+    "source": "postcode"
+  },
+  "BL9 0NB": {
+    "lat": 53.5948684,
+    "lon": -2.2937755,
+    "source": "postcode"
+  },
+  "BL9 0QG": {
+    "lat": 53.59273,
+    "lon": -2.2944,
+    "source": "postcode"
+  },
+  "M26 2SP": {
+    "lat": 53.5602483,
+    "lon": -2.3235311,
+    "source": "postcode"
+  },
+  "M26 1AD": {
+    "lat": 53.55747,
+    "lon": -2.3298899,
+    "source": "postcode"
+  },
+  "BL0 9AG": {
+    "lat": 53.6483526,
+    "lon": -2.3173465,
+    "source": "postcode"
+  },
+  "M45 8NE": {
+    "lat": 53.55141,
+    "lon": -2.27709,
+    "source": "postcode"
+  },
+  "M25 9JZ": {
+    "lat": 53.51823,
+    "lon": -2.27202,
+    "source": "postcode"
+  },
+  "BL1 8QQ": {
+    "lat": 53.599738,
+    "lon": -2.4351536,
+    "source": "postcode"
+  },
+  "BL1 1NB": {
+    "lat": 53.5772243,
+    "lon": -2.4297274,
+    "source": "postcode"
+  },
+  "BL1 4JE": {
+    "lat": 53.5865739,
+    "lon": -2.4512758,
+    "source": "postcode"
+  },
+  "BL4 9AJ": {
+    "lat": 53.546675,
+    "lon": -2.3921845,
+    "source": "postcode"
+  },
+  "BL2 1HA": {
+    "lat": 53.57073,
+    "lon": -2.41955,
+    "source": "postcode"
+  },
+  "BL6 7NT": {
+    "lat": 53.598764,
+    "lon": -2.5482751,
+    "source": "postcode"
+  },
+  "BL1 4QT": {
+    "lat": 53.5811136,
+    "lon": -2.4423262,
+    "source": "postcode"
+  },
+  "BL3 1HH": {
+    "lat": 53.5619162,
+    "lon": -2.3711925,
+    "source": "postcode"
+  },
+  "MARKET PLACE SHOPPING CENTRE, BOLTON": {
+    "lat": 53.58124,
+    "lon": -2.4302033,
+    "source": "address"
+  },
+  "BL2 2HN": {
+    "lat": 53.5896182,
+    "lon": -2.4121247,
+    "source": "postcode"
+  },
+  "BL5 3AH": {
+    "lat": 53.5485331,
+    "lon": -2.5206194,
+    "source": "postcode"
+  },
+  "BISPHAM ROAD, SOUTHPORT": {
+    "lat": 53.6472576,
+    "lon": -2.9727401,
+    "source": "address"
+  },
+  "LIVERPOOL ROAD, BURSCOUGH": {
+    "lat": 53.5871593,
+    "lon": -2.8631071,
+    "source": "address"
+  },
+  "LIVERPOOL, FORMBY": {
+    "lat": 53.5540935,
+    "lon": -3.0576698,
+    "source": "address"
+  },
+  "HESKETH BANK, WEST LANCASHIRE": {
+    "lat": 53.7085379,
+    "lon": -2.8469682,
+    "source": "address"
+  },
+  "CHAPEL STREET, SOUTHPORT": {
+    "lat": 53.6468651,
+    "lon": -3.0028279,
+    "source": "address"
+  },
+  "LA1 1BS": {
+    "lat": 54.0539544,
+    "lon": -2.7945548,
+    "source": "postcode"
+  },
+  "LA1 3PE": {
+    "lat": 54.0656841,
+    "lon": -2.7851915,
+    "source": "postcode"
+  },
+  "LA4 5DH": {
+    "lat": 54.0718009,
+    "lon": -2.8656778,
+    "source": "postcode"
+  },
+  "LA1 2HL": {
+    "lat": 54.0659955,
+    "lon": -2.8017259,
+    "source": "postcode"
+  },
+  "PR3 1LL": {
+    "lat": 53.9006434,
+    "lon": -2.7748033,
+    "source": "postcode"
+  },
+  "LA9 4HE": {
+    "lat": 54.325099,
+    "lon": -2.7479428,
+    "source": "postcode"
+  },
+  "LA1 1NB": {
+    "lat": 54.0487833,
+    "lon": -2.7990432,
+    "source": "postcode"
+  },
+  "LA1 1XF": {
+    "lat": 54.0470578,
+    "lon": -2.7998437,
+    "source": "postcode"
+  },
+  "LA4 6BY": {
+    "lat": 54.0780839,
+    "lon": -2.8391237,
+    "source": "postcode"
+  },
+  "LA12 7JP": {
+    "lat": 54.2000948,
+    "lon": -3.0869501,
+    "source": "postcode"
+  },
+  "LA11 6ED": {
+    "lat": 54.1961497,
+    "lon": -2.9051679,
+    "source": "postcode"
+  },
+  "LA12 7LN": {
+    "lat": 54.1952593,
+    "lon": -3.0952328,
+    "source": "postcode"
+  },
+  "LA14 1XU": {
+    "lat": 54.11669,
+    "lon": -3.23606,
+    "source": "postcode"
+  },
+  "LA15 8DL": {
+    "lat": 54.1564834,
+    "lon": -3.180795,
+    "source": "postcode"
+  },
+  "LA14 1JH": {
+    "lat": 54.1127904,
+    "lon": -3.225087,
+    "source": "postcode"
+  },
+  "LA14 4AG": {
+    "lat": 54.135,
+    "lon": -3.22884,
+    "source": "postcode"
+  },
+  "WN4 9AG": {
+    "lat": 53.486421,
+    "lon": -2.6375308,
+    "source": "postcode"
+  },
+  "M46 0DQ": {
+    "lat": 53.5237805,
+    "lon": -2.4924439,
+    "source": "postcode"
+  },
+  "WA3 3BJ": {
+    "lat": 53.4756198,
+    "lon": -2.5973721,
+    "source": "postcode"
+  },
+  "WN2 3AN": {
+    "lat": 53.5364133,
+    "lon": -2.5772042,
+    "source": "postcode"
+  },
+  "WN7 4NP": {
+    "lat": 53.496,
+    "lon": -2.5150005,
+    "source": "postcode"
+  },
+  "WN7 1AB": {
+    "lat": 53.4970714,
+    "lon": -2.5165328,
+    "source": "postcode"
+  },
+  "WN5 8BB": {
+    "lat": 53.5357511,
+    "lon": -2.6797467,
+    "source": "postcode"
+  },
+  "WN5 0UL": {
+    "lat": 53.54573,
+    "lon": -2.65541,
+    "source": "postcode"
+  },
+  "WN6 8HW": {
+    "lat": 53.56874,
+    "lon": -2.69577,
+    "source": "postcode"
+  },
+  "WN6 0HQ": {
+    "lat": 53.5862101,
+    "lon": -2.6623375,
+    "source": "postcode"
+  },
+  "FY2 0NS": {
+    "lat": 53.8439352,
+    "lon": -3.032865,
+    "source": "postcode"
+  },
+  "FY3 8BQ": {
+    "lat": 53.8248643,
+    "lon": -3.0391897,
+    "source": "postcode"
+  },
+  "FY1 5EE": {
+    "lat": 53.8108087,
+    "lon": -3.0481828,
+    "source": "postcode"
+  },
+  "FY2 9HR": {
+    "lat": 53.8495982,
+    "lon": -3.0517197,
+    "source": "postcode"
+  },
+  "FY5 1AG": {
+    "lat": 53.8771097,
+    "lon": -3.0420384,
+    "source": "postcode"
+  },
+  "108 VICTORIA ROAD WEST, THORNTON CLEVELEYS": {
+    "lat": 53.8769509,
+    "lon": -3.0409545,
+    "source": "address"
+  },
+  "FY6 7BA": {
+    "lat": 53.8476059,
+    "lon": -2.9918407,
+    "source": "postcode"
+  },
+  "FY3 7BE": {
+    "lat": 53.8265623,
+    "lon": -3.0354889,
+    "source": "postcode"
+  },
+  "FY4 1AB": {
+    "lat": 53.7989144,
+    "lon": -3.0523218,
+    "source": "postcode"
+  },
+  "FY7 6JZ": {
+    "lat": 53.9222528,
+    "lon": -3.0124537,
+    "source": "postcode"
+  },
+  "FY8 1SB": {
+    "lat": 53.7517057,
+    "lon": -3.0315258,
+    "source": "postcode"
+  },
+  "FY8 5EW": {
+    "lat": 53.737053,
+    "lon": -2.9608615,
+    "source": "postcode"
+  },
+  "FY4 2JE": {
+    "lat": 53.7858163,
+    "lon": -3.0435474,
+    "source": "postcode"
+  },
+  "PR4 2AJ": {
+    "lat": 53.7819644,
+    "lon": -2.8748896,
+    "source": "postcode"
+  },
+  "FY5 1NJ": {
+    "lat": 53.8667394,
+    "lon": -3.0387143,
+    "source": "postcode"
+  },
+  "FY8 4BX": {
+    "lat": 53.742248,
+    "lon": -2.9919038,
+    "source": "postcode"
+  },
+  "FY7 6JW": {
+    "lat": 53.9221769,
+    "lon": -3.0082003,
+    "source": "postcode"
+  },
+  "FY8 1QS": {
+    "lat": 53.7516468,
+    "lon": -3.0283904,
+    "source": "postcode"
+  },
+  "FY8 1TG": {
+    "lat": 53.75341,
+    "lon": -3.02538,
+    "source": "postcode"
+  },
+  "FY8 5EP": {
+    "lat": 53.737487,
+    "lon": -2.9580082,
+    "source": "postcode"
+  },
+  "FY6 0AE": {
+    "lat": 53.9283878,
+    "lon": -2.9886986,
+    "source": "postcode"
+  },
+  "FY3 9BE": {
+    "lat": 53.81829,
+    "lon": -3.03532,
+    "source": "postcode"
+  },
+  "FY4 4ND": {
+    "lat": 53.7961544,
+    "lon": -3.0207561,
+    "source": "postcode"
+  },
+  "FY5 1BU": {
+    "lat": 53.8775367,
+    "lon": -3.0449649,
+    "source": "postcode"
+  },
+  "FY8 5LW": {
+    "lat": 53.7372142,
+    "lon": -2.9643184,
+    "source": "postcode"
+  },
+  "FY6 7AY": {
+    "lat": 53.8468312,
+    "lon": -2.9922418,
+    "source": "postcode"
+  },
+  "18A WEST END, GREAT ECCLESTON": {
+    "lat": 53.8553641,
+    "lon": -2.8773185,
+    "source": "address"
+  },
+  "WN7 4NB": {
+    "lat": 53.496457,
+    "lon": -2.5173271,
+    "source": "postcode"
+  },
+  "BB1 7DJ": {
+    "lat": 53.7490157,
+    "lon": -2.4842759,
+    "source": "postcode"
+  },
+  "BL5 3AG": {
+    "lat": 53.5487378,
+    "lon": -2.5222566,
+    "source": "postcode"
+  },
+  "BL6 7AD": {
+    "lat": 53.5994781,
+    "lon": -2.5467433,
+    "source": "postcode"
+  },
+  "PR7 3AH": {
+    "lat": 53.6493217,
+    "lon": -2.6294404,
+    "source": "postcode"
+  },
+  "WA1 2BN": {
+    "lat": 53.3881551,
+    "lon": -2.5883538,
+    "source": "postcode"
+  },
+  "WA4 6LG": {
+    "lat": 53.3698304,
+    "lon": -2.5804306,
+    "source": "postcode"
+  },
+  "WA3 7PG": {
+    "lat": 53.4142155,
+    "lon": -2.5284104,
+    "source": "postcode"
+  },
+  "WA13 0HP": {
+    "lat": 53.3808252,
+    "lon": -2.4779026,
+    "source": "postcode"
+  },
+  "WA1 1TD": {
+    "lat": 53.3892968,
+    "lon": -2.5954945,
+    "source": "postcode"
+  },
+  "WA4 1JR": {
+    "lat": 53.3795694,
+    "lon": -2.5616873,
+    "source": "postcode"
+  },
+  "WA5 1UH": {
+    "lat": 53.3921671,
+    "lon": -2.6286711,
+    "source": "postcode"
+  },
+  "OL16 4PZ": {
+    "lat": 53.5975899,
+    "lon": -2.13932,
+    "source": "postcode"
+  },
+  "OL15 9BA": {
+    "lat": 53.64456,
+    "lon": -2.0970399,
+    "source": "postcode"
+  },
+  "OL16 4SZ": {
+    "lat": 53.6031477,
+    "lon": -2.1460423,
+    "source": "postcode"
+  },
+  "OL16 1UD": {
+    "lat": 53.61352,
+    "lon": -2.1506,
+    "source": "postcode"
+  },
+  "M24 5TF": {
+    "lat": 53.55016,
+    "lon": -2.1991299,
+    "source": "postcode"
+  },
+  "OL10 1LT": {
+    "lat": 53.5928835,
+    "lon": -2.2174012,
+    "source": "postcode"
+  },
+  "OL16 4BU": {
+    "lat": 53.6078599,
+    "lon": -2.1181998,
+    "source": "postcode"
+  },
+  "CA1 1BZ": {
+    "lat": 54.893922,
+    "lon": -2.9327828,
+    "source": "postcode"
+  },
+  "CA3 8ED": {
+    "lat": 54.8955359,
+    "lon": -2.9339692,
+    "source": "postcode"
+  },
+  "CA11 7SR": {
+    "lat": 54.6643746,
+    "lon": -2.7529423,
+    "source": "postcode"
+  },
+  "CA2 5BT": {
+    "lat": 54.8910651,
+    "lon": -2.9399898,
+    "source": "postcode"
+  },
+  "CA14 3DZ": {
+    "lat": 54.64351,
+    "lon": -3.54601,
+    "source": "postcode"
+  },
+  "CA13 9QW": {
+    "lat": 54.6627774,
+    "lon": -3.3642821,
+    "source": "postcode"
+  },
+  "WA8 8HR": {
+    "lat": 53.367698,
+    "lon": -2.7687262,
+    "source": "postcode"
+  },
+  "781 WHALLEY NEW ROAD, WILPSHIRE": {
+    "lat": 53.7920011,
+    "lon": -2.4662777,
+    "source": "address-retry"
+  },
+  "STATION ROAD, AINSDALE, SOUTHPORT": {
+    "lat": 53.6021477,
+    "lon": -3.0386708,
+    "source": "address-retry"
+  },
+  "CAMBRIDGE ROAD, NORTH CHURCHTOWN": {
+    "lat": 53.6601608,
+    "lon": -2.9638257,
+    "source": "address-retry"
+  }
+}

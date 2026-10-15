@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { Fragment, useEffect, useMemo } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -10,12 +10,14 @@ import {
   Popup,
 } from 'react-leaflet';
 import L from 'leaflet';
-import type { Hospice, Practice, Catchment } from '../lib/types';
+import type { Hospice, Practice, Catchment, Shop } from '../lib/types';
 
 interface Props {
   hospices: Hospice[];
   practices: Practice[];
   catchments: Catchment[];
+  shops: Shop[];
+  showShops: boolean;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
 }
@@ -30,7 +32,10 @@ function FitToSelection({ selectedId, catchments, hospices }: {
   const target = useMemo(() => {
     if (!selectedId) return null;
     const c = catchments.find((x) => x.hospiceId === selectedId);
-    if (c?.polygon && c.polygon.length) return L.latLngBounds(c.polygon.map((p) => [p.lat, p.lon] as [number, number]));
+    if (c?.polygons?.length) {
+      const pts = c.polygons.flat();
+      if (pts.length) return L.latLngBounds(pts.map((p) => [p.lat, p.lon] as [number, number]));
+    }
     const h = hospices.find((x) => x.id === selectedId);
     if (h && h.lat != null && h.lon != null)
       return L.latLngBounds([[h.lat, h.lon] as [number, number], [h.lat, h.lon] as [number, number]]).pad(0.3);
@@ -73,7 +78,41 @@ function HospiceMarker({ hospice, dimmed, onSelect }: {
   );
 }
 
-export default function MapView({ hospices, practices, catchments, selectedId, onSelect }: Props) {
+const SHOP_OUTSIDE_COLOR = '#e07b00';
+
+function ShopMarker({ shop, hospiceColor, dimmed, onSelect }: {
+  shop: Shop;
+  hospiceColor: string;
+  dimmed: boolean;
+  onSelect: (id: string | null) => void;
+}) {
+  const color = shop.outsideCatchment ? SHOP_OUTSIDE_COLOR : hospiceColor;
+  const icon = L.divIcon({
+    className: 'shop-marker-wrap',
+    html: `<span class="shop-marker" style="background:${color};opacity:${dimmed ? 0.25 : 1}"></span>`,
+    iconSize: [10, 10],
+    iconAnchor: [5, 5],
+  });
+  return (
+    <Marker position={[shop.lat, shop.lon]} icon={icon} eventHandlers={{ click: () => onSelect(shop.hospiceId) }}>
+      <Tooltip>
+        <strong>{shop.name}</strong>
+        <br />
+        {shop.address}{shop.postcode ? ` · ${shop.postcode}` : ''}
+        {shop.outsideCatchment ? (
+          <>
+            <br />
+            <span className="fw-semibold" style={{ color: SHOP_OUTSIDE_COLOR }}>
+              ⚠ Outside its own catchment
+            </span>
+          </>
+        ) : null}
+      </Tooltip>
+    </Marker>
+  );
+}
+
+export default function MapView({ hospices, practices, catchments, shops, showShops, selectedId, onSelect }: Props) {
   const visiblePractices = useMemo(
     () => practices.filter((p) => p.lat != null && p.lon != null),
     [practices]
@@ -82,6 +121,7 @@ export default function MapView({ hospices, practices, catchments, selectedId, o
     () => hospices.filter((h) => h.lat != null && h.lon != null),
     [hospices]
   );
+  const visibleShops = useMemo(() => (showShops ? shops : []), [shops, showShops]);
 
   return (
     <MapContainer
@@ -95,28 +135,35 @@ export default function MapView({ hospices, practices, catchments, selectedId, o
       />
       <FitToSelection selectedId={selectedId} catchments={catchments} hospices={hospices} />
 
-      {/* catchment envelopes */}
+      {/* catchment areas (Voronoi-derived; adjacent areas share an edge) */}
       {catchments.map((c) => {
-        if (!c.polygon || c.polygon.length < 3) return null;
+        const rings = c.polygons ?? [];
+        if (!rings.length) return null;
         const hospColor = hospices.find((h) => h.id === c.hospiceId)?.color ?? '#666';
         const dim = selectedId !== null && selectedId !== c.hospiceId;
         return (
-          <Polygon
-            key={c.hospiceId}
-            positions={c.polygon.map((p) => [p.lat, p.lon] as [number, number])}
-            pathOptions={{
-              color: hospColor,
-              weight: selectedId === c.hospiceId ? 3 : 1.5,
-              opacity: dim ? 0.15 : 0.7,
-              fillColor: hospColor,
-              fillOpacity: dim ? 0.02 : selectedId === c.hospiceId ? 0.16 : 0.07,
-            }}
-            eventHandlers={{ click: () => onSelect(c.hospiceId) }}
-          >
-            <Tooltip sticky>
-              {c.name} — {c.practiceCount} GP practice{c.practiceCount === 1 ? '' : 's'}
-            </Tooltip>
-          </Polygon>
+          <Fragment key={c.hospiceId}>
+            {rings.map((ring, i) => (
+              <Polygon
+                key={`${c.hospiceId}-r${i}`}
+                positions={ring.map((p) => [p.lat, p.lon] as [number, number])}
+                pathOptions={{
+                  color: hospColor,
+                  weight: selectedId === c.hospiceId ? 3 : 1.5,
+                  opacity: dim ? 0.15 : 0.7,
+                  fillColor: hospColor,
+                  fillOpacity: dim ? 0.02 : selectedId === c.hospiceId ? 0.16 : 0.07,
+                }}
+                eventHandlers={{ click: () => onSelect(c.hospiceId) }}
+              >
+                {i === 0 && (
+                  <Tooltip sticky>
+                    {c.name} — {c.practiceCount} GP practice{c.practiceCount === 1 ? '' : 's'}
+                  </Tooltip>
+                )}
+              </Polygon>
+            ))}
+          </Fragment>
         );
       })}
 
@@ -147,6 +194,21 @@ export default function MapView({ hospices, practices, catchments, selectedId, o
               </span>
             </Tooltip>
           </CircleMarker>
+        );
+      })}
+
+      {/* charity shops */}
+      {visibleShops.map((s) => {
+        const hosp = hospices.find((h) => h.id === s.hospiceId);
+        const dim = selectedId !== null && s.hospiceId !== selectedId;
+        return (
+          <ShopMarker
+            key={s.id}
+            shop={s}
+            hospiceColor={hosp?.color ?? '#666'}
+            dimmed={dim}
+            onSelect={onSelect}
+          />
         );
       })}
 

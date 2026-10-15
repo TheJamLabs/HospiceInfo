@@ -29,5 +29,19 @@ export interface Catchment {
   kind: 'published' | 'approx';
   outcodes: string[];
   practiceCount: number;
-  polygon: { lat: number; lon: number }[] | null;
+  // One or more rings (Voronoi-derived; multi-ring = union of cells).
+  polygons: { lat: number; lon: number }[][] | null;
+}
+
+export interface Shop {
+  id: string;
+  name: string;
+  address: string;
+  postcode: string | null;
+  lat: number;
+  lon: number;
+  hospiceId: string;
+  // True when the shop sits outside its own hospice's catchment polygon.
+  outsideCatchment: boolean;
+  source: string;
 }

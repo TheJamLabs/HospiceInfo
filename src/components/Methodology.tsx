@@ -1,20 +1,23 @@
 import { useMemo } from 'react';
-import type { Hospice, Practice, Catchment } from '../lib/types';
+import type { Hospice, Practice, Catchment, Shop } from '../lib/types';
 
 interface Props {
   hospices: Hospice[] | null;
   practices: Practice[] | null;
   catchments: Catchment[] | null;
+  shops: Shop[] | null;
 }
 
-export default function Methodology({ hospices, practices, catchments }: Props) {
+export default function Methodology({ hospices, practices, catchments, shops }: Props) {
   const stats = useMemo(() => {
     if (!hospices || !practices || !catchments) return null;
     const published = hospices.filter((h) => h.kind === 'published').length;
     const approx = hospices.filter((h) => h.kind === 'approx').length;
     const unassigned = practices.filter((p) => p.hospiceId === null).length;
-    return { published, approx, unassigned, total: practices.length };
-  }, [hospices, practices, catchments]);
+    const shopsTotal = shops?.length ?? 0;
+    const shopsOutside = shops?.filter((s) => s.outsideCatchment).length ?? 0;
+    return { published, approx, unassigned, total: practices.length, shopsTotal, shopsOutside };
+  }, [hospices, practices, catchments, shops]);
 
   return (
     <div
@@ -36,8 +39,15 @@ export default function Methodology({ hospices, practices, catchments }: Props) 
             {stats && (
               <p className="mb-3">
                 <strong>{hospices!.length} hospices</strong> ({stats.published} with a published service area,{' '}
-                {stats.approx} approximated) and <strong>{stats.total} GP practices</strong>
-                {stats.unassigned ? `, of which ${stats.unassigned} fall outside every catchment` : ''}.
+                {stats.approx} approximated), <strong>{stats.total} GP practices</strong>
+                {stats.unassigned ? `, of which ${stats.unassigned} fall outside every catchment` : ''}
+                {stats.shopsTotal > 0 ? (
+                  <>
+                    , and <strong>{stats.shopsTotal} charity shops</strong>
+                    {stats.shopsOutside > 0 ? `, ${stats.shopsOutside} of them outside their own catchment` : ''}
+                  </>
+                ) : null}
+                .
               </p>
             )}
             <h3 className="h6">How this map is built</h3>
@@ -57,14 +67,23 @@ export default function Methodology({ hospices, practices, catchments }: Props) 
                 <span className="badge bg-warning-subtle text-warning-emphasis ms-1">approx.</span>).
               </li>
               <li>
-                Each postcode area (outcode) is assigned to the hospice whose catchment includes it. Postcodes
-                claimed by more than one catchment are given to the <em>nearest</em> hospice. Postcodes outside
-                every catchment fall to the nearest hospice within ~50&nbsp;km, and any leftovers are left
-                unassigned.
+                Each practice’s postcode area (outcode) is assigned to the hospice whose catchment includes it.
+                Outcodes claimed by more than one catchment — and any outcode claimed by none — are given to the
+                <em> nearest</em> hospice. The result is a complete partition: every practice belongs to exactly
+                one catchment.
               </li>
               <li>
-                Each practice is geocoded to its <strong>postcode unit</strong> (OpenStreetMap Nominatim), and the
-                catchment envelope is the <strong>convex hull</strong> of the practices assigned to that hospice.
+                Each practice is geocoded to its <strong>postcode unit</strong> (OpenStreetMap Nominatim). Boundaries
+                between catchments are then computed as a <strong>Voronoi tessellation</strong> of the practice
+                and hospice-site points: adjacent catchments share a continuous edge, so the areas tile the map
+                with no overlap and no gaps.
+              </li>
+              <li>
+                <strong>Charity shops</strong> are listed by each hospice on its own website (18 of the 20
+                hospices publish a shop list; the others’ sites are unreachable or state no shops). Shop
+                addresses are geocoded with Nominatim. A shop is flagged <em>outside its own catchment</em>
+                when its point falls outside its hospice’s catchment polygon — i.e. it fundraises beyond the
+                area that hospice serves.
               </li>
             </ol>
             <h3 className="h6">Important caveats — this is an approximation</h3>
@@ -82,6 +101,10 @@ export default function Methodology({ hospices, practices, catchments }: Props) 
                 publish one — so several envelopes are estimates.
               </li>
               <li>Geocoding is by postcode unit centroid; a practice may sit a short distance from its unit centre.</li>
+              <li>
+                The crisp, shared boundaries are a geometry derived from practice locations (Voronoi); the real
+                switch between two hospices in service terms would be fuzzier than this.
+              </li>
             </ul>
             <h3 className="h6">Data &amp; updates</h3>
             <p className="small">

@@ -16,9 +16,12 @@ methodology and caveats.
 
 - **Diamond markers** — hospice sites (coloured per hospice)
 - **Dots** — each GP practice (CQC register, Oct 2026), coloured by the
-  catchment it is assigned to; grey = outside every catchment
-- **Envelopes** — convex hull (buffered) of the practices assigned to a
-  hospice, i.e. an approximation of its footprint in this area
+  catchment it is assigned to
+- **Areas** — each hospice's catchment, computed as a Voronoi tessellation
+  of the practice + hospice-site points, so adjacent areas share a
+  continuous edge (they tile the map: no gaps, no overlap)
+- **Squares** — each hospice's charity shops (toggle in the header);
+  orange squares are shops that sit *outside* their own catchment
 - Side panel with search + list, bottom-right legend
 
 ## Quick start
@@ -51,14 +54,18 @@ without re-downloading anything.
 | 1. Extract | `scripts/extract-gp-practices.mjs` | `data-raw/cqc-directory-2026-10.csv` | `data-raw/gp-practices-target.json` (643 GP practice locations) |
 | 2. Geocode | `scripts/geocode-postcodes.mjs` | practice + hospice postcodes | `data-raw/postcode-geo.csv` (552 areas, OSM Nominatim, 1 req/s, resumable) |
 | 3. Catchments | `scripts/catchment-map.mjs` | hospice websites / CQC | 20 catchment definitions (published vs approx outcodes) |
-| 4. Build | `scripts/build-data.mjs` | 1–3 | `public/data/hospices.json`, `practices.json`, `catchments.json` |
+| 4. Shops | `data-raw/shops-website.json` + `data-raw/shops-geo.json` (curated from hospice websites; Nominatim, see `scripts/geocode-shops.mjs`) | — | 138 charity shops with `outsideCatchment` flag |
+| 5. Build | `scripts/build-data.mjs` | 1–4 | `public/data/hospices.json`, `practices.json`, `catchments.json`, `shops.json` |
 
 Assignment rule: a practice's postcode outcode is checked against each
-catchment's outcode list; a single match wins, ties go to the nearest
-hospice (haversine), and practices outside every catchment fall to the
-nearest hospice within 50 km (one CA17 practice remains unassigned).
+catchment's outcode list; a single match wins; ties and outcodes claimed by
+none go to the nearest hospice (haversine). The result is a **complete
+partition**: 643/643 practices are assigned to exactly one catchment.
+Catchment boundaries are then computed as a Voronoi tessellation of the
+practice + hospice-site points, so adjacent areas share an edge.
 
-Current state: 643 practices, 642 assigned to a catchment, 1 unassigned.
+Current state: 643 practices, all assigned; 138 charity shops, 13 of them
+outside their own hospice's catchment.
 
 ## Updating the data
 
