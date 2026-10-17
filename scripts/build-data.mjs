@@ -1,89 +1,121 @@
-// Builds the app's data files from the raw extracts:
-//   data-raw/gp-practices-target.json  (CQC directory extract)
-//   data-raw/postcode-geo.csv          (Nominatim geocoding)
-//   scripts/catchment-map.mjs          (hospice list + catchment outcodes)
-//   data-raw/shops-website.json        (charity shop list, scraped from hospice websites)
-//   data-raw/shops-geo.json            (Nominatim geocoding of those addresses)
+// Builds the app's data files from the UK register extracts (work list item 14):
+//   data-raw/hospices-all.json           (merged nation registers, item 10)
+//   data-raw/gp-practices-{en,sc,ni,wales}.json
+//   data-raw/postcode-geo.csv            (Nominatim geocoding, items 12-13)
+//   scripts/catchment-map.mjs            (20 curated EN catchments — provenance + shop id remap only, ADR-0005)
+//   data-raw/shops-website.json          (charity shop list, scraped from hospice websites)
+//   data-raw/shops-geo.json              (Nominatim geocoding of those addresses)
 // Emits:
-//   public/data/hospices.json          (id, name, town, lat, lon, color, kind, source)
-//   public/data/practices.json         (id, name, address, postcode, lat, lon, outcode, hospiceId)
-//   public/data/catchments.json        (hospiceId, polygons, practiceCount, outcodes, kind)
-//   public/data/shops.json             (id, name, address, postcode, lat, lon, hospiceId, outsideCatchment, source)
+//   public/data/hospices.json    (id, name, town, postcode, lat, lon, color, kind, source, website, cqcUrl, curated, nation)
+//   public/data/practices.json   (id, name, address, postcode, lat, lon, nation, hospiceId)
+//   public/data/catchments.json  (hospiceId, name, nation, kind, curated, practiceCount, polygons)
+//   public/data/shops.json       (id, name, address, postcode, lat, lon, hospiceId, outsideCatchment, source)
 //
-// Envelopes: every practice is assigned to exactly one hospice (see assignment
-// rule below), then a Voronoi tessellation of the practice + hospice-site
-// points gives each hospice a polygon (union of its cells). Adjacent
-// catchments therefore share a continuous edge: no overlaps, no gaps.
+// Envelopes (ADR-0005): every geocoded practice is assigned to exactly ONE
+// hospice — the nearest hospice site (haversine). No postcode-outcode matching,
+// no hand-pinned catchments. A Voronoi tessellation of the practice +
+// hospice-site points over the UK box gives each hospice a polygon (union of
+// its cells): adjacent catchments share a continuous edge — no overlaps, no
+// gaps. A hospice whose postcode has no coordinate yet is unplaced (logged);
+// it receives no polygon and no practices.
 import fs from 'node:fs';
 import { Delaunay } from 'd3-delaunay';
 import polygonClipping from 'polygon-clipping';
 import { CATCHMENTS } from './catchment-map.mjs';
 const { union } = polygonClipping;
 
+// ADR-0002 id remap: the 20 legacy catchment slugs used by the scraped shop
+// list (data-raw/shops-website.json) map 1:1 to the canonical `en-<cqcId>`
+// identities. The build fails if a shop id does not resolve.
+const SLUG_TO_ID = Object.fromEntries(
+  CATCHMENTS.map((c) => [c.id, `en-${(c.cqcUrl.match(/location\/(1-\d+)/) || [])[1]}`])
+);
+
+// UK tessellation box (ADR-0001: wide enough to include all four nations).
+const BOX = [-9.5, 49.5, 2.0, 61.5]; // [x0, y0, x1, y1] = [west, south, east, north]
+
+// ADR-0004: deterministic per-hospice colour from its canonical id —
+// FNV-1a 32-bit hash → hue mod 360 → hsl(hue, 65%, 45%) as hex. No palette.
+function fnv1a(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+function hashToColor(id) {
+  const hue = fnv1a(id) % 360;
+  const s = 0.65, l = 0.45;
+  const a = s * Math.min(l, 1 - l);
+  const f = (n) => {
+    const k = (n + hue / 30) % 12;
+    const c = l - a * Math.max(-1, Math.min(k - 3, Math.min(9 - k, 1)));
+    return Math.round(255 * c).toString(16).padStart(2, '0');
+  };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+
 // ---- load inputs -----------------------------------------------------------
-const practices = JSON.parse(fs.readFileSync('data-raw/gp-practices-target.json', 'utf8'));
-const geoRows = fs.readFileSync('data-raw/postcode-geo.csv', 'utf8').split(/\r?\n/).filter(Boolean).slice(1);
+const hospicesAll = JSON.parse(fs.readFileSync('data-raw/hospices-all.json', 'utf8'));
+const PRACTICE_FILES = {
+  en: 'data-raw/gp-practices-en.json',
+  sc: 'data-raw/gp-practices-sc.json',
+  ni: 'data-raw/gp-practices-ni.json',
+  wales: 'data-raw/gp-practices-wales.json',
+};
+const practices = [];
+for (const [nation, f] of Object.entries(PRACTICE_FILES)) {
+  for (const p of JSON.parse(fs.readFileSync(f, 'utf8'))) practices.push({ ...p, nation });
+}
+const geoRows = fs
+  .readFileSync('data-raw/postcode-geo.csv', 'utf8')
+  .split(/\r?\n/)
+  .filter(Boolean)
+  .slice(1);
 const geo = new Map();
 for (const line of geoRows) {
   const [pc, lat, lon] = line.split(',');
-  if (lat && lon) geo.set(pc.toUpperCase(), { lat: Number(lat), lon: Number(lon) });
+  if (lat && lon) geo.set(pc, { lat: Number(lat), lon: Number(lon) });
 }
+const geoOf = (postcode) => geo.get((postcode || '').toUpperCase()) ?? null;
 
-// ---- hospice locations: geocode their unit postcodes if we have them -------
-// The geocoder covered practice postcodes; hospice units are fetched here if present.
-const hospiceLatLon = new Map();
-for (const h of CATCHMENTS) {
-  const g = geo.get(h.postcode.toUpperCase());
-  if (g) hospiceLatLon.set(h.id, g);
-}
-const missingHospiceGeo = CATCHMENTS.filter((h) => !hospiceLatLon.has(h.id)).map((h) => h.postcode);
-console.log(`hospices geocoded from practice-geo file: ${hospiceLatLon.size}/${CATCHMENTS.length}`, missingHospiceGeo.length ? `missing: ${missingHospiceGeo.join(', ')}` : '');
-
-// ---- palette: 20 clearly distinguishable colors -----------------------------
-const PALETTE = [
-  '#1f77b4', '#d62728', '#2ca02c', '#9467bd', '#ff7f0e',
-  '#17becf', '#bcbd22', '#e377c2', '#8c564b', '#393b79',
-  '#0f766e', '#7c3aed', '#be123c', '#15803d', '#a16207',
-  '#1d4ed8', '#9d174d', '#4d7c0f', '#5b21b6', '#0e7490',
-];
-
-const hospicesOut = CATCHMENTS.map((h, i) => {
-  const ll = hospiceLatLon.get(h.id) ?? null;
+// ---- hospices ----------------------------------------------------------------
+const hospicesOut = hospicesAll.map((h) => {
+  const g = geoOf(h.postcode);
   return {
     id: h.id,
     name: h.name,
     town: h.town,
     postcode: h.postcode,
-    lat: ll ? ll.lat : null,
-    lon: ll ? ll.lon : null,
-    color: PALETTE[i % PALETTE.length],
+    lat: g ? g.lat : null,
+    lon: g ? g.lon : null,
+    color: hashToColor(h.id),
     kind: h.kind,
     source: h.source,
-    website: h.website,
-    cqcUrl: h.cqcUrl,
+    website: h.website || '',
+    cqcUrl: h.cqcUrl || '',
+    curated: !!h.curated,
+    nation: h.nation,
   };
 });
+const unplacedHospices = hospicesOut.filter((h) => h.lat == null).length;
+console.log(`hospices: ${hospicesOut.length} (unplaced: ${unplacedHospices})`);
 
-// ---- practice -> hospice assignment ------------------------------------------
-const outcodeOf = (pc) => pc.split(' ')[0].toUpperCase();
-
-const byCatchment = new Map(); // practice idx -> list of hospice ids whose outcodes match
+// ---- practices + assignment (nearest-hospice rule, ADR-0005) -------------------
 const missingGeo = [];
-const practicesOut = practices.map((p, i) => {
-  const g = geo.get(p.postcode.toUpperCase());
-  if (!g) {
-    missingGeo.push(p.postcode);
-    return {
-      id: i, name: p.name, address: p.address, postcode: p.postcode,
-      lat: null, lon: null, outcode: outcodeOf(p.postcode), hospiceId: null,
-    };
-  }
-  const oc = outcodeOf(p.postcode);
-  const matches = CATCHMENTS.filter((h) => h.outcodes.includes(oc)).map((h) => h.id);
-  byCatchment.set(i, matches);
+const practicesOut = practices.map((p) => {
+  const g = geoOf(p.postcode);
+  if (!g) missingGeo.push(p.postcode);
   return {
-    id: i, name: p.name, address: p.address, postcode: p.postcode,
-    lat: g.lat, lon: g.lon, outcode: oc, hospiceId: null,
+    id: p.id,
+    name: p.name,
+    address: p.address,
+    postcode: p.postcode,
+    lat: g ? g.lat : null,
+    lon: g ? g.lon : null,
+    nation: p.nation,
+    hospiceId: null,
   };
 });
 
@@ -98,74 +130,63 @@ function distKm(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-const hospById = new Map(hospicesOut.map((h) => [h.id, h]));
-const nearestHospiceIds = (p, candidates) => {
-  let best = null, bestD = Infinity;
-  for (const id of candidates) {
-    const h = hospById.get(id);
-    if (!h?.lat) continue;
-    const d = distKm(p, h);
-    if (d < bestD) { bestD = d; best = id; }
-  }
-  return best;
-};
+const placed = hospicesOut.filter((h) => h.lat != null);
 let unassigned = 0;
 for (const p of practicesOut) {
-  if (p.lat == null) { unassigned++; continue; }
-  const matches = byCatchment.get(p.id) || [];
-  if (matches.length === 1) {
-    // exactly one published catchment claims this outcode
-    p.hospiceId = matches[0];
-  } else {
-    // tie (overlapping catchments) or no published match:
-    // nearest hospice site wins, so every practice gets a catchment
-    p.hospiceId =
-      nearestHospiceIds(p, matches.length ? matches : CATCHMENTS.map((h) => h.id)) ?? null;
-    if (!p.hospiceId) unassigned++;
+  if (p.lat == null || !placed.length) { unassigned++; continue; }
+  let best = null, bestD = Infinity;
+  for (const h of placed) {
+    const d = distKm(p, h);
+    if (d < bestD) { bestD = d; best = h.id; }
   }
+  if (best) p.hospiceId = best;
+  else unassigned++;
 }
 
 // ---- catchment polygons (Voronoi tessellation) --------------------------------
-// Vertices: every assigned practice point plus each hospice site (so a
-// hospice always owns a non-empty cell). Each Voronoi cell keeps its
+// Vertices: every assigned geocoded practice plus each placed hospice site (so
+// a placed hospice always owns a non-empty cell). Each Voronoi cell keeps its
 // practice/hospice label; cells per label are unioned into one polygon.
 const vertices = [];
 const labels = [];
 for (const p of practicesOut) {
   if (p.lat != null && p.hospiceId) { vertices.push({ lat: p.lat, lon: p.lon }); labels.push(p.hospiceId); }
 }
-for (const h of hospicesOut) {
-  if (h.lat != null) { vertices.push({ lat: h.lat, lon: h.lon }); labels.push(h.id); }
+for (const h of placed) {
+  vertices.push({ lat: h.lat, lon: h.lon });
+  labels.push(h.id);
 }
-const voronoi = Delaunay.from(vertices, (v) => v.lon, (v) => v.lat).voronoi([
-  -3.8, 52.9, // x0, y0 (west, south)
-  -1.9, 55.05, // x1, y1 (east, north)
-]);
+const voronoi = vertices.length
+  ? Delaunay.from(vertices, (v) => v.lon, (v) => v.lat).voronoi(BOX)
+  : null;
 const ringsByLabel = new Map();
-for (let i = 0; i < vertices.length; i++) {
-  const ring = voronoi.cellPolygon(i);
-  if (!ring) continue;
-  const id = labels[i];
-  if (!ringsByLabel.has(id)) ringsByLabel.set(id, []);
-  ringsByLabel.get(id).push(ring); // ring: [x, y][]
+if (voronoi) {
+  for (let i = 0; i < vertices.length; i++) {
+    const ring = voronoi.cellPolygon(i);
+    if (!ring) continue;
+    const id = labels[i];
+    if (!ringsByLabel.has(id)) ringsByLabel.set(id, []);
+    ringsByLabel.get(id).push(ring); // ring: [x, y][]
+  }
 }
 const polygonsByLabel = new Map();
 for (const [id, rings] of ringsByLabel) {
-  // union expects array of polygons (each = array of rings of [x, y])
   const merged = union(rings.map((ring) => [ring]));
-  const out = merged.flatMap((poly) => poly.map((r) => r.map(([x, y]) => ({ lat: y, lon: x }))))
+  const out = merged
+    .flatMap((poly) => poly.map((r) => r.map(([x, y]) => ({ lat: y, lon: x }))))
     .filter((pts) => pts.length >= 3);
   polygonsByLabel.set(id, out);
 }
 console.log(`voronoi: ${vertices.length} vertices, ${new Set(labels).size} labelled cells`);
 
-const catchmentsOut = CATCHMENTS.map((h) => {
+const catchmentsOut = placed.map((h) => {
   const pts = practicesOut.filter((p) => p.hospiceId === h.id && p.lat != null);
   return {
     hospiceId: h.id,
     name: h.name,
+    nation: h.nation,
     kind: h.kind,
-    outcodes: h.outcodes,
+    curated: h.curated,
     practiceCount: pts.length,
     polygons: polygonsByLabel.get(h.id) ?? [],
   };
@@ -193,11 +214,14 @@ const shopGeo = JSON.parse(fs.readFileSync('data-raw/shops-geo.json', 'utf8'));
 const shopRows = JSON.parse(fs.readFileSync('data-raw/shops-website.json', 'utf8'));
 const catchmentRings = new Map(catchmentsOut.map((c) => [c.hospiceId, c.polygons]));
 let shopGeoMissing = 0;
+let shopsUnresolved = 0;
 const shopsOut = [];
 for (const [i, s] of shopRows.entries()) {
   const g = shopGeo[s.postcode ?? s.address.join(', ').toUpperCase()];
   if (!g?.lat) { shopGeoMissing++; continue; }
-  const rings = catchmentRings.get(s.hospiceId) ?? [];
+  const hospiceId = SLUG_TO_ID[s.hospiceId];
+  if (!hospiceId) { shopsUnresolved++; continue; }
+  const rings = catchmentRings.get(hospiceId) ?? [];
   shopsOut.push({
     id: `shop-${i}`,
     name: s.name,
@@ -205,13 +229,14 @@ for (const [i, s] of shopRows.entries()) {
     postcode: s.postcode,
     lat: g.lat,
     lon: g.lon,
-    hospiceId: s.hospiceId,
+    hospiceId,
     outsideCatchment: !pointInRings(g.lat, g.lon, rings),
     source: s.source,
   });
 }
 const shopsOutside = shopsOut.filter((s) => s.outsideCatchment).length;
-console.log(`shops: ${shopsOut.length} (geo missing ${shopGeoMissing}); outside own catchment: ${shopsOutside}`);
+console.log(`shops: ${shopsOut.length} (geo missing ${shopGeoMissing}); outside own catchment: ${shopsOutside}; unresolved ids: ${shopsUnresolved}`);
+if (shopsUnresolved) process.exit(1);
 const outsideByHospice = new Map();
 for (const s of shopsOut) {
   if (s.outsideCatchment) outsideByHospice.set(s.hospiceId, (outsideByHospice.get(s.hospiceId) ?? 0) + 1);
@@ -227,8 +252,12 @@ fs.writeFileSync('public/data/shops.json', JSON.stringify(shopsOut, null, 2));
 
 // ---- report ---------------------------------------------------------------------
 console.log(`practices: ${practicesOut.length} (geocoded ${practicesOut.length - missingGeo.length}, missing ${missingGeo.length})`);
-if (missingGeo.length) console.log('missing geo:', [...new Set(missingGeo)].slice(0, 30).join(' '));
-const perHospice = catchmentsOut.map((c) => `${c.name}=${c.practiceCount}`).join('  ');
-console.log(`assigned to a catchment: ${practicesOut.filter((p) => p.hospiceId).length}, unassigned: ${unassigned}`);
-console.log(perHospice);
-console.log('wrote public/data/{hospices,practices,catchments}.json');
+if (missingGeo.length) console.log(`missing geo (first 30): ${[...new Set(missingGeo)].slice(0, 30).join(' ')}`);
+console.log(`assigned: ${practicesOut.filter((p) => p.hospiceId).length}, unassigned: ${unassigned}`);
+const perNation = new Map();
+for (const p of practicesOut) perNation.set(p.nation, (perNation.get(p.nation) ?? 0) + 1);
+console.log(`per-nation practices: en=${perNation.get('en') ?? 0} sc=${perNation.get('sc') ?? 0} ni=${perNation.get('ni') ?? 0} wales=${perNation.get('wales') ?? 0}`);
+const perNationAssigned = new Map();
+for (const p of practicesOut) if (p.hospiceId) perNationAssigned.set(p.nation, (perNationAssigned.get(p.nation) ?? 0) + 1);
+console.log(`per-nation assigned: en=${perNationAssigned.get('en') ?? 0} sc=${perNationAssigned.get('sc') ?? 0} ni=${perNationAssigned.get('ni') ?? 0} wales=${perNationAssigned.get('wales') ?? 0}`);
+console.log('wrote public/data/{hospices,practices,catchments,shops}.json');

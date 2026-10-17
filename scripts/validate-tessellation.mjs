@@ -8,7 +8,7 @@ import polygonClipping from 'polygon-clipping';
 const { union, intersection } = polygonClipping;
 
 const catchments = JSON.parse(fs.readFileSync('public/data/catchments.json', 'utf8'));
-const x0 = -3.8, y0 = 52.9, x1 = -1.9, y1 = 55.05; // lon/lat bounds used by build-data
+const x0 = -9.5, y0 = 49.5, x1 = 2.0, y1 = 61.5; // UK lon/lat bounds used by build-data (ADR-0001)
 const bboxArea = (x1 - x0) * (y1 - y0);
 
 const toPolys = (c) => (c.polygons ?? []).map((ring) => ring.map((p) => [p.lon, p.lat]));

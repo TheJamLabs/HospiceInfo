@@ -1,0 +1,104 @@
+// scripts/merge-hospices.mjs
+// Work list item 10: merge the four nation registers into the single
+// canonical hospice list used by the build.
+//
+// Inputs (all committed, produced by the item 6-9 extract scripts):
+//   data-raw/hospices-en.json    {id:'en-<cqcId>', cqcId, name, address[], postcode}
+//   data-raw/hospices-sc.json    {id:'sc-<CSNumber>', name, address[], town, postcode}
+//   data-raw/hospices-ni.json    {id:'ni-r<n>',    name, postcode}        ([] until RQIA fetch, A3)
+//   data-raw/hospices-wales.json {id:'wales-<n>',  name, postcode}        ([] until CIW reply, B1)
+//
+// Curated seeding: the 20 entries of scripts/catchment-map.mjs (read-only
+// provenance, ADR-0005) are identified by the CQC Location id embedded in
+// their cqcUrl (`location/1-<digits>`). For each, the register row with the
+// same id — if any — is REPLACED by the curated record: that is the
+// identity the map's 20 curated catchments carry (names/towns/postcodes
+// hand-verified upstream).
+//
+// Output: data-raw/hospices-all.json — [{
+//   id, name, town, postcode, nation: 'en'|'sc'|'wales'|'ni',
+//   kind: 'published'|'approx', source, website, cqcUrl, curated: bool
+// }]
+//
+// Assertions (exit 1 on failure): exactly 20 `curated: true`; ids globally
+// unique; all 20 curated CQC ids present.
+
+import fs from 'node:fs';
+import { CATCHMENTS } from './catchment-map.mjs';
+
+const SOURCES = {
+  en: 'CQC register (data-raw/cqc-directory-2026-10.csv, produced 14 Oct 2026)',
+  sc: 'Care Inspectorate Scotland (data-raw/care-inspectorate-scotland-2026-08.csv, as at 31 Aug 2026)',
+  ni: 'RQIA (fetched export pending — data-raw/: A3 ledger)',
+  wales: 'Care Inspectorate Wales (fetched list pending — B1 email, data/README.md)',
+};
+
+const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
+const en = read('data-raw/hospices-en.json');
+const sc = read('data-raw/hospices-sc.json');
+const ni = read('data-raw/hospices-ni.json');
+const wales = read('data-raw/hospices-wales.json');
+
+const townOf = (h) => (h.address && h.address.length > 1 ? h.address[h.address.length - 1] : '');
+
+const all = [
+  ...en.map((h) => ({
+    id: h.id, name: h.name, town: townOf(h), postcode: h.postcode, nation: 'en',
+    kind: 'approx', source: SOURCES.en,
+    website: h.cqcId ? `https://www.cqc.org.uk/location/${h.cqcId}` : '',
+    cqcUrl: h.cqcId ? `https://www.cqc.org.uk/location/${h.cqcId}` : '',
+    curated: false,
+  })),
+  ...sc.map((h) => ({
+    id: h.id, name: h.name, town: h.town || townOf(h), postcode: h.postcode, nation: 'sc',
+    kind: 'approx', source: SOURCES.sc, website: '', cqcUrl: '', curated: false,
+  })),
+  ...ni.map((h) => ({
+    id: h.id, name: h.name, town: '', postcode: h.postcode, nation: 'ni',
+    kind: 'approx', source: SOURCES.ni, website: '', cqcUrl: '', curated: false,
+  })),
+  ...wales.map((h) => ({
+    id: h.id, name: h.name, town: '', postcode: h.postcode, nation: 'wales',
+    kind: 'approx', source: SOURCES.wales, website: '', cqcUrl: '', curated: false,
+  })),
+];
+
+// curated seeding: replace the register row with the same id
+const curatedIds = new Map();
+for (const c of CATCHMENTS) {
+  const m = (c.cqcUrl || '').match(/location\/(1-\d+)/);
+  if (m) curatedIds.set(m[1], c);
+}
+for (const [cqcId, c] of curatedIds) {
+  const id = `en-${cqcId}`;
+  all.push({
+    id, name: c.name, town: c.town, postcode: c.postcode, nation: 'en',
+    kind: c.kind, source: c.source, website: c.website, cqcUrl: c.cqcUrl, curated: true,
+  });
+  const i = all.findIndex((h) => h.id === id && !h.curated);
+  if (i >= 0) all.splice(i, 1); // curated identity wins over the register row
+}
+
+// assertions
+const curatedCount = all.filter((h) => h.curated).length;
+if (curatedCount !== 20) {
+  console.error(`expected 20 curated: true hospices, found ${curatedCount}`);
+  process.exit(1);
+}
+const dupes = all.map((h) => h.id).filter((id, i, a) => a.indexOf(id) !== i);
+if (dupes.length) {
+  console.error('duplicate hospice ids: ' + [...new Set(dupes)].join(', '));
+  process.exit(1);
+}
+const present = all.filter((h) => h.curated).map((h) => h.id);
+for (const cqcId of curatedIds.keys()) {
+  if (!present.includes(`en-${cqcId}`)) {
+    console.error(`curated id missing from merged output: en-${cqcId}`);
+    process.exit(1);
+  }
+}
+
+fs.writeFileSync('data-raw/hospices-all.json', JSON.stringify(all));
+const byNation = new Map();
+for (const h of all) byNation.set(h.nation, (byNation.get(h.nation) || 0) + 1);
+console.log(`hospices-all: ${all.length} total | en=${byNation.get('en') || 0} sc=${byNation.get('sc') || 0} wales=${byNation.get('wales') || 0} ni=${byNation.get('ni') || 0} | curated: ${curatedCount}`);

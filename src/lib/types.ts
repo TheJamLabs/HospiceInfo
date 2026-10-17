@@ -1,3 +1,5 @@
+export type Nation = 'en' | 'sc' | 'wales' | 'ni';
+
 export interface Hospice {
   id: string;
   name: string;
@@ -10,27 +12,30 @@ export interface Hospice {
   source: string;
   website: string;
   cqcUrl: string;
+  curated: boolean;
+  nation: Nation;
 }
 
 export interface Practice {
-  id: number;
+  id: string;
   name: string;
   address: string[];
   postcode: string;
   lat: number | null;
   lon: number | null;
-  outcode: string;
+  nation: Nation;
   hospiceId: string | null;
 }
 
 export interface Catchment {
   hospiceId: string;
   name: string;
+  nation: Nation;
   kind: 'published' | 'approx';
-  outcodes: string[];
+  curated: boolean;
   practiceCount: number;
   // One or more rings (Voronoi-derived; multi-ring = union of cells).
-  polygons: { lat: number; lon: number }[][] | null;
+  polygons: { lat: number; lon: number }[][];
 }
 
 export interface Shop {

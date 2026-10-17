@@ -3,7 +3,6 @@ import { useAppData } from './lib/useAppData';
 import type { Hospice, Practice, Catchment, Shop } from './lib/types';
 import MapView from './components/MapView';
 import HospicePanel from './components/HospicePanel';
-import Legend from './components/Legend';
 import Methodology from './components/Methodology';
 
 export default function App() {
@@ -15,6 +14,7 @@ export default function App() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [showShops, setShowShops] = useState(true);
+  const [nation, setNation] = useState<'all' | 'en' | 'sc' | 'wales' | 'ni'>('all');
 
   const error = hospicesError || practicesError || catchmentsError || shopsError;
   const loading = !error && (!hospices || !practices || !catchments || !shops);
@@ -54,7 +54,7 @@ export default function App() {
             <div>
               <h1 className="h4 mb-0">Hospice Catchment Map</h1>
               <div className="text-muted small">
-                Lancashire &amp; South Cumbria — catchments approximated from GP practice locations
+                UK — catchments approximated from GP practice locations
               </div>
             </div>
             <div className="d-flex align-items-center gap-2">
@@ -84,6 +84,8 @@ export default function App() {
             onSelect={setSelectedId}
             query={query}
             onQuery={setQuery}
+            nation={nation}
+            onNation={setNation}
           />
         </aside>
         <main className="app-map">
@@ -146,8 +148,8 @@ export default function App() {
             showShops={showShops}
             selectedId={selectedId}
             onSelect={setSelectedId}
+            nation={nation}
           />
-          <Legend hospices={hospices!} selectedId={selectedId} onSelect={setSelectedId} />
         </main>
       </div>
       <Methodology hospices={hospices} practices={practices} catchments={catchments} shops={shops} />

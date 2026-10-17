@@ -1,28 +1,55 @@
-# Hospice Catchment Map — Lancashire & South Cumbria
+# Hospice Catchment Map — United Kingdom
 
-An interactive map of 20 hospices in Lancashire and South Cumbria, with the GP
-practices each one is (approximately) associated with. Click a hospice in the
-side panel to spotlight its catchment envelope, pan/zoom the map, hover
-dots for practice details, and open **Source & Method** for the full
-methodology and caveats.
+An interactive map of UK hospices — 155 in the committed data snapshot
+(England 152, Scotland 3, Wales 0, Northern Ireland 0) — with the GP
+practices each one is (approximately) associated with. Click a hospice in
+the side panel to spotlight its catchment, use the nation pills
+(All / England / Scotland / Wales / NI) to filter and reframe the map,
+pan/zoom, hover dots for practice details, and open **Source & Method**
+for the full methodology, caveats and the catchment colour key.
 
 > **This is an approximation, not an official boundary.** No authoritative
-> published "hospice catchment" dataset exists. Catchments are inferred from
-> each hospice's published service-area wording where available (7 of 20),
-> with the rest approximated around the hospice site (13 of 20). See the
-> Source & Method modal and [`data/README.md`](data/README.md).
+> published "hospice catchment" dataset exists. Every catchment is
+> approximated from practice and hospice locations: each geocoded practice
+> is assigned to the **nearest hospice site** (straight-line distance),
+> and the boundaries are a Voronoi tessellation over the whole UK —
+> adjacent catchments share a continuous edge (they tile the map: no gaps,
+> no overlap). The 20 hospices of the original Lancashire & South Cumbria
+> map are *curated* (hand-verified names, towns and postcodes); the other
+> 135 come from the national registers. See the Source & Method modal and
+> [`data/README.md`](data/README.md).
 
 ## What you'll see
 
-- **Diamond markers** — hospice sites (coloured per hospice)
-- **Dots** — each GP practice (CQC register, Oct 2026), coloured by the
-  catchment it is assigned to
-- **Areas** — each hospice's catchment, computed as a Voronoi tessellation
-  of the practice + hospice-site points, so adjacent areas share a
-  continuous edge (they tile the map: no gaps, no overlap)
-- **Squares** — each hospice's charity shops (toggle in the header);
-  orange squares are shops that sit *outside* their own catchment
-- Side panel with search + list, bottom-right legend
+- **Diamond markers** — hospice sites (colour is a deterministic hash of
+  the hospice id, so it is stable across rebuilds)
+- **Dots** — each GP practice, coloured by the catchment it is assigned to
+- **Areas** — each hospice's catchment: a Voronoi tessellation of the
+  practice + hospice-site points over the UK
+- **Squares** — charity shops from the curated hospices' websites (toggle
+  in the header); orange squares sit *outside* their own catchment
+- Side panel: search, nation pills, per-hospice practice counts;
+  non-matching-nation elements are dimmed on the map
+- The catchment colour key (20 curated) lives in the **Source & Method**
+  modal
+
+## Current data snapshot
+
+Counts from the committed `public/data/` as of 2026-10-16:
+
+| Nation | Hospices | GP practices |
+|---|---|---|
+| England | 152 | 9,260 |
+| Scotland | 3 | 0 — GIS layer fetch pending |
+| Wales | 0 — register list pending | 0 — DataMap fetch pending |
+| Northern Ireland | 0 — register export pending | 304 |
+
+138 charity shops, 21 of them outside their own catchment at this
+snapshot (recomputed on every build). Geocoding is complete: 8,364 of the
+8,373 in-scope postcodes are resolved; the remaining 9 have no
+OSM/Nominatim coverage (units and outcodes both absent) and their 12
+practices show as "unassigned" in the panel — a documented OSM gap (see
+[`data/README.md`](data/README.md)). The assignment rule itself never changes.
 
 ## Quick start
 
@@ -51,35 +78,36 @@ without re-downloading anything.
 
 | Stage | Script | Input | Output |
 |---|---|---|---|
-| 1. Extract | `scripts/extract-gp-practices.mjs` | `data-raw/cqc-directory-2026-10.csv` | `data-raw/gp-practices-target.json` (643 GP practice locations) |
-| 2. Geocode | `scripts/geocode-postcodes.mjs` | practice + hospice postcodes | `data-raw/postcode-geo.csv` (552 areas, OSM Nominatim, 1 req/s, resumable) |
-| 3. Catchments | `scripts/catchment-map.mjs` | hospice websites / CQC | 20 catchment definitions (published vs approx outcodes) |
-| 4. Shops | `data-raw/shops-website.json` + `data-raw/shops-geo.json` (curated from hospice websites; Nominatim, see `scripts/geocode-shops.mjs`) | — | 138 charity shops with `outsideCatchment` flag |
-| 5. Build | `scripts/build-data.mjs` | 1–4 | `public/data/hospices.json`, `practices.json`, `catchments.json`, `shops.json` |
+| 1. Practices | `scripts/extract-gp-practices-{en,sc,ni,wales}.mjs` | CQC directory, NHS Scotland, NI practice file, Wales DataMap | `data-raw/gp-practices-<nation>.json` |
+| 2. Hospices | `scripts/extract-hospices-{en,sc,ni,wales}.mjs` | CQC directory, Care Inspectorate, RQIA, CIW | `data-raw/hospices-<nation>.json` |
+| 3. Merge | `scripts/merge-hospices.mjs` | stage 2 + the 20 curated catchments | `data-raw/hospices-all.json` (155) |
+| 4. Geocode | `scripts/geocode-postcodes.mjs` | practice + hospice postcodes (8,373) | `data-raw/postcode-geo.csv` (OSM Nominatim, 1 req/s, resumable) |
+| 5. Shops | `data-raw/shops-website.json` + `scripts/geocode-shops.mjs` | the 20 curated websites | `data-raw/shops-geo.json` (138 shops) |
+| 6. Build | `scripts/build-data.mjs` | stages 1–5 | `public/data/hospices.json`, `practices.json`, `catchments.json`, `shops.json` |
+| 7. Validate | `scripts/validate-tessellation.mjs` | `public/data/catchments.json` | no gaps, no overlap, in-bounds (exit 0) |
 
-Assignment rule: a practice's postcode outcode is checked against each
-catchment's outcode list; a single match wins; ties and outcodes claimed by
-none go to the nearest hospice (haversine). The result is a **complete
-partition**: 643/643 practices are assigned to exactly one catchment.
-Catchment boundaries are then computed as a Voronoi tessellation of the
-practice + hospice-site points, so adjacent areas share an edge.
-
-Current state: 643 practices, all assigned; 138 charity shops, 13 of them
-outside their own hospice's catchment.
+Assignment rule: every geocoded practice is assigned to the
+**nearest hospice site** (single haversine rule — no postcode-outcode
+lists, no hand-pinned areas). Boundaries are then computed as a Voronoi
+tessellation of the practice + hospice-site points over the UK box
+(lon/lat `-9.5/49.5 → 2.0/61.5`).
 
 ## Updating the data
 
-1. Re-download the CQC locations register (see `data/README.md` for the
-   source and column layout) to `data-raw/cqc-directory-YYYY-MM.csv`.
-2. `node scripts/extract-gp-practices.mjs` (point it at the new file if you
-   rename it — the path is near the top of the script).
-3. `node scripts/geocode-postcodes.mjs` — resumable; only new postcodes are
-   fetched (Nominatim = 1 request/second, no key required). A fresh
-   ~570-area set takes ≈ 10 min.
-4. If a hospice's published service area changed, update
-   `scripts/catchment-map.mjs` (outcodes come from the practice dataset, so
-   use the outcodes that appear in `data-raw/gp-practices-target.json`).
-5. `npm run build-data`, then `npm run build`.
+1. Refresh the raw registers — the per-nation download steps live in
+   `data/README.md` (including the three that currently need a human
+   fetch: RQIA, Wales DataMap, NHS Scotland GIS).
+2. Re-run the four practice extract scripts and the four hospice extract
+   scripts, then `node scripts/merge-hospices.mjs`.
+3. `node scripts/geocode-postcodes.mjs` — resumable; only *new* postcodes
+   are fetched (Nominatim = 1 request/second, no key). A full fresh run
+   of all ~8,400 areas takes roughly 2.5 hours.
+4. `npm run build-data`, then `node scripts/validate-tessellation.mjs`,
+   then `npm run build`.
+
+First runs of the extract scripts auto-discover the register's columns
+(they log the header on success), and the geocoder backs off on 429/503 —
+so a fresh run is safe to leave unattended.
 
 ## Tech
 
