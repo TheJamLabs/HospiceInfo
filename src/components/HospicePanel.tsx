@@ -23,16 +23,12 @@ interface Props {
   onNation: (n: NationFilter) => void;
 }
 
-export default function HospicePanel({ hospices, catchments, practices, selectedId, onSelect, query, onQuery, nation, onNation }: Props) {
+export default function HospicePanel({ hospices, catchments, selectedId, onSelect, query, onQuery, nation, onNation }: Props) {
   const counts = useMemo(() => {
     const m = new Map<string, number>();
     for (const c of catchments) m.set(c.hospiceId, c.practiceCount);
     return m;
   }, [catchments]);
-  const unassigned = useMemo(
-    () => practices.filter((p) => p.hospiceId === null && p.lat != null).length,
-    [practices]
-  );
 
   const q = query.trim().toLowerCase();
   const list = hospices.filter(
@@ -68,7 +64,7 @@ export default function HospicePanel({ hospices, catchments, practices, selected
         </div>
         <div className="d-flex justify-content-between text-muted small">
           <span>{list.length} of {hospices.length} hospices</span>
-          <span>{totalShown} practices{q ? '' : ` · ${unassigned} unassigned`}</span>
+          <span>{totalShown} practices</span>
         </div>
       </div>
       <div className="flex-grow-1 overflow-auto panel-list">

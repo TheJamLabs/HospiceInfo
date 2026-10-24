@@ -16,13 +16,16 @@
 // no hand-pinned catchments. A Voronoi tessellation of the practice +
 // hospice-site points over the UK box gives each hospice a polygon (union of
 // its cells): adjacent catchments share a continuous edge — no overlaps, no
-// gaps. A hospice whose postcode has no coordinate yet is unplaced (logged);
-// it receives no polygon and no practices.
+// gaps. Each catchment is then clipped to the UK land mask (ADR-0006:
+// `data-raw/uk-land.json`; no sea, no box-only fallback). A hospice whose
+// postcode has no coordinate yet is unplaced (logged); it receives no polygon
+// and no practices.
 import fs from 'node:fs';
 import { Delaunay } from 'd3-delaunay';
 import polygonClipping from 'polygon-clipping';
 import { CATCHMENTS } from './catchment-map.mjs';
-const { union } = polygonClipping;
+import { loadMaskWithBBoxes, polysBBox, bboxesOverlap } from './land-mask.mjs';
+const { union, intersection } = polygonClipping;
 
 // ADR-0002 id remap: the 20 legacy catchment slugs used by the scraped shop
 // list (data-raw/shops-website.json) map 1:1 to the canonical `en-<cqcId>`
@@ -79,6 +82,14 @@ for (const line of geoRows) {
   if (lat && lon) geo.set(pc, { lat: Number(lat), lon: Number(lon) });
 }
 const geoOf = (postcode) => geo.get((postcode || '').toUpperCase()) ?? null;
+
+// ADR-0006: land mask for the coastline clip. The raw OSM file is human-
+// fetched (`node scripts/fetch-uk-land.mjs`) and committed; land-mask.mjs
+// loads it (FAILING FAST without it — no silent box-only fallback) and
+// returns a deterministically DP-simplified copy (tol 0.001 deg, in memory)
+// so the ~2.6M-segment OSM mask stays within polygon-clipping's 1M-endpoint
+// queue cap.
+const maskBBoxes = loadMaskWithBBoxes(); // [poly, bbox][]
 
 // ---- hospices ----------------------------------------------------------------
 const hospicesOut = hospicesAll.map((h) => {
@@ -172,7 +183,15 @@ if (voronoi) {
 const polygonsByLabel = new Map();
 for (const [id, rings] of ringsByLabel) {
   const merged = union(rings.map((ring) => [ring]));
-  const out = merged
+  // ADR-0006: clip the catchment to the land mask — no sea. BOX above remains
+  // the voronoi bounds safety net. A cell whose land intersection is empty
+  // (e.g. post-coastal islands) gets `polygons: []`. Prefilter the mask to
+  // the land polygons whose bbox overlaps the cell's bbox so each clip
+  // operand is small (the simplified mask is still large nationwide).
+  const cbb = polysBBox(merged);
+  const near = maskBBoxes.filter(([, bb]) => bboxesOverlap(bb, cbb)).map(([p]) => p);
+  const clipped = near.length ? intersection(merged, near) : [];
+  const out = clipped
     .flatMap((poly) => poly.map((r) => r.map(([x, y]) => ({ lat: y, lon: x }))))
     .filter((pts) => pts.length >= 3);
   polygonsByLabel.set(id, out);

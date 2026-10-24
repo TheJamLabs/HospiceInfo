@@ -2,7 +2,7 @@
   "name": "hospice-catchment-map",
   "private": true,
   "version": "0.1.0",
-  "description": "Interactive map of hospice catchment areas in Lancashire and South Cumbria, approximated from GP practice locations.",
+  "description": "Interactive map of hospice catchment areas across the UK, approximated from GP practice locations.",
   "type": "module",
   "scripts": {
     "dev": "vite",

@@ -5,11 +5,15 @@ body,
   margin: 0;
 }
 
+/* The map layout (panel + map + mobile sheet controls) lives inside
+   AppShell's <main>, which stretches it to full height. position:relative
+   anchors the mobile bottom sheet's panel, FAB and scrim (pm 4.5). */
 .app {
   display: flex;
-  flex-direction: column;
-  height: 100vh;
-  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  position: relative;
 }
 
 .app-header {
@@ -17,6 +21,33 @@ body,
   background: #ffffff;
   border-bottom: 1px solid #dee2e6;
   padding: 0.5rem 0;
+}
+
+/* Nav links get a real touch target on phones (pm 4.4) */
+.site-nav-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  color: #495057;
+}
+.site-nav-link:hover {
+  background: #f1f3f5;
+}
+
+/* Skip-to-content link: hidden until focused (pm 2.5) */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 3000;
+  background: #fff;
+  color: #1d4ed8;
+  padding: 0.5rem 1rem;
+}
+.skip-link:focus {
+  left: 0;
 }
 
 .app-body {
@@ -40,6 +71,7 @@ body,
   width: 100%;
   text-align: left;
   padding: 0.55rem 0.75rem;
+  min-height: 44px; /* pm 4.4: touch-friendly rows */
   border: 0;
   border-bottom: 1px solid #f1f3f5;
   background: none;
@@ -48,6 +80,28 @@ body,
 
 .panel-item:hover {
   background: #f8f9fa;
+}
+
+/* pm 4.4: real touch targets for the panel's search box and country select. */
+.app-panel input,
+.app-panel select {
+  min-height: 44px;
+}
+
+@media (max-width: 768px) {
+  /* pm 4.4: header controls (shop toggle, Source & Method) stay tappable. */
+  .app-header .form-check {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+  .app-header .form-check-input {
+    scale: 1.4;
+    margin: 0 0.15rem;
+  }
+  .app-header .btn {
+    min-height: 44px;
+  }
 }
 
 .panel-item-active {
@@ -79,17 +133,24 @@ body,
   left: 10px;
   z-index: 1000;
   max-width: 380px;
+  max-height: calc(100% - 20px); /* pm 4.4: capped to the visible viewport */
+  overflow-y: auto;
   border-radius: 8px;
 }
 
+/* pm 4.8: permanent, unobstructed legend panel, bottom-left on desktop. */
 .legend-card {
   position: absolute;
-  right: 12px;
+  left: 12px;
   bottom: 12px;
   z-index: 1000;
   max-height: 55%;
   overflow: auto;
   width: 260px;
+  background: rgba(255, 255, 255, 0.95);
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
 }
 
 .legend-grid {
@@ -105,7 +166,8 @@ body,
   width: 100%;
   border: 0;
   background: none;
-  padding: 2px 4px;
+  padding: 4px 6px; /* pm 4.4: larger hit area */
+  min-height: 32px;
   cursor: pointer;
   font-size: 0.78rem;
   text-align: left;
@@ -162,14 +224,81 @@ body,
   color: #6c757d;
 }
 
+/* ------------------------- mobile bottom sheet (pm 4.5) ------------------------- */
+/* The FAB and scrim are styled out on desktop and inside the media query below. */
+.sheet-fab {
+  display: none;
+}
+.sheet-scrim {
+  display: none;
+  position: absolute;
+  inset: 0;
+  z-index: 1500;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  padding: 0;
+  background: rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+}
+
 @media (max-width: 768px) {
-  .app-body {
-    flex-direction: column;
-  }
+  /* The panel becomes a bottom sheet, hidden off-canvas until opened. */
   .app-panel {
-    flex: 0 0 220px;
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    top: auto;
+    flex: none;
+    width: 100%;
+    height: min(55vh, 480px);
+    min-width: 0;
+    z-index: 1600;
+    border-right: 0;
+    border-top: 1px solid #dee2e6;
+    border-radius: 12px 12px 0 0;
+    box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
+    transform: translateY(105%);
+    transition: transform 0.2s ease;
   }
+  .app-sheet-open .app-panel {
+    transform: translateY(0);
+  }
+
+  .sheet-fab {
+    display: inline-flex;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 14px;
+    z-index: 2000;
+    min-height: 48px; /* pm 4.4: ≥ 44px touch target */
+    padding: 0 1.5rem;
+    border-radius: 999px;
+    border: 0;
+    background: #1d4ed8;
+    color: #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    font-size: 0.95rem;
+    cursor: pointer;
+  }
+  .app-sheet-open .sheet-fab {
+    bottom: calc(min(55vh, 480px) + 14px);
+  }
+
+  .app-sheet-open .sheet-scrim {
+    display: block;
+  }
+
   .legend-card {
     display: none;
+  }
+
+  /* pm 4.4: the selection card must not exceed the small screen */
+  .app-selection {
+    left: 10px;
+    right: 10px;
+    max-width: none;
   }
 }

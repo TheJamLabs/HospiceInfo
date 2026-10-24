@@ -1,11 +1,20 @@
 import { useMemo, useState } from 'react';
 import { useAppData } from './lib/useAppData';
+import { useRoute } from './lib/useRoute';
+import { feedbackMailto } from './lib/feedback';
 import type { Hospice, Practice, Catchment, Shop } from './lib/types';
+import AppShell from './components/AppShell';
 import MapView from './components/MapView';
 import HospicePanel from './components/HospicePanel';
 import Methodology from './components/Methodology';
+import AboutPage from './pages/AboutPage';
+import AccessibilityPage from './pages/AccessibilityPage';
+import CorrectionsPage from './pages/CorrectionsPage';
+import FeedbackPage from './pages/FeedbackPage';
+import { LicencesPage, PrivacyPage } from './pages/LegalPage';
 
 export default function App() {
+  const route = useRoute();
   const { data: hospices, error: hospicesError } = useAppData<Hospice[]>('/data/hospices.json');
   const { data: practices, error: practicesError } = useAppData<Practice[]>('/data/practices.json');
   const { data: catchments, error: catchmentsError } = useAppData<Catchment[]>('/data/catchments.json');
@@ -15,6 +24,17 @@ export default function App() {
   const [query, setQuery] = useState('');
   const [showShops, setShowShops] = useState(true);
   const [nation, setNation] = useState<'all' | 'en' | 'sc' | 'wales' | 'ni'>('all');
+  // pm 4.5/4.6: mobile bottom sheet — hidden by CSS off-canvas below 768px,
+  // opened by the FAB (which reads as aria-expanded), closed by the FAB,
+  // the scrim tap, or selecting a card (onSelect below).
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const closeSheet = () => setSheetOpen(false);
+  // Selecting a hospice (from card, marker, polygon or legend) closes the
+  // sheet on phones so the result is visible (pm 4.7).
+  const select = (id: string | null) => {
+    setSelectedId(id);
+    if (id) closeSheet();
+  };
 
   const error = hospicesError || practicesError || catchmentsError || shopsError;
   const loading = !error && (!hospices || !practices || !catchments || !shops);
@@ -28,6 +48,21 @@ export default function App() {
     () => (shops && selectedId ? shops.filter((s) => s.hospiceId === selectedId) : []),
     [shops, selectedId]
   );
+
+  // Non-map routes carry no map data requirements and load independently of
+  // the four map JSON files (the correction log fetches on its own page).
+  if (route !== 'map') {
+    return (
+      <AppShell>
+        {route === 'feedback' && <FeedbackPage />}
+        {route === 'corrections' && <CorrectionsPage />}
+        {route === 'about' && <AboutPage />}
+        {route === 'privacy' && <PrivacyPage />}
+        {route === 'licences' && <LicencesPage />}
+        {route === 'accessibility' && <AccessibilityPage />}
+      </AppShell>
+    );
+  }
 
   if (loading) {
     return <div className="app-loading m-5">Loading catchment data…</div>;
@@ -47,112 +82,127 @@ export default function App() {
   }
 
   return (
-    <div className="app">
-      <header className="app-header">
-        <div className="container-fluid px-3">
-          <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div>
-              <h1 className="h4 mb-0">Hospice Catchment Map</h1>
-              <div className="text-muted small">
-                UK — catchments approximated from GP practice locations
-              </div>
-            </div>
-            <div className="d-flex align-items-center gap-2">
-              <label className="form-check form-switch m-0" title="Toggle charity shop markers on the map">
-                <input
-                  className="form-check-input"
-                  type="checkbox"
-                  checked={showShops}
-                  onChange={(e) => setShowShops(e.target.checked)}
-                />
-                <span className="form-check-label small ms-1">Charity shops</span>
-              </label>
-              <button className="btn btn-outline-secondary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#methodologyModal">
-                Source &amp; Method
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
-      <div className="app-body">
-        <aside className="app-panel">
+    <AppShell
+      headerExtras={
+        <>
+          <label className="form-check form-switch m-0" title="Toggle charity shop markers on the map">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={showShops}
+              onChange={(e) => setShowShops(e.target.checked)}
+            />
+            <span className="form-check-label small ms-1">Charity shops</span>
+          </label>
+          <button
+            className="btn btn-outline-secondary btn-sm"
+            type="button"
+            data-bs-toggle="modal"
+            data-bs-target="#methodologyModal"
+          >
+            Source &amp; Method
+          </button>
+        </>
+      }
+    >
+      <div className={`app${sheetOpen ? ' app-sheet-open' : ''}`}>
+        <aside className="app-panel" id="appPanel" aria-label="Hospice list">
           <HospicePanel
             hospices={hospices!}
             catchments={catchments!}
             practices={practices!}
             selectedId={selectedId}
-            onSelect={setSelectedId}
+            onSelect={select}
             query={query}
             onQuery={setQuery}
             nation={nation}
             onNation={setNation}
           />
         </aside>
-        <main className="app-map">
-          {selected && (
-            <div className="app-selection alert alert-light border shadow-sm" role="status">
-              <div className="d-flex align-items-center gap-2">
-                <span
-                  className="dot"
-                  style={{ background: selected.color, width: 14, height: 14, display: 'inline-block', borderRadius: 999 }}
-                />
-                <strong>{selected.name}</strong>
-                <span className="text-muted">· {selected.town}</span>
-                <button
-                  className="btn btn-sm btn-link text-decoration-none ms-auto"
-                  type="button"
-                  onClick={() => setSelectedId(null)}
-                >
-                  ✕ clear
-                </button>
-              </div>
-              {selected.kind === 'published' ? (
-                <div className="small mt-1">
-                  <span className="badge bg-success-subtle text-success-emphasis">published service area</span>{' '}
-                  {selected.source}
-                </div>
-              ) : (
-                <div className="small mt-1">
-                  <span className="badge bg-warning-subtle text-warning-emphasis">approximated</span>{' '} {selected.source}
-                </div>
-              )}
-              {selectedShops.length > 0 ? (
-                <div className="small mt-1">
-                  {selectedShops.length} charity shop{selectedShops.length === 1 ? '' : 's'}
-                  {(() => {
-                    const out = selectedShops.filter((s) => s.outsideCatchment).length;
-                    return out > 0 ? (
-                      <>
-                        {' '}(<span className="fw-semibold text-warning-emphasis">{out} outside its own catchment</span>)
-                      </>
-                    ) : null;
-                  })()}
-                </div>
-              ) : null}
-              <div className="small mt-1">
-                {selected.website ? (
-                  <>
-                    <a href={selected.website} target="_blank" rel="noreferrer">website</a>
-                    {' · '}
-                  </>
-                ) : null}
-                <a href={selected.cqcUrl} target="_blank" rel="noreferrer">CQC register</a>
-              </div>
+      <div className="app-map">
+        {selected && (
+          <div className="app-selection alert alert-light border shadow-sm" role="status">
+            <div className="d-flex align-items-center gap-2">
+              <span
+                className="dot"
+                style={{ background: selected.color, width: 14, height: 14, display: 'inline-block', borderRadius: 999 }}
+              />
+              <strong>{selected.name}</strong>
+              <span className="text-muted">· {selected.town}</span>
+              <button
+                className="btn btn-sm btn-link text-decoration-none ms-auto"
+                type="button"
+                onClick={() => setSelectedId(null)}
+              >
+                ✕ clear
+              </button>
             </div>
-          )}
-          <MapView
-            hospices={hospices!}
-            practices={practices!}
-            catchments={catchments!}
-            shops={shops!}
-            showShops={showShops}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-            nation={nation}
-          />
-        </main>
+            {selected.kind === 'published' ? (
+              <div className="small mt-1">
+                <span className="badge bg-success-subtle text-success-emphasis">published service area</span>{' '}
+                {selected.source}
+              </div>
+            ) : (
+              <div className="small mt-1">
+                <span className="badge bg-warning-subtle text-warning-emphasis">approximated</span>{' '} {selected.source}
+              </div>
+            )}
+            {selectedShops.length > 0 ? (
+              <div className="small mt-1">
+                {selectedShops.length} charity shop{selectedShops.length === 1 ? '' : 's'}
+              </div>
+            ) : null}
+            <div className="small mt-1">
+              {selected.website ? (
+                <>
+                  <a href={selected.website} target="_blank" rel="noreferrer">website</a>
+                  {' · '}
+                </>
+              ) : null}
+              <a href={selected.cqcUrl} target="_blank" rel="noreferrer">CQC register</a>
+              {' · '}
+              <a
+                href={feedbackMailto({
+                  id: selected.id,
+                  name: selected.name,
+                  postcode: selected.postcode,
+                  hospiceName: null,
+                })}
+              >
+                Disagree with this data?
+              </a>
+            </div>
+          </div>
+        )}
+        <MapView
+          hospices={hospices!}
+          practices={practices!}
+          catchments={catchments!}
+          shops={shops!}
+          showShops={showShops}
+          selectedId={selectedId}
+          onSelect={select}
+          nation={nation}
+        />
+        <Methodology hospices={hospices} practices={practices} catchments={catchments} shops={shops} />
+        </div>
+        <button
+          className="sheet-fab"
+          type="button"
+          aria-expanded={sheetOpen}
+          aria-controls="appPanel"
+          onClick={() => setSheetOpen(!sheetOpen)}
+        >
+          {sheetOpen ? 'Close list' : 'Open list'}
+        </button>
+        <button
+          className="sheet-scrim"
+          type="button"
+          aria-label="Close list"
+          tabIndex={sheetOpen ? 0 : -1}
+          onClick={closeSheet}
+        />
       </div>
-      <Methodology hospices={hospices} practices={practices} catchments={catchments} shops={shops} />
-    </div>
+    </AppShell>
   );
 }

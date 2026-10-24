@@ -1,65 +1,62 @@
-# GLOSSARY
+# Vocabulary — UK-wide Hospice Catchment Map
 
-Domain vocabulary for this repository. Finalised by the Architect stage
-(2026-10-16, UK-wide feature pipeline); the terms were proposed by Research
-(`.agents/research.md`) and used in all stage artifacts, code names and
-prose.
+This glossary defines domain vocabulary used across the codebase, data
+provenance, and documentation. New terms are formatted in *italics*.
 
-- **catchment** — the area associated with one hospice: the set of GP
-  practice locations claimed by that hospice, drawn as a polygon.
-- **tessellation** — the Voronoi tessellation of all practice + hospice-site
-  points; a **catchment polygon** is the union of the cells belonging to one
-  hospice (one or more rings).
-- **complete partition** — the invariant that every practice location
-  belongs to exactly one catchment (no gaps, no overlaps in the
-  practice→catchment assignment).
-- **tessellation clip box** — the rectangular extent passed to the Voronoi
-  computation; UK-wide: `[-9.5, 49.5, 2.0, 61.5]` (lon west→east, lat south→
-  north). Cells are clipped to this box, not to the coastline.
-- **outcode** — the outward code of a UK postcode (the letters, e.g. `PR`).
-  Historically used as the catchment-assignment unit for the original 20;
-  retired as an assignment mechanism (ADR 0005) but still a useful grouping
-  key in practice data.
-- **published vs approx** — provenance of a catchment's *definition*:
-  **published** = the hospice's own website states the service area (verbatim
-  quote in the `source` field); **approx** = no published area, so the
-  catchment is inferred. For the UK-wide build every non-curated catchment is
-  `approx` ("practice-derived (Voronoi)").
-- **curated** — the 20 original Lancashire & South Cumbria catchment
-  definitions in `scripts/catchment-map.mjs`; the only entries with
-  hand-collected `kind`/`source` provenance. Identified in the widened CQC
-  extract by CQC location ID; everything else is `curated: false`.
-- **outsideCatchment** — a shop flag: the even-odd point-in-polygon test
-  result of the shop's point against its *own* hospice's catchment polygon.
-  An indicator of possible fundraising over-reach, not a judgement.
-- **geocoding unit** — the unit addressed to OSM Nominatim: the postcode
-  (unit) first; the address as fallthrough. Results cached in
-  `data-raw/postcode-geo.csv` (resumable).
-- **practice location** — a single registered site of a GP practice from a
-  national register row (one `Practice` entry), not the legal practice
-  entity.
-- **nation register** — per-nation regulator source: CQC (England), Care
-  Inspectorate Scotland datastore (Scotland), Care Inspectorate Wales
-  (Wales), RQIA (Northern Ireland).
-- **hash colour** — the per-hospice display colour derived from a stable
-  FNV-1a hash of the hospice id into an HSL hue (ADR 0004); shared by the
-  marker, polygon and panel dot; not a stable 300-colour legend identity.
-- **geocoding batch** — the resumable Nominatim run (1 req/s, append-only)
-  over all distinct practice + hospice postcodes, cached in
-  `data-raw/postcode-geo.csv`; already-present postcodes are skipped, so
-  re-runs are idempotent.
-- **first-run discovery** — ADR 0003: per new source, the extract script
-  logs the raw file's header/fields on its first run and maps columns by
-  name (never position); a missing required field fails the run with the
-  header printed rather than guessing.
-- **placeholder nation** — a nation with pending hospice data (Wales, until
-  the CIW email reply is committed to `data-raw/`); the build is valid with
-  0 hospices for that nation and flags it in the Methodology modal.
-- **search-first panel** — side-panel layout with the search box and nation
-  filter on top and the result list below (feature.md rule 5: no 300-entry
-  wall of lists).
-- **nation filter** — the `All | England | Wales | Scotland | N. Ireland`
-  pill row: narrows the panel list, fits the map bounds to the nation, and
-  dims all other-nation markers/polygons.
-- **demoted legend** — the 20-colour legend moved from the map card into the
-  Source & Method modal, listing only the original 20 catchments.
+## Core domain terms
+
+- **catchment**: the area associated with a hospice; approximated in this
+  map by a Voronoi tessellation of practice and hospice-site points, clipped
+  to the *land mask* and a UK bounding box. A "catchment" may be *curated*
+  (hand-verified identity) or *approx* (geometric estimate).
+- **hospice**: a single organisation that provides palliative/hospice care. In
+  this dataset each hospice row is keyed by a synthetic id (`{nation}-{registerId}`
+  per ADR-0002); some rows are *curated* and carry a `kind` of `"published"`
+  while others are `"approx"`.
+- **GP practice**: a general practice surgery location in the dataset. A practice
+  is assigned to the nearest hospice (haversine) and rendered as a dot coloured
+  by its catchment.
+- **Voronoi tessellation**: partition of the plane where each cell contains all
+  points closer to one seed than to any other; this is the basis for catchment
+  boundaries.
+- **haversine**: spherical distance formula used to assign a practice to its
+  nearest hospice site.
+
+## Feature-specific terms (public-ready map)
+
+- **land mask**: the OSM-derived `natural=coastline` geometry (committed as
+  `data-raw/uk-land.json`) that constrains catchments to British land only.
+  Catchments are *land-clipped*: the Voronoi cell is intersected with the land
+  mask to remove sea cells. See ADR-0006.
+- **land clip** (*italics*): the geometric result of `intersection(voronoiCell, landMask)`.
+  The catchment polygons shipped in `public/data/catchments.json` are the clipped
+  versions of the Voronoi cells.
+- **corrections log** (*italics*): the public, append-only record (`public/data/corrections.json`)
+  of accepted corrections; initially empty. Each entry references the source
+  file modified (`dataChanged`) and may reference a specific correction (id or
+  hospiceId). The curation workflow feeds into this log.
+- **curation workflow** (*italics*): the documented manual loop for corrections:
+  receive feedback → verify → apply (edit `data-raw/` or use curator override)
+  → rebuild → log entry. See `scripts/add-correction.mjs` (optional) and
+  `docs/MAINTENANCE.md` §Corrections workflow.
+- **placeholder operator** (*italics*): the clearly-marked stand-in name and
+  email in siteConfig (`src/lib/siteConfig.ts` + `data-raw/site-config.json`).
+  While the real operator is unnamed, a "contact" line exists; its text is
+  documented in the About page and the mailto template.
+- **outside catchment flag**: per-shop boolean `Shop.outsideCatchment` in
+  `shops.json`; a shop sits outside the boundary of its own catchment cell
+  (point-in-polygon against the shop's own cell). This flag persists in the
+  build output but is *hidden* from the UI per feature.md §3.2; affected shops
+  render with their normal catchment colour (no badge, no special colour).
+- **unassigned practices**: practices with `hospiceId: null` (post-geocoding
+  gap); they remain in the data, but their count is hidden from the UI — no
+  "unassigned" count is shown on any page (public-safety rule, feature.md §3.2).
+- **degenerate cell**: a catchment with `polygons: []` (e.g. Wisdom, 0.0002 deg²;
+  Basildon's `en-1-17708902164` has no ring). The UI hides these cells;
+  the validator reports them.
+- **byte-identical rebuild ritual**: the reproducible build practice that yields
+  identical `public/data/*.json` output on consecutive `npm run build-data` runs,
+  including the land file. The ritual runs the build twice and compares SHA-256.
+- **ODbL attribution**: ODbL (Open Database License) is required for any data
+  or geometry derived from OSM (e.g. the coastline land mask, map tiles, geocoding).
+  See `data/README.md` §Licences & Attribution and the Licences page.

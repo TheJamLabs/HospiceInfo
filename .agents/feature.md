@@ -1,57 +1,70 @@
-# Feature: UK-wide hospice catchment map
+# Feature: Make the map public-ready
 
-Extend the Lancashire & South Cumbria hospice catchment map to cover all hospices
-in England, Wales, Scotland and Northern Ireland.
+Take the UK-wide hospice catchment map into public release: coastline-clipped
+catchments, per-point hospice tooltips, public-safe UI, a data feedback and
+corrections mechanism, About/legal pages (UK regulatory compliance), and a
+verified mobile experience. Hosting target: Cloudflare Pages.
 
-## Confirmed scope (grill session, 2026-10-16)
+## Confirmed scope (grill session, 2026-10-21)
 
 ### Acceptance criteria
 
-1. **Hospice coverage** — all hospices from the four national regulator
-   registers: CQC (England), Care Inspectorate Wales, Care Inspectorate
-   (Scotland), RQIA (Northern Ireland). Rule: registered name contains
-   "hospice" (same as the current map; includes children's, day and
-   hospice-at-home services).
-2. **GP practices** — all registered GP practice locations UK-wide,
-   geocoded via Nominatim (1 req/s, resumable) and used as tessellation
-   vertices. Complete partition: every practice belongs to exactly one
-   catchment.
-3. **Catchments** — per-hospice Voronoi tessellation of practice +
-   hospice-site points (union of cells → multi-ring polygon), same method
-   as the current build.
-4. **Flags** — the existing 20 Lancashire/South Cumbria catchments keep
-   their curated published/approx flags as the only exceptions; all new
-   hospices are practice-derived (approx).
-5. **UI** — existing layout preserved; side panel becomes search-first
-   (no 300-entry wall of lists); the 20-colour legend is demoted to
-   on-demand; an England/Wales/Scotland/N. Ireland filter narrows the list
-   and fits the map; colour rotation is local, not a stable 300-colour
-   identity.
-6. **Verification** — `npm run build` (tsc + vite) passes; data pipeline
-   reproducible from committed raw files; dev-server smoke test passes.
-7. **Existing work intact** — the 138-shop set, its header toggle and the
-   `outsideCatchment` flags stay in the app; flags are recomputed against
-   the new UK tessellation.
+1. **Coastline** — practice-derived Voronoi catchments are clipped to the UK
+   land/coastline polygon (OSM `natural=coastline`, same ODbL family as the
+   existing OSM data). No catchment cell extends into the sea. The data build
+   and tessellation validation are updated for the clipped output and the
+   rebuild remains byte-identical on re-run.
+2. **Tooltips** — hovering/tapping a charity-shop or GP-practice marker shows
+   the name of the hospice it is assigned to. Existing catchment-polygon
+   interaction is preserved.
+3. **Public-safe UI** — no on-screen indicator, count, or list entry
+   highlights internal data issues: shops outside their own catchment,
+   unassigned practices, degenerate cells, etc. These flags remain in the
+   build/data for internal curation only.
+4. **Feedback + corrections** — every interactive marker carries a
+   "Disagree with this data?" affordance opening a mailto to the public
+   contact address with the point/hospice identified. A feedback page explains
+   what can be challenged and how to do it. A public **Corrections log** page
+   (empty initial state, with a note that entries are added when corrections
+   are applied). A documented internal curation workflow (script(s) in
+   `scripts/` + docs) for applying amendments to the underlying data and
+   re-running the pipeline, with the applied correction recorded in a
+   corrections data file that feeds the public log page.
+5. **About + legal** — an About page covering: what the site is and what it's
+   for, who runs it (named individual — placeholder name until the operator
+   provides their exact name), how the data is built (method summary), and
+   where the data comes from (CQC, Care Inspectorate Wales, RQIA, data.wales,
+   OSM, the geocoder). Legal pages compliant with UK law: Privacy Policy
+   (UK GDPR + Data Protection Act 2018 — no cookies, no analytics/tracking,
+   the only personal data is feedback sent by email), Licences & Attribution
+   (ODbL attribution for OSM-derived data and CQC-derived data), Accessibility
+   Statement (target WCAG 2.1 AA). Navigation links all new pages.
+6. **Mobile** — the site works well on mobile: side panel/controls adapt
+   (overlay/sheet behaviour on small screens), markers are tappable, zoom
+   controls work, no horizontal scroll, text readable. Verified by building
+   and checking in a mobile-emulated browser.
 
 ### Out of scope
 
-- UK-wide charity-shop collection and new over-reach analysis (phase 2 —
-  separate pipeline after this one lands).
-- Manual curation of published service areas for the ~300 new hospices.
-- New frameworks, backend, auth, telemetry.
+- No backend, form service, analytics, telemetry, or authentication.
+- Applying any actual data corrections (mechanism and workflow only).
+- Closing the existing Wales/NI register gaps (remain documented as before).
+- Changing hospice/GP data sources or the catchment method for existing data.
 - Changes to the pipeline contract (QWEN.md) or agent definitions.
 
 ### Key decisions (with rationale)
 
-- **Regulator registers per nation** (user choice) — most authoritative,
-  same method as the existing map; NI list will be the thinnest (RQIA has
-  no bulk export).
-- **All UK practices** (user choice) — preserves the "complete partition,
-  areas tile the map" semantics; cost is a one-off background geocoding
-  batch of a few hours (accepted by user).
-- **Practice-derived catchments everywhere** (user choice) — one consistent
-  honest rule; the 20 curated areas are the only exceptions.
-- **Shops in phase 2** (user choice) — per-website scraping does not scale
-  to ~300 hospices; a single national source will be researched in phase 2.
-- **Search-first UI + nation filter** (user choice) — minimal change to the
-  existing layout; a 300-entry legend/colour identity is unusable.
+- **OSM coastline for clipping** (grill session) — consistent with the
+  existing ODbL OSM-derived data; no new licence; `polygon-clipping` is
+  already a devDependency.
+- **Email + public corrections log** (user choice) — mailto requires no
+  backend and keeps the UK GDPR surface minimal; the published corrections
+  log gives visitors accountability for what was challenged and fixed.
+- **Named individual operator, placeholder for now** (user choice) — legal
+  pages and all mailto links use placeholders (clearly marked) that the
+  operator swaps in before publishing.
+- **Cloudflare Pages hosting** (user choice) — static deploy; the privacy
+  policy states hosting by Cloudflare (multi-region edge including UK).
+- **Public-safe means hide, not delete** (grill session) — issue flags stay
+  in the data build so curation validation is unchanged; the UI simply
+  stops rendering them.

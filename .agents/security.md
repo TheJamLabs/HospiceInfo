@@ -1,78 +1,76 @@
-# Security — UK-wide hospice catchment map (stage 7, 2026-10-16)
+# Stage 7 — Security review
 
-Scope source: `.agents/feature.md`. Executed by the Engineering Lead: the
-dispatched security sub-session was silent for >20 min with no artifact on
-disk; per the operator-validated policy for one-shot stage artifacts in this
-ACP/vllm environment, the lead ran the full review directly and wrote this
-report. All evidence below is from this pass (2026-10-16).
+- **Stage:** 7 of 10 (Security engineer), parallel with QA (6)
+- **Date:** 2026-10-22
+- **Scope:** public-ready feature — static SPA (React 18, react-leaflet 4, Vite 5, TypeScript strict, Bootstrap 5.3 ESM) on Cloudflare Pages; local build scripts (`scripts/*.mjs`); committed data (`data-raw/`, `public/data/`); ADRs 0001–0009. No backend, no auth, no telemetry by design.
+- **Method:** read-only on-disk verification of all 8 assessment areas (RQ-1 — every claim below cites a file line, a dir listing, or a command run this pass). No source files modified, no `git add`/`commit`.
+- **Supersedes:** the 2026-10-16 report previously at this path. Carried findings are re-checked in the §Carried-forward table.
 
 ## Verdict
 
-**PASS — no Blocking findings, no design-level rework required.**
-SEC-1/SEC-2 risk-accepted (dev-only dependencies); SEC-3 design-level note
-(documented trust boundary, not a defect); SEC-4 low risk-accepted
-(attribution gap).
+**VERDICT: PASS — 0 Blocking findings.** One Minor, code-level finding (SEC-F1, licensing attribution), risk-accepted for the current dev-only repo state but **must be remediated before the site is made public**. No design-level finding routes back to the Architect.
+
+## Scope verified (8 areas)
+
+1. **Data flow / egress** — the only network code in `src/` is two `fetch(` calls: `src/lib/useAppData.ts:4` (`fetch(path)` for the 5 same-origin `/data/*.json` files) and `src/pages/CorrectionsPage.tsx:26` (`fetch('/data/corrections.json')`). Grep `fetch(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|navigator.` in `src/` → exactly those 2 hits. Runtime external egress is solely the OSM tile layer (`MapView.tsx:175` `url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"`). No analytics, no telemetry, no third-party endpoints, no cookies: grep `cookie|localStorage|sessionStorage` → 0 matches. Outward transport is `mailto:` only, built via `encodeURIComponent` (`FeedbackPage.tsx:6`, `lib/feedback.ts:21`) — the user's own mail client, the contact address in `site-config.json` is the placeholder `feedback@hospiceinfo.example`. `index.html` carries a single `<script type="module" src="/src/main.tsx">` and no trackers.
+2. **GDPR / DPA 2018 — Privacy page claims vs code** — every claim in `PrivacyPage` (`src/pages/LegalPage.tsx`) verified TRUE: "No cookies" (0 cookie APIs, §1); "No data collection … no forms" (grep `<form|onSubmit` in `src/` → 0 matches; the only input element is the client-side filter box `HospicePanel.tsx:48`, React state, never transmitted); "No personal data … no location tracking, no device fingerprinting" (no storage APIs, no geolocation API — 0 `navigator.` matches); "Out of our control — OSM tiles may see your IP" correctly discloses the tile egress. No server-side collection exists (there is no server).
+3. **Injection / XSS** — `src/` has 0 matches for `dangerouslySetInnerHTML|innerHTML|eval(|document.cookie|localStorage|sessionStorage`. All data rendering is JSX text interpolation, which React escapes: `CorrectionsPage.tsx` renders `{e.date}` / `{e.summary}`; site text is JSX literals. Outbound mailto links URL-encode user-controlled text (`encodeURIComponent`, `lib/feedback.ts:21`). The corrections log is a local curation artifact (SEC-F3) whose entries are JSON-serialized with `JSON.stringify`, so no shell/HTML synthesis path exists.
+4. **Secrets** — grep `key|token|password|secret` in `data-raw/site-config.json` → 0 matches; the file contains exactly `{"operatorName": "Hospice Information Project", "contactEmail": "feedback@hospiceinfo.example"}` — the two placeholders only, no real credentialed address. Grep over `src/`, `scripts/`, committed data: only benign hits (React `key` props, `Object.keys`, the colour-key legend). No API keys, bearer tokens, `AKIA*`, or credentials anywhere outside `node_modules`.
+5. **Dependencies** — `package.json` runtime `dependencies` unchanged: bootstrap, leaflet, react, react-dom, react-leaflet. `xlsx@^0.18.5` remains a **devDependency** (imported only by `scripts/extract-hospices-ni.mjs:28` — build-time XLSX parsing; 0 `xlsx` imports in `src/`). `main.tsx:4` `import 'bootstrap/dist/js/bootstrap.esm.js'` — verified present: `dir node_modules/bootstrap/dist/js/bootstrap.esm.js` → 135,902 bytes, 15/10/2026 (ADR-0008 satisfied, no new package). `npm audit` (run 2026-10-22): identical to the 2026-10-16 result — xlsx * high ×2 (GHSA-4r6h-8v6p-xvw6 prototype pollution, GHSA-5pgg-2g8v-p4x9 ReDoS, "No fix available"), esbuild ≤0.24.2 moderate (GHSA-67mh-4wv8-2f99, dev-server proxy); 3 vulnerabilities, none in the runtime bundle (SEC-5 re-check).
+6. **ODbL / licensing** — **SEC-F1 below.** ADR-0006 requires ODbL attribution for the land source "documented in `data/README.md` (SEC-4), the Licences & Attribution page, and the footer" (ADR-0006 L37-38). Current state: `data/README.md` names the source (`uk-land.json` row: "OSM `natural=coastline` polygons via Overpass … pending human fetch … ADR-0006") but carries no explicit "© OpenStreetMap contributors, ODbL" line; the footer (`siteConfig.ts:20-21`) attributes ODbL to **tiles only**; and the new Licences page (22 October 2026) mis-attributes the land boundary. See SEC-F1.
+7. **Corrections trust model** — `scripts/add-correction.mjs` (read in full): non-empty summary + ISO-date regex enforced (exit 1 otherwise); reads operator from `data-raw/site-config.json` and exit-1s if `operatorName` is not a non-empty string (fail-fast); refuses to write if `corrections.json` is not a JSON array (the committed stub is bare `[]`); unshifts one entry then rejects dates older than the newest existing entry (newest-first invariant); writes via `JSON.stringify(updated, null, 2)` — no interpolation, no shell; then runs `validate-corrections.mjs` via `execFileSync(process.execPath, [validator])` (argument array, no shell → no injection); zero network imports in the script. `validate-corrections.mjs` is read-only (parse, array check, per-entry field checks, ordering, exit 1 on violation). Valid.
+8. **Supply chain / build** — `scripts/fetch-uk-land.mjs` (read in full): human-run by explicit design ("HUMAN STEP … NOT part of the automated build chain"), 4 Overpass mirrors, explicit User-Agent `HospiceInfoproto/0.1 (OSM land-mask research; contact: james)`, 30 s backoff on 429/503, 3 bounded retries per mirror (finite loop — no unbounded retry), `AbortSignal.timeout(360000)`, **no credentials**, writes only `data-raw/uk-land.json` locally, exit 1 on any failure. `build-data.mjs:86-98` and `validate-tessellation.mjs:23-29` read only that local file and fail fast if missing/empty (no box-only fallback) — consistent with the file currently being absent (`glob data-raw/uk-land.json` → no result), i.e. the build cannot silently substitute untrusted input.
 
 ## Findings
 
-| id | Finding | Severity | Level | Evidence | Rationale / recommendation |
-|----|---------|----------|-------|----------|------------------------------|
-| SEC-1 | `xlsx@0.18.5` (SheetJS on npm): prototype pollution (GHSA-4r6h-8v6p-xvw6) + ReDoS (GHSA-5pgg-2g8v-p4x9), both flagged high; `npm audit` offers no npm fix | risk-accepted | code-level | `npm audit` output (log below): `xlsx  *` high ×2, "No fix available" | The package is a **devDependency used only by maintainer-run local scripts** that parse a file the maintainer downloaded themselves from the regulator's site. It is not in the runtime bundle (`dist/assets/*.js` is built only from `src/`), no server exposes it, and untrusted input never reaches it in an automated way. The patched build ships only via SheetJS's own CDN registry (a supply-chain trade-off, not an improvement for this use case). Carry-forward: if a script ever parses data from an untrusted source, re-evaluate. |
-| SEC-2 | `esbuild <=0.24.2` (GHSA-67mh-4wv8-2f99, moderate, via `vite <=6.4.2`): local dev-server request-response exposure | risk-accepted | code-level | `npm audit` output: fix requires `vite@8.3.4` (breaking) | Dev tooling only; the Vite dev server binds to localhost and is used by one maintainer on a personal machine, never exposed to the network (`npm run dev` default). A breaking major bump of the build toolchain for a static site is not justified. No action. |
-| SEC-3 | Data-flow design: maintainer scripts egress public postcodes to OSM Nominatim and fetch from four regulator endpoints; the built site performs no network calls except OSM tiles | design-level (note, not a defect) | design-level | `scripts/geocode-postcodes.mjs` L19 (User-Agent header, 20 s timeout), L86 (1000 ms pacing = 1 req/s), L64/L70 (30 s / 5 s backoff on 429/503); query is the postcode unit only (`data/README.md` line 26: `?q=<unit>&countrycodes=gb&format=jsonv2&limit=1`); `src/` contains no `fetch` to third parties (only same-origin `/data/*.json` via `useAppData`) | This is the trust boundary as designed, and it is sound: the egressed data is postcodes (public, no PII), pacing + User-Agent + backoff satisfy the Nominatim usage policy, and the runtime surface is a static SPA with no backend, no auth, no user input persistence, and no telemetry. Deliberately un-defended threats: none worth defending — there is no user data, no secret, and no server endpoint to attack. No rework routed to the Architect. |
-| SEC-4 | Derived coordinates (Nominatim/OSM, ODbL) lack an explicit ODbL attribution statement for the *data* (tile attribution is present in-app) | risk-accepted (low) | code-level | `MapView.tsx` TileLayer carries `&copy; OpenStreetMap contributors`; `data/README.md` names "OSM Nominatim" as the source (lines 26, 28) but contains no ODbL credit sentence | ODbL requires attribution of the source for derived works. One-line doc fix, not a behaviour break: add "© OpenStreetMap contributors, made available under ODbL" to the `postcode-geo.csv` row in `data/README.md`. |
-| SEC-5 (evidence, not a finding) | Outbound links from data-derived URLs | n/a | code-level | `App.tsx:135,139` — the only `target="_blank"` links, both with `rel="noreferrer"` (implies noopener); `javascript:` absent from all of `public/data/` (grep: 0 matches); no `dangerouslySetInnerHTML` anywhere in `src/` (grep: 0 matches) | Injection surface is inert: all user- and data-derived strings render through React JSX text; the only free-form data URLs are the website/CQC register links after the checks above. |
+| id | area | description | severity | evidence | recommendation |
+|---|---|---|---|---|---|
+| SEC-F1 | 6 — ODbL/licensing (code-level) | **Licences page mis-attributes the UK land boundary to OS Open Data.** `src/pages/LegalPage.tsx` (OS Open Data section): "GP practice locations, charity shop locations, **and the UK land boundary used to clip the catchment polygons** are OS Open Data … © Crown Copyright and database right © Information Commissioner Office." The land boundary is **not** OS data — per ADR-0006 it is OSM `natural=coastline` from Overpass (`data-raw/uk-land.json`), and its attribution follows **ODbL**, not OGL. The OSM section covers only "Map tiles, and shop names and website links" — it omits the OSM land/coastline geometry, OSM Nominatim geocoding (`postcode-geo.csv`, `shops-geo.json`), and the page has no register section (CQC, Care Inspectorate Scotland, NHS GP reference file, data.wales) despite listing "GP practice locations … are OS Open Data" (they are nation registers). ADR-0006 L37-38 explicitly requires the land attribution on "the Licences & Attribution page" — requirement unmet; the `data/README.md` land row also lacks an explicit ODbL line (footer attributes ODbL to tiles only). Not an exploitable defect: documentation/attribution inaccuracy on a not-yet-public page. | Minor (risk-accepted — dev-only repo) | `LegalPage.tsx` OS Open Data paragraph (quoted above); ADR-0006 L37-38; `data/README.md` `uk-land.json` row ("OSM `natural=coastline` polygons via Overpass … ADR-0006" — no ODbL line); `siteConfig.ts:20` footer ("Map tiles © OpenStreetMap contributors … ODbL v1.0" — tiles only) | Before public release: (1) move the land boundary out of the OS Open Data paragraph into the OpenStreetMap section as "UK land boundary (coastline) geometry © OpenStreetMap contributors, ODbL v1.0"; (2) add Nominatim-derived coordinates to the OSM section; (3) add a registers section (CQC register, Care Inspectorate Scotland data store, NHS GP practice reference file, data.wales — each with its own licence); (4) add one "© OpenStreetMap contributors, ODbL" line to `data/README.md` for the OSM-derived files. Documentation-only; no code change. |
+| SEC-F2 | 2, 1 — GDPR/egress (design-level) | Static-site trust posture: no backend, no auth, no accounts, no forms, no persistence, no secrets. The trust boundary is **the browser on the reader's machine** — the site is served files; the user's inputs (search/filter box, nation pills, shop toggle, feedback text) are client-side React state that never leaves the browser; the only egress is OSM tiles (user's IP visible to OSM, disclosed on the Privacy page) plus user-initiated `mailto:` and outbound links. Any future server, form, or telemetry would move the trust boundary and re-trigger a full security review. | Minor — informational (risk-accepted, design-level, not a defect) | `useAppData.ts` (5 same-origin relative fetches); `CorrectionsPage.tsx:26` (only other fetch); 0 form/storage/tracker APIs (§1); `LegalPage.tsx` Privacy page; `index.html` single script tag | None — intended boundary; recorded for the record |
+| SEC-F3 | 7 — corrections trust model (design-level) | Human-curation supply chain: corrections enter only via `scripts/add-correction.mjs` run by the operator on a local machine (no network, no remote write API — §7); the published log is a plain committed JSON array. Code execution by a malicious entry is impossible (parsed by React's JSON deserialiser, rendered as escaped text); worst case is a misleading entry, bounded by the operator's own identity line. Same posture as the prior build-time human-fetch boundary (SEC-8). | Minor — informational (risk-accepted, design-level, not a defect) | `add-correction.mjs` (argument parsing, `execFileSync` array form, `JSON.stringify` write, zero network); `validate-corrections.mjs` (read-only validator); `corrections.json` = `[]` | None; if the log ever grows a web form, re-review |
 
-## Trust boundary & data flow (threat model)
+## Carried-forward risk-accepted set — re-check (2026-10-22)
 
-**In:** four public UK regulator registers + two public GP-practice files,
-fetched by a human (kept in `data-raw/`, committed for reproducibility).
-**Transform:** local Node scripts (extract → merge → geocode → build) run by
-the maintainer on this machine only. The only automated egress is
-geocoding: postcode unit → OSM Nominatim, 1 req/s, explicit User-Agent,
-backoff on 429/503 — public data out, coordinates in (ODbL, see SEC-4).
-**Out:** `public/data/*.json` → static site (`dist/`), served same-origin;
-the browser fetches only its own `/data/*.json` files and OSM tiles.
+| prior id | finding | status on 2026-10-22 |
+|---|---|---|
+| SEC-1 | Retired `data-raw/gp-practices-target.json` with 643 OGL phone numbers | **Unchanged — risk-accepted.** Still on disk, still marked "Retired provenance artifact … no longer a build input" in `data/README.md`, excluded from the served set. |
+| SEC-2 | Raw register extracts carry personal-data columns (CQC phone, CI-SC manager name/phone/email); extract scripts project only structural fields | **Unchanged — risk-accepted.** Pre-published OGL register data; the served `public/data/*` contains none of it. |
+| SEC-3 | Practice names embed doctors' registered personal names (638 hits) | **Unchanged — risk-accepted.** Published registered business names. |
+| SEC-4 | `extract-gp-practices-sc.mjs` live CKAN egress only if local file absent | **Unchanged — risk-accepted.** Build-time, no personal data sent, bounded by AbortSignal + UA. |
+| SEC-5 | `xlsx@0.18.5` 2 HIGH (no npm fix) + esbuild moderate — dev-only, out of the runtime bundle | **Re-verified 2026-10-22 via `npm audit` — unchanged: same 3 advisories** (GHSA-4r6h-8v6p-xvw6, GHSA-5pgg-2g8v-p4x9, GHSA-67mh-4wv8-2f99). **Risk-accepted.** |
+| SEC-6 | Missing ODbL/attribution lines | **Superseded by SEC-F1** — the new Licences page made the gap an explicit mis-attribution rather than a silent omission. Severity: Minor-for-dev / must-fix-before-public. |
+| SEC-7 | Static-site trust posture (design-level) | **Re-verified — unchanged.** Restated as SEC-F2. |
+| SEC-8 | Human-fetch supply chain = build-time trust boundary (design-level) | **Re-verified — unchanged.** Restated within SEC-F3. |
+| SEC-9 | Nominatim/OSM ToS compliance in geocoding code (rate, UA, backoff, resumable) | **Re-verified — unchanged.** `fetch-uk-land.mjs` adds the same netiquette for Overpass mirrors (§8). |
 
-The runtime has no authentication by design (public information, no user
-accounts), no forms, no persistence of user input (search/filter/toggle are
-ephemeral React state), and no telemetry of any kind (grep across the repo
-for analytics trackers: 0 matches). Nothing in the pipeline or the site
-handles personal data, health data, or credentials: public-data PII sweep
-results — no phone patterns, no email addresses (the 22 `@` hits in
-`public/data/` are all inside organisation name strings such as
-"ACCORD@Home"), no individual names beyond the organisation/practice names
-that the registers publish.
+## Trust boundary (design-level statement)
 
-**Deliberately un-defended, and why acceptable:** modification of
-`public/data/*.json` by someone with write access to the hosting origin —
-that threat is identical for any static site and is outside this
-repository's control; tamper-evidence is not a requirement of
-`feature.md`.
+This system has **no backend**. The trust boundary is therefore **the reader's browser**: the product is a set of static files (pages, JS bundle, `public/data/*.json`) served over HTTPS from Cloudflare Pages, and the static JSON files are **data, not code** — parsed by a fixed deserialiser and rendered as escaped text, so even hostile file contents cannot execute. Nothing machine-readable leaves the browser except the tile request to `tile.openstreetmap.org`; user input never leaves the browser; the only outward user action is a `mailto:` from the user's own mail client. The second, build-time boundary (maintainer + committed `data-raw/` + human-fetched register/OSM files) is unchanged from SEC-8/SEC-F3 and is guarded by fail-fast scripts and field projection. No design-level finding requires Architect rework.
 
-## Design-level findings
+## Non-security observation (routed to QA, not a security finding)
 
-- SEC-3 (above) — recorded explicitly per the pipeline rule that
-  trust-boundary/data-flow findings are marked design-level. It requires
-  no rework: the design is the boundary, and the boundary is sound. No
-  routing to the Architect.
+`CorrectionsPage.tsx` declares `interface CorrectionsResponse { corrections: …; total; generatedAt }` and reads `json.corrections`, but the on-disk log and both curation scripts use a **bare JSON array** (`corrections.json` = `[]`; `add-correction.mjs` writes an array). The page is fine while the log is the empty stub, and will silently render an empty list once any entry exists. Functional bug, no security impact.
 
-## Verification log (2026-10-16, single commands)
+## Verification log (2026-10-22, one command per call, read-only)
 
-1. `npm audit` → 3 vulnerabilities (esbuild moderate via vite; xlsx high ×2, no fix available); exit 1 by design
-2. grep `dangerouslySetInnerHTML` in `src/` → 0 matches
-3. grep `javascript:` in `public/data/` → 0 matches
-4. grep `target="_blank"` in `src/` → 2 matches (`App.tsx:135,139`), both `rel="noreferrer"`
-5. grep `@` in `public/data/` → 22 matches, all organisation-name strings (checked individually)
-6. grep phone/tel/fax/mobile patterns in `public/data/` → 0 matches
-7. grep secret/token/password/key assignments in `src/` and `scripts/` → 0 matches
-8. grep analytics/telemetry identifiers across `*.html,*.tsx,*.ts,*.js,*.mjs,*.css` → 0 matches
-9. `scripts/geocode-postcodes.mjs` L19/64/70/86: User-Agent, 30 s/5 s backoff, 1000 ms pacing, 20 s timeout
-10. `data/README.md` lines 26–29: Nominatim policy row (1 req/s, explicit User-Agent), OSM source rows
-11. `src/components/MapView.tsx` TileLayer attribution string present (OSM copyright link)
-12. Data shape spot-checks: catchment row keys `hospiceId,name,nation,kind,curated,practiceCount,polygons`; practice rows carry `id,name,address,postcode,lat,lon,nation,hospiceId` — no free-text personal fields beyond published names/addresses
+| # | command | key output |
+|---|---|---|
+| 1 | grep `fetch(|XMLHttpRequest|WebSocket|sendBeacon|importScripts|navigator.` in `src/` | exactly 2 hits: `useAppData.ts:4`, `CorrectionsPage.tsx:26` |
+| 2 | grep `dangerouslySetInnerHTML\|innerHTML\|eval(\|document.cookie\|localStorage\|sessionStorage` in `src/` | 0 matches |
+| 3 | grep `tile.openstreetmap\|attribution\|©\|osm` in `src/` | `MapView.tsx:174-175` (attribution control + tile URL); `LegalPage.tsx:53,61-62`; `siteConfig.ts:20-21` (footer, tiles-only ODbL) |
+| 4 | grep `mailto:\|https?://` in `src/` | 5 hits: OSM links, `feedback.ts:21`, `FeedbackPage.tsx:6` (mailto with `encodeURIComponent`) |
+| 5 | grep `<form\|onSubmit` in `src/` | 0 matches (only the filter input `HospicePanel.tsx:48`) |
+| 6 | read `data-raw/site-config.json` | exactly `{operatorName, contactEmail}` = placeholder pair; grep `key|token|password|secret` → 0 |
+| 7 | read `public/data/corrections.json` | `[]` |
+| 8 | read `scripts/add-correction.mjs`, `scripts/validate-corrections.mjs` | §7 checklist all pass; array-form `execFileSync`; `JSON.stringify` write; no network |
+| 9 | read `scripts/fetch-uk-land.mjs` | §8 checklist all pass: 4 mirrors, UA, 30 s backoff, 3 bounded retries/mirror, 6-min timeout, no credentials, local write only |
+| 10 | read `src/main.tsx` | `bootstrap/dist/js/bootstrap.esm.js` import (line 4) |
+| 11 | `dir node_modules\bootstrap\dist\js\bootstrap.esm.js` | present — 135,902 bytes, 15/10/2026 |
+| 12 | glob `data-raw/uk-land.json` + grep `uk-land` in `scripts/` | absent (pending human fetch); fail-fast confirmed in `build-data.mjs:86-98`, `validate-tessellation.mjs:23-29` |
+| 13 | read `data/README.md` | `uk-land.json` row names the OSM source, no explicit ODbL line (SEC-F1) |
+| 14 | grep `Attribution|ODbL` in `docs/adr/0006-…md` | L37-38: attribution required in README + Licences page + footer — unmet (SEC-F1) |
+| 15 | read `src/pages/LegalPage.tsx` | Privacy claims verified true; Licences page mis-attributes land (SEC-F1) |
+| 16 | `npm audit` | 3 vulnerabilities (1 moderate, 2 high) — identical to 2026-10-16 (SEC-5) |
+| 17 | read `package.json` + grep `from 'xlsx'` repo-wide | runtime deps unchanged; `xlsx` devDependency only, imported solely in `scripts/extract-hospices-ni.mjs:28` |
 
-## Note
-
-The dispatched security sub-session never landed an artifact; this report
-supersedes it (lead takeover, per operator-validated policy).
+Every finding is pinned to a row in this log. All 8 areas verified; no incomplete section; no TODOs.

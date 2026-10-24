@@ -2,8 +2,11 @@
 
 This repository is developed by an autonomous multi-agent pipeline.
 Every session (web, TUI, or headless) must follow this contract. The
-stages run as subagents defined in `.qwen/agents/`; the session acting
-as Engineering Lead dispatches them per `.qwen/lead.md`.
+stages run as subagents defined in the shared user-level
+`~/.qwen/agents/` (a repo-local `.qwen/agents/` overrides if present);
+the session acting as Engineering Lead dispatches them per
+`~/.qwen/lead.md` (same override rule). All stage artifacts
+(`.agents/`, `docs/`) are always repo-local.
 
 ## Pipeline (in order)
 
@@ -11,7 +14,7 @@ as Engineering Lead dispatches them per `.qwen/lead.md`.
 |---|-------|----------|-------|
 | 1 | Research | `.agents/research.md` | qwen-coding |
 | 2 | Architect | `.agents/architecture.md` | qwen-coding |
-| 3 | Reviewer | `.agents/review.md` | qwen-coding-small |
+| 3 | Reviewer | `.agents/review.md` | qwen-coding |
 | 4 | Product Manager | `.agents/requirements.md` (exhaustive work list) | qwen-coding-small |
 | 5 | Coding | `.agents/implementation.md` | qwen-coding |
 | 6 | QA | `.agents/qa.md` | qwen-coding |

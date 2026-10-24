@@ -1,6 +1,6 @@
 # ADR 0001 — UK-wide Voronoi clip box: rectangle, no coastline clipping
 
-**Status:** accepted (2026-10-16)
+**Status:** superseded by ADR 0006 (2026-10-21)
 
 ## Context
 

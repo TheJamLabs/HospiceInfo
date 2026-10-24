@@ -27,7 +27,7 @@ for the full methodology, caveats and the catchment colour key.
 - **Areas** — each hospice's catchment: a Voronoi tessellation of the
   practice + hospice-site points over the UK
 - **Squares** — charity shops from the curated hospices' websites (toggle
-  in the header); orange squares sit *outside* their own catchment
+  in the header)
 - Side panel: search, nation pills, per-hospice practice counts;
   non-matching-nation elements are dimmed on the map
 - The catchment colour key (20 curated) lives in the **Source & Method**
@@ -35,7 +35,7 @@ for the full methodology, caveats and the catchment colour key.
 
 ## Current data snapshot
 
-Counts from the committed `public/data/` as of 2026-10-16:
+Counts from the committed `public/data/` as of 2026-10-22:
 
 | Nation | Hospices | GP practices |
 |---|---|---|
@@ -44,12 +44,26 @@ Counts from the committed `public/data/` as of 2026-10-16:
 | Wales | 0 — register list pending | 0 — DataMap fetch pending |
 | Northern Ireland | 0 — register export pending | 304 |
 
-138 charity shops, 21 of them outside their own catchment at this
-snapshot (recomputed on every build). Geocoding is complete: 8,364 of the
-8,373 in-scope postcodes are resolved; the remaining 9 have no
-OSM/Nominatim coverage (units and outcodes both absent) and their 12
-practices show as "unassigned" in the panel — a documented OSM gap (see
-[`data/README.md`](data/README.md)). The assignment rule itself never changes.
+9,564 practices in total, 138 charity shops. Geocoding is complete:
+8,364 of the 8,373 in-scope postcodes are resolved. The remaining 9 have
+no OSM/Nominatim coverage (units and outcodes both absent), so their 12
+practices carry no assignment in the data and are not shown on the map —
+a documented source gap, not a defect (see
+[`data/README.md`](data/README.md)). The assignment rule itself never
+changes.
+
+## Pages
+
+The app is a single page with hash routes (no server configuration
+needed):
+
+- `#map` — the map (default; unknown routes land here)
+- `#about` — what the site is, who runs it, where the data comes from
+- `#feedback` — how to flag a problem (opens your own email client;
+  nothing is collected on this site)
+- `#corrections` — public log of the corrections applied to the data
+- `#privacy`, `#licences`, `#accessibility` — the legal and
+  accessibility pages
 
 ## Quick start
 
@@ -69,6 +83,14 @@ Production build:
 ```
 npm run build     # type-check (tsc) + Vite build -> dist/
 npm run preview   # serve the built app
+```
+
+Deployment to the live site (Cloudflare Pages — full procedure and
+pre-publish gate in `docs/MAINTENANCE.md`):
+
+```
+npm run build
+npx wrangler pages deploy dist --project-name=hospiceinfo
 ```
 
 ## Data pipeline

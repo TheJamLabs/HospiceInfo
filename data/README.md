@@ -28,6 +28,8 @@ fetched at runtime). Domain vocabulary used throughout: [`GLOSSARY.md`](../GLOSS
 | `shops-geo.json` | OSM Nominatim (same policy as above) | 2026-10-15 | Geocoded `lat`/`lon` for each shop (postcode where present, else address; 3 website postcode typos were geocoded by street + town) |
 | `shops-osm.json` | OSM Overpass (shop POIs in the original bbox) | 2026-10-15 | **Placeholder `[]`** — all public Overpass mirrors were down (502/500) at collection time; the websites remain the shop source. Not a build input |
 | `hospices-wikidata.json` | api.wikidata.org | 2026-10-14 | **Placeholder `[]`** — endpoint unreachable from this machine; research artifact, not a build input |
+| `uk-land.json` | OSM `natural=coastline` via Overpass, box filter `natural=coastline (49.5,-11.0,61.5,2.0)` — the fetch box is deliberately wider west than the ADR-0001 map box (−9.5) so the English Channel / Irish Sea coastline loops close entirely inside the query (ADR-0006); `scripts/fetch-uk-land.mjs` | 2026-10-23 | **SHA-256 `038a1635f65d8ae28e8b6388e3eaea1d29d5757fcb4c8b78c7c06cec82653819`, 22,999 polygons** (39,432 coastline elements → 23,181 closed rings; ~150 small rings dropped as unclosable fragments). Verified by point-in-ring against reference cities: London, Manchester, Cardiff, Inverness, Belfast, Dublin, Derry, Lisburn all land inside the mask. Core tessellation clip input; `build-data.mjs` and `validate-tessellation.mjs` fail fast without it — no box-only fallback. Consumed at build time as a **deterministic in-memory Douglas–Peucker simplification** (tol 0.001° ≈ 110 m; `scripts/land-mask.mjs`, shared by build and validator): the raw file is never rewritten, so this SHA-256 remains the provenance anchor and rebuilds are byte-identical. **Licence: Open Database License (ODbL) v1.0, © OpenStreetMap contributors** |
+| `site-config.json` | operator-controlled (no external fetch) | 2026-10-22 | `operatorName` + `contactEmail`; the email is a placeholder until the operator supplies a real address. Mirrors the constant in `src/lib/siteConfig.ts` — keep the two in lockstep if the address changes |
 
 ## Generated app data (`public/data/`)
 
@@ -39,6 +41,7 @@ Produced by `scripts/build-data.mjs` from the files above:
 | `practices.json` | 9,564 practices: id, name, address[], postcode, lat/lon (`null` until geocoded), `nation`, assigned `hospiceId` (`null` = not geocoded / no match until the batch finishes) |
 | `catchments.json` | One cell per placed hospice: `hospiceId`, name, `nation`, `kind`, `curated`, `practiceCount`, `polygons` — the Voronoi cell(s) under the single nearest-hospice rule, clipped to the UK box (ADR-0001). No outcode lists (retired, ADR-0005) |
 | `shops.json` | 138 charity shops: id, name, address, postcode, lat/lon, `hospiceId` (canonical `en-1-<CQC Location id>`, remapped from the legacy website slugs), `outsideCatchment` (point-in-polygon test against the shop's own cell), source page |
+| `corrections.json` | curated corrections log (a curation artifact, not produced by `build-data.mjs`): committed array, **newest first**, entries `{date, summary, dataChanged}`; stub `[]` until the first entry; maintained by `scripts/add-correction.mjs`, validated by `scripts/validate-corrections.mjs`; fetched page-locally by the `#corrections` page only |
 
 ## Current state (post-batch, 2026-10-16)
 
@@ -53,6 +56,21 @@ BT63 6JS, BT79 0NR`. 138 charity shops, of which **21 sit outside their own
 catchment** in this snapshot (recomputed on every build). Wales and
 Northern Ireland show 0 hospices and Scotland 0 practices until the three
 human fetches below land.
+
+The tessellation also requires `data-raw/uk-land.json` (the committed OSM
+land boundary, ADR-0006), which **is present** (fetched 2026-10-23;
+SHA-256 and counts in the raw-inputs table above). The committed
+`public/data/` has been rebuilt against it: catchment cells are now clipped
+to the actual coastline, and `node scripts/validate-tessellation.mjs`
+passes (cell polygons stay in-box, in-mask, and tile at shared
+boundaries). Note that `build-data.mjs` and
+`validate-tessellation.mjs` fail fast if the file is ever missing again
+(no box-only fallback, no synthetic coastline). Both scripts consume the
+raw mask via `scripts/land-mask.mjs`, which applies a deterministic
+Douglas–Peucker simplification (tol 0.001°) **in memory** before any
+clipping — the raw file stays untouched, so its SHA-256 remains the
+provenance anchor and repeated `npm run build-data` runs produce
+byte-identical `public/data/` output.
 
 ## Human fetch procedures (run on a machine with full DNS)
 
@@ -85,6 +103,16 @@ human fetches below land.
    `…\data-raw\gp-practices-scotland-2026-10.geojson`. Re-run
    `node scripts/extract-gp-practices-sc.mjs` → geocoder → build chain as
    above.
+4. **OSM land boundary (UK-wide catchment clipping, ADR-0006)** — `data-raw/uk-land.json` **— DONE 2026-10-23**
+   On a machine with a normal network run `node scripts/fetch-uk-land.mjs`
+   → commit `data-raw/uk-land.json` → record its SHA-256 and polygon count
+   in the `uk-land.json` provenance row above → re-run `npm run build-data`
+   (twice — outputs must be byte-identical) →
+   `node scripts/validate-tessellation.mjs` → `npm run build`.
+   The fetch box must stay wider west than the ADR-0001 map box (−9.5) so
+   the Irish Sea / English Channel coastline loops close inside the query;
+   the build and validator clip back to the map box, so out-of-box land
+   (e.g. west of −9.5) never reaches the app (see ADR-0006).
 
 ## Care Inspectorate Wales data request (item 1 / B1 — email to send)
 

@@ -12,6 +12,7 @@ import {
 import L from 'leaflet';
 import type { Hospice, Practice, Catchment, Shop } from '../lib/types';
 import type { NationFilter } from './HospicePanel';
+import { feedbackMailto, type FeedbackPoint } from '../lib/feedback';
 
 interface Props {
   hospices: Hospice[];
@@ -33,7 +34,17 @@ const NATION_BOUNDS: Record<NationFilter, [[number, number], [number, number]]> 
   wales: [[51.4, -5.3], [53.4, -2.7]],
 };
 
-// Refits the viewport when the nation filter changes.
+// The "Disagree with this data?" link on map points (pm 4.3: mailto only,
+// prefilled with the point's identifying details).
+function DisagreeLink({ point }: { point: FeedbackPoint }) {
+  return (
+    <a href={feedbackMailto(point)} className="small text-decoration-none d-block mt-1">
+      Disagree with this data?
+    </a>
+  );
+}
+
+// Refits the viewport when the nation filter changes (and on mount).
 function FitToNation({ nation }: { nation: NationFilter }) {
   const map = useMap();
   useEffect(() => {
@@ -94,24 +105,23 @@ function HospiceMarker({ hospice, opacity, onSelect }: {
             {hospice.kind === 'published' ? 'Published service area' : 'Approximated catchment'}
             {hospice.curated ? ' · curated' : ''}
           </span>
+          <DisagreeLink point={{ id: hospice.id, name: hospice.name, postcode: hospice.postcode, hospiceName: null }} />
         </div>
       </Popup>
     </Marker>
   );
 }
 
-const SHOP_OUTSIDE_COLOR = '#e07b00';
-
-function ShopMarker({ shop, hospiceColor, opacity, onSelect }: {
+function ShopMarker({ shop, hospiceColor, hospiceName, opacity, onSelect }: {
   shop: Shop;
   hospiceColor: string;
+  hospiceName: string | null;
   opacity: number;
   onSelect: (id: string | null) => void;
 }) {
-  const color = shop.outsideCatchment ? SHOP_OUTSIDE_COLOR : hospiceColor;
   const icon = L.divIcon({
     className: 'shop-marker-wrap',
-    html: `<span class="shop-marker" style="background:${color};opacity:${opacity}"></span>`,
+    html: `<span class="shop-marker" style="background:${hospiceColor};opacity:${opacity}"></span>`,
     iconSize: [10, 10],
     iconAnchor: [5, 5],
   });
@@ -121,14 +131,15 @@ function ShopMarker({ shop, hospiceColor, opacity, onSelect }: {
         <strong>{shop.name}</strong>
         <br />
         {shop.address}{shop.postcode ? ` · ${shop.postcode}` : ''}
-        {shop.outsideCatchment ? (
+        {hospiceName ? (
           <>
             <br />
-            <span className="fw-semibold" style={{ color: SHOP_OUTSIDE_COLOR }}>
-              ⚠ Outside its own catchment
-            </span>
+            <span className="text-muted">→ {hospiceName}</span>
           </>
         ) : null}
+        <DisagreeLink
+          point={{ id: shop.id, name: shop.name, postcode: shop.postcode, hospiceName }}
+        />
       </Tooltip>
     </Marker>
   );
@@ -148,7 +159,14 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
 
   return (
     <MapContainer
-      bounds={L.latLngBounds([[49.5, -9.5], [61.5, 2.0]])}
+      // pm 2.1: canvas renderer — the ~9.5k practice markers would make the SVG
+      // renderer unusable (it draws every CircleMarker as a DOM node).
+      preferCanvas={true}
+      // pm 2.2: start from a sensible centre; FitToNation immediately
+      // fitBounds() to the nation extent on mount, so the map is never seen
+      // panning from a data-derived corner.
+      center={[55.0, -3.5]}
+      zoom={6}
       className="app-map-canvas"
       zoomControl={true}
     >
@@ -192,7 +210,10 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
         );
       })}
 
-      {/* GP practices (all placed practices are shipped; no downsampling) */}
+      {/* GP practices (all placed practices are shipped; no downsampling)
+          pm 3.2: the tooltip is NEUTRAL for unassigned practices — postcode
+          only — and never names a catchment; for assigned ones it says which
+          hospice the practice is assigned to. */}
       {visiblePractices.map((p) => {
         const hosp = p.hospiceId ? hospices.find((h) => h.id === p.hospiceId) : null;
         const dim = selectedId !== null && p.hospiceId !== selectedId;
@@ -201,7 +222,9 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
           <CircleMarker
             key={p.id}
             center={[p.lat as number, p.lon as number]}
-            radius={selectedId === p.hospiceId ? 5 : 3}
+            // pm 2.3: larger radius as the touch-target mitigation (a 5px
+            // radius ≈ 10px dot is ~(3-4)× bigger than the pre-fix 3px one).
+            radius={selectedId === p.hospiceId ? 7 : 5}
             pathOptions={{
               color: '#ffffff',
               weight: 1,
@@ -215,15 +238,29 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
               <br />
               {p.address.join(', ')}
               <br />
-              <span className="text-muted">
-                {p.postcode} → {hosp ? hosp.name : 'no catchment match'}
-              </span>
+              {p.postcode}
+              {hosp ? (
+                <span className="text-muted">
+                  <br />
+                  → assigned to {hosp.name}
+                </span>
+              ) : null}
+              <DisagreeLink
+                point={{
+                  id: p.id,
+                  name: p.name,
+                  postcode: p.postcode,
+                  hospiceName: hosp ? hosp.name : null,
+                }}
+              />
             </Tooltip>
           </CircleMarker>
         );
       })}
 
-      {/* charity shops */}
+      {/* charity shops — pm 3.1: always drawn in their assigned hospice's
+          colour; the outsideCatchment flag stays in the data and types
+          (hide-not-delete) but is no longer exposed on screen. */}
       {visibleShops.map((s) => {
         const hosp = hospices.find((h) => h.id === s.hospiceId);
         const dim = selectedId !== null && s.hospiceId !== selectedId;
@@ -233,6 +270,7 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
             key={s.id}
             shop={s}
             hospiceColor={hosp?.color ?? '#666'}
+            hospiceName={hosp ? hosp.name : null}
             opacity={dimmedNation ? 0.15 : dim ? 0.25 : 1}
             onSelect={onSelect}
           />
