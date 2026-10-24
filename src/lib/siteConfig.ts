@@ -11,8 +11,8 @@ export interface SiteConfig {
 }
 
 export const siteConfig: SiteConfig = {
-  operatorName: 'Hospice Information Project',
-  contactEmail: 'feedback@hospiceinfo.example',
+  operatorName: 'The Jam Labs Ltd',
+  contactEmail: 'hello@thejamlabs.com',
 };
 
 // Footer legal-text constant (rendered by AppShell on every page).
