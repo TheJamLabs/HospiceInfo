@@ -110,6 +110,25 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Notes
 
+- 2026-10-24: **G1 + G4 closed; G6 re-run green after the G4 tree change.**
+  G1: all cycle changes committed in `e4b8503` (48 files) and the G4 change in
+  `557e553` (2 files); remote `origin` = github.com/TheJamLabs/HospiceInfo.git;
+  `main` pushed (both commits). GitHub GH001 warning on push — `data-raw/uk-
+  land.json` 54.56 MB > recommended 50 MB — accepted as-is (LFS would force a
+  history rewrite that breaks the committed SHA-256 provenance anchor); not a
+  push failure. G4: `data-raw/site-config.json` now carries operator
+  "The Jam Labs Ltd" / contact "hello@thejamlabs.com", mirrored in
+  `src/lib/siteConfig.ts` (ADR-0009 lockstep); grep `hospiceinfo\.example`
+  repo-wide → no matches. G6 re-run after the G4 tree change (all green):
+  `npm run build` exit 0; `validate-tessellation.mjs` exit 0 (155 catchments,
+  1 known empty-cell warning `en-1-17708902164` "Hospice at Home", coverage
+  100.00%, worst sea leak 0.000117); `validate-corrections.mjs` exit 0.
+  Remaining human gates: **G5** (8-point mobile live pass, `.agents/qa.md`
+  §A6 — human phone only) and **G7** (fetch-script live verification + re-
+  fetch + rebuild chain, environmental — when an Overpass mirror has
+  capacity; diagnosability guard already in-tree). G6 stays the
+  "re-run after any tree change" gate; the final pre-deploy run is the one
+  above.
 - 2026-10-24 (09:21): **G7 — second delayed notification (bg_68ac9ea6)
   resolved; the Oct-23 run pair is now identity-confirmed. No overwrite.**
   Notification claimed exit 0 with log `.qwen/tmp/fetch4.log`. On-disk
