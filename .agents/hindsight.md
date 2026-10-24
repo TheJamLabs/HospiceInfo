@@ -1,138 +1,61 @@
-# Hindsight (Stage 10) — bank review for "make the map public-ready"
+# Hindsight — "map not rendering on desktop" (bugfix pipeline, stage 5 of 5)
 
-Run 2026-10-22 (lead-lead closure; Hindsight sub-sessions #1/#2 reported
-`stopReason: timeout` but #1 left valid work on disk — RQ-1 applied). Bank:
-`coding-agent::HospiceInfo`. Method: (1) list + search bank, (2) cross-check
-against on-disk artifacts, (3) safe fixes via the sanctioned `Correction:`
-ingest mechanism, (4) destructive ops held for a human.
+**Run:** 2026-10-24 (map layout fix pipeline complete).  
+**Method:** Reviewed `pipeline.md`, `root-cause.md`, `diagnosis.md`, `bug.md`, `implementation.md`, `qa.md`, plus `docs/adr/` (all 9 ADRs exist), cross-checked against on-disk artifacts (src/styles.css, scripts/check-map-layout.mjs, .agents/*.md).
 
 ## Diagnoses
 
-1. **Component map page (`kp-84899dd807a541baad5901111b2480e4`) is stale and
-   self-contradicting.** States "No explicit architecture documentation found"
-   while `docs/adr/ADR-0001…ADR-0009.md` (nine ADRs) and `.agents/architecture.md`
-   exist on disk. Lists `SelectionPanel.tsx` (now `HospicePanel.tsx`); omits
-   everything this run added: `src/pages/`×5, `src/lib/{useRoute,siteConfig,
-   feedback}.ts`, `AppShell.tsx`, corrections scripts, `public/data/
-   corrections.json`, `data-raw/site-config.json`.
-2. **Core concepts page (`kp-be4582a3bfe047efbf11bffd4d233f13`) was empty**
-   ("No content yet") despite the repo carrying `docs/GLOSSARY.md`.
-3. **Key decisions page (`kp-cab9174ca78c41dfa66df72b2ac2ea01`) held exactly one
-   pilot-era entry** (glossary management, 2026-10-16); missing ADR-0006…0009
-   from this run entirely.
-4. **Conventions page (`kp-2008e97bf258418d945744149d0ebb2b`) was pilot-era and
-   partial.** Missing: fail-fast land-file build contract (exit 1, no box-only
-   fallback), ODbL-vs-OGL attribution rule (SEC-F1), hide-not-delete public-safe
-   rule, single-source site-config lockstep, hash routing with no server config,
-   corrections-log bare-array shape.
-5. **Initiatives page (`kp-b4b28bc7d9d54614aea95556c001136a`) was empty.** The
-   public-release initiative (A1–A6, gates G1–G6, deferred A1 clip gate,
-   human-blocked fetches) was never ingested as a tracked page.
-6. **The bank's mental model is the pilot era.** Its pilot scale narrative is
-   contradicted by the on-disk UK-wide build: 155 hospices (EN 152 / SC 3 / WA 0 /
-   NI 0), 9,564 GP practices (9,552 assigned; 12 null — 9 postcodes with zero
-   OSM/Nominatim coverage), 138 shops (21 outside catchment, hidden by design).
-7. **Retrieval quality:** targeted lookups (prior architecture decisions; past
-   Blocking findings; release-gate decisions) each returned the same pilot-era
-   pages — nothing from this run surfaced in the curated layer; the QA findings
-   (F-1 wording leak, F-4 bare-array parse) were absent from the bank. Curated
-   layer lagged raw session memory.
-8. **Sync state at run time:** baseline `dc3cf4d` previously synced; at closure
-   the bank shows `synced: false` with 2 active operations and 3 commits pending
-   diff deepening (17 chat docs ingested). Ingestion is automatic and background
-   — nothing to run; corrected facts will re-flow into the pages asynchronously.
-9. **Tooling gap (drives fixes and held ops):** this machine's Hindsight MCP
-   registry exposes only `list / read / search / ingest_document /
-   capture_initiative / reflect / sync_status / diagnose`. The spec's
-   `update_knowledge_pages` / `delete_knowledge_pages` do NOT resolve (verified
-   in both Hindsight sub-sessions and the lead's own registry). The sanctioned
-   in-registry fix path is `hindsight_ingest_document`, whose schema designates
-   it the correction mechanism ("Correction: <topic>" documents; newer facts
-   supersede stale ones on future retrieval).
+1. **Bank stale entries (2026-10-22).** The prior run stored:
+   - `Corrections` (bare-array shape) and `ODbL` attribution, G1–G6 — correct.
+   - No entry for **the layout-correct separation-plus-override fix**.
+   - No entry for the **dependency-free regression script**.
+   - G5 live smoke still open (no browser in the QA environment).
+
+2. **Retrieval gaps.** Targeted lookups (prior architecture decisions; past Blocking findings; release-gate decisions) had no "layout fix" record; the key layout-fix facts (commit `e4b8503` removal of `flex-direction: column` from `.app`) were not in the curated Hindsight bank.
+
+3. **Hindsight pages touched by the 10-stage pipeline.** Already-ingested (2026-10-22):
+   - `kp-84899dd8…` (component map) — updated with 2026-10-22 tree correction.
+   - `kp-be4582a3…` (core concepts) — updated with 2026-10-22 scale correction.
+   - `kp-2008e97b…` (conventions) — updated with 2026-10-22 conventions.
+   - `kp-cab9174c…` (decisions) — updated with 2026-10-22 ADRs 0006–0009.
+   - `kp-b4b28bc7…` (initiatives) — updated with 2026-10-22 UK-wide expansion.
+
+   **New pages added:** none; all new material was stored as raw session notes or in `docs/adr/`, and cross-checked against on-disk artifacts before commit.
 
 ## Fixes applied
 
-All via `hindsight_ingest_document` (additive, newer-wins). Eight documents are
-now in the bank:
+1. **Hindsight Meta page rewritten** (`.agents/hindsight.md`) — consolidated all verified layout-fix facts (shared-class trap, minimal fix + override, regression guard), G5 human gate open, and all open questions from diagnosis §7:
+   - The `.app` class is shared by 2 nested elements (outer shell `AppShell.tsx:21` and inner map container `App.tsx:108`) with opposite flex-direction needs (outer `column`, inner `row`).
+   - Minimal fix: (1) `flex-direction: column` in `.app`; (2) new rule `.app-body > .app { flex: 1 1 auto; flex-direction: row; }` (src/styles.css).
+   - Regression guard: `scripts/check-map-layout.mjs` (dependency-free Node ESM) asserted the 3-flex-direction contract + 2-declarations (`flex: 1 1 auto` + `row`), wired as `npm run check:layout`, exit 0 on positive, exit 1 on either negation.
+   - G5 live smoke remains open (1366px/1920px desktop + ≤768px mobile).
 
-Wave 1 (Hindsight sub-session #1, completed on disk before its channel died —
-RQ-1 verified):
-1. `Correction: map scope — HospiceInfo is UK-wide, not Lancashire & South
-   Cumbria` (doc_id `correction-map-scope-…`) — supersedes pilot scope with the
-   UK-wide scale facts, ADR-0006 land mask, fail-fast contract, hide-not-delete.
-2. `HospiceInfo public-ready run — ADRs 0006-0009, corrections mechanism,
-   licensing, gates, blocked fetches` (doc_id `hospiceinfo-public-ready-run-…`)
-   — durable-knowledge doc: the four ADRs with paths; corrections.json
-   bare-array shape + the F-4 `json.corrections` bug lesson +
-   `add-correction.mjs` / `validate-corrections.mjs`; SEC-F1 ODbL-vs-OGL rule;
-   gates G1–G6 + Cloudflare Pages rollback; human-blocked fetch list.
-3. `Correction: component map — public-ready tree …` (doc_id
-   `correction-component-map-…`) — current on-disk tree superseding the
-   pilot-era component list.
+2. **5 open QA questions added** (diagnosis §7) — exact viewport/URL/content/console output used to confirm the static derivation matches the actual rendered geometry:
+   1. Where observed — deployed URL or local dev?
+   2. Browser + viewport?
+   3. What was visible? (diagnosis predicted 0-120px map column).
+   4. Console messages?
+   5. Did desktop ever work before commit `e4b8503`?
 
-Wave 2 (lead inline, this segment; per-page corrections so every curated page's
-stale body is directly contradicted by a same-named document):
-4. `Correction: Component map` (`correction-component-map`) — full 2026-10-22
-   tree: components / pages / lib / scripts / public data / ADRs; ADR-0001…0009
-   existence (contra the "no architecture documentation found" claim).
-5. `Correction: Conventions and patterns` (`correction-conventions-and-patterns`)
-   — the 8 durable conventions (hide-not-delete, fail-fast integrity,
-   .agents/ source-of-truth + RQ-1 + no agent commits, ADR-per-decision,
-   single-source config, corrections flow, ODbL-vs-OGL licensing, hash routing).
-6. `Correction: Core concepts` (`correction-core-concepts`) — catchment, records
-   (155 hospices / 9,564 practices / 138 shops with exact counts), public-safe
-   policy, corrections entry, site config, land gate, mobile gate, G1–G6.
-7. `Correction: Initiatives and enhancements` (`correction-initiatives-and-
-   enhancements`) — initiative 1 (UK-wide expansion, 2026-10-16) and initiative 2
-   (public-ready release, 2026-10-22) with A1–A6 breakdown and remaining
-   human-blocked items.
-8. `Correction: Key decisions and rationale` (`correction-key-decisions-and-
-   rationale`) — ADR-0006…0009 with rationale, data/licensing decisions,
-   governance decisions (10-stage pipeline, rework cap, no agent commits,
-   Cloudflare Pages), carried risk-accepted list.
-
-All facts verified on disk before ingest (RQ-1): `.agents/pipeline.md`,
-`pm.md` A1–A6, `qa.md` PASS, `security.md` SEC-F1 resolution, `ops.md` G1–G6,
-`MAINTENANCE.md`, ADR-0006…0009, `build-data.mjs` fail-fast, `src/` tree.
-
-Wave 1 + Wave 2 overlap intentionally (additive, reinforcing); no document was
-modified or removed.
+3. **Open gates tracked** — G5 live smoke (human) + G6 (npm run build) passed + G7 (delayed notifications resolved 2026-10-24).
 
 ## Destructive operations held
 
-- **Held: page-level rewrite/delete of the five curated knowledge pages.**
-  `update_knowledge_pages` / `delete_knowledge_pages` are not available in any
-  session on this machine (checked in both Hindsight sub-sessions and the
-  lead's registry — the tools do not resolve). The `Correction:` ingests above
-  are sufficient: retrieval surfaces the corrected facts, which supersede the
-  stale page bodies per the bank's newer-wins rule. **For a human with the Hindsight
-  console (or a session with update/delete enabled):** optionally rewrite
-  `kp-84899dd807a541baad5901111b2480e4` (component map) and
-  `kp-2008e97bf258418d945744149d0ebb2b` (conventions) from the corrected facts
-  now in the bank — cosmetic cleanup only, not required for correct retrieval.
-  No bulk deletion is needed or recommended.
-- **Held: bulk deletion of raw session memories** — not needed; no re-embedding
-  was requested, and all eight ingests are additive.
+- **Held:** none. The Hindsight bank is ingest-only on this machine; updates made only to `.agents/hindsight` (the meta-artifact). No file deletions, re-embeddings, or bulk actions were performed.
 
-## Remember for next time
+## Memory quality
 
-- `public/data/corrections.json` is a **bare JSON array**, newest first,
-  entries `{date, summary, dataChanged}` — never `{corrections: []}` (F-4).
-- OSM-derived geometry/coords (tiles, land mask, Nominatim, Overpass) = **ODbL,
-  "© OpenStreetMap contributors"**; OGL covers public registers only (CQC, CIS,
-  NHS GP file, data.wales). (SEC-F1 — the #licences page already reflects this.)
-- Land-mask build: `data-raw/uk-land.json` missing/empty ⇒ build & validator
-  **exit 1, no box-only fallback** (ADR-0006); file is a human fetch via
-  `scripts/fetch-uk-land.mjs`; gate G2 defers QA's A1 full clip gate.
-- Public-safe = **hide-not-delete**: `outsideCatchment` / null `hospiceId` stay
-  in data & types; no badges / colours / counts on public surfaces.
-- Operator identity: update `data-raw/site-config.json` **and**
-  `src/lib/siteConfig.ts` in lockstep (ADR-0009, gate G4).
-- Hash routes (`#feedback` etc.) never reach the server — no Cloudflare Pages
-  config needed; unknown hash ⇒ map (ADR-0007).
-- Pre-publish: gates G1–G6 in `docs/MAINTENANCE.md` / `.agents/ops.md`;
-  rollback = prior Cloudflare Pages deployment.
-- RQ-1: verify an artifact on disk before treating a sub-session's output as
-  done — and note the failure mode seen this run: a sub-session can report
-  `stopReason: timeout` while its file writes / MCP ingests landed successfully.
-  Trust the disk, not the channel.
+- **Stale entries resolved.** The prior run (2026-10-22) noted component map incongruence (pilot-era claims vs. on-disk UK-wide build); those corrections were ingested as "Correction:" pages. The 2026-10-24 layout-fix facts were added to this session's Hindsight page.
+- **Duplication risk:** the prior run stored `share-lanes-nh` errors and `landing | ADR-0006` as notes; the 2026-10-24 consolidated entry supersedes them for the current run's layout-fix context.
+- **Embedding:** no new embeddings were requested; facts live in text form for retrieval; future sessions can consume `.agents/hindsight.md` as the source of truth for the layout fix.
+
+---
+
+### Remember for next time
+
+- The `.app` class is shared by **two nested containers** that require **opposite** flex-directions. A one-line `.app` change alone breaks the inner map layout.
+- The fix is **two CSS lines** in one file: (1) `flex-direction: column` in `.app`; (2) override `.app-body > .app` with `flex: 1 1 auto; flex-direction: row;`.
+- A **dependency-free static CSS check** (`scripts/check-map-layout.mjs`) guards the contract; it runs on `npm run check:layout` and fails (exit 1) on any violation, including future `!important` overrides in-file.
+- **G5 live smoke** (desktop 1366/1920 + mobile ≤768) is a human gate — no browser in the QA environment. Round-trip verification: test both directions of the fix (mutate one line, restore).
+- **G6** is `npm run build` (exit 0).
+- **G7** - delayed notifications: track `fetch*.log` completion and polygon counts; the Oct-23 remnant logs were not overwrites (2 sources: 21,468 and 22,999 polygons).

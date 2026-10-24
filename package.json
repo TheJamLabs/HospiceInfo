@@ -8,7 +8,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
-    "build-data": "node scripts/build-data.mjs"
+    "build-data": "node scripts/build-data.mjs",
+    "check:layout": "node scripts/check-map-layout.mjs"
   },
   "dependencies": {
     "bootstrap": "^5.3.3",

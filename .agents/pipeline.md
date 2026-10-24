@@ -402,3 +402,106 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
   placeholders; QA-7 stale index.html <title>; QA-8 Methodology wording;
   SEC-1/SEC-2 dev-only toolchain advisories; SEC-4 ODbL attribution missing
   in data/README.
+
+## Bugfix — "map not rendering on desktop" (2026-10-24)
+
+### Objective
+
+Fix the reported symptom: the map does not render on desktop. Done when
+`.agents/qa.md` reports **PASSING** (regression test run and passing; all
+prior checks green; no regressions), per the bugfix skill.
+
+### Scope
+
+- Minimal fix only. No refactoring, no new runtime dependencies.
+- Inclusive of: the defect, its regression test, and any test-runner
+  bootstrap only if it is the minimal path to a runnable regression test
+  (to be surfaced as a risk-accepted note if added).
+
+### Stage ledger
+
+| # | Stage | Artifact | Status |
+|---|-------|----------|--------|
+| 0 | Intake | `.agents/bug.md` + this section | done |
+| 1 | Diagnosis (research agent) | `.agents/diagnosis.md` | done |
+| 2 | Root cause (architect agent) | `.agents/root-cause.md` | done |
+| 3 | Fix (coder agent) | fix + regression test | done |
+| 4 | QA (qa-engineer agent) | `.agents/qa.md` | done |
+| 5 | Hindsight (hindsight agent) | `.agents/hindsight.md` update | done |
+
+Rebuild rounds: 0 of 2.
+
+### Lead notes
+
+- 2026-10-24: Intake written (`.agents/bug.md`). User report is one line:
+  "map not rendering on desktop" — no environment/browser/details. Lead
+  pre-scan (read-only): `.app` in `src/styles.css` is `display:flex` with
+  **no `flex-direction`** (defaults to `row`), so on the map route
+  `AppShell`'s header/main/footer lay out side-by-side; `.app-map` has
+  `min-width: 0` and its content is absolutely positioned, so at typical
+  desktop widths the map column is squeezed to zero width. Hypothesis only —
+  Research must reproduce/verify with evidence before Stage 2. Layout last
+  changed by `e4b8503`; no live desktop pass has ever run (G5 mobile-only,
+  open).
+- 2026-10-24: Stage 1 PASSED — `.agents/diagnosis.md` verifies the
+  hypothesis: `flex-direction: column` was explicitly removed from `.app`
+  in `e4b8503` (present in `dc3cf4d`), so the AppShell header/main/footer
+  form a horizontal row; static derivation puts the map column at
+  0–120px at 1366–2560px viewports. Alternatives (data-load, Leaflet init,
+  z-index, height chain, mobile-CSS leak, Bootstrap override) ruled out
+  with citations. Open user questions (URL/browsers/screenshot/console)
+  logged in the diagnosis for confidence, not gate. Dispatching Stage 2.
+- 2026-10-24: Stage 2 PASSED — `.agents/root-cause.md` re-verifies the
+  diagnosis (7 claims, each on disk) and finds the decisive nuance the
+  diagnosis missed: **the `.app` class is shared by two nested elements** —
+  the outer shell (`AppShell.tsx:21`, needs column: header/main/footer) and
+  the inner map container (`App.tsx:108`, needs row: panel left / map right).
+  A one-line `column` fix would shrink the inner container to a 341px
+  desktop sliver and zero the mobile bottom sheet. Lead spot-checked the
+  DOM claim directly (both `div` elements confirmed). Fix = two CSS
+  declarations, exact rule text in root-cause.md section 4:
+  (1) `flex-direction: column;` in the `.app` rule;
+  (2) new rule `.app-body > .app { flex: 1 1 auto; flex-direction: row; }`
+  (selector uniquely matches the inner — its direct parent is
+  `main.app-body`; specificity 0,2,0 wins; local CSS import order beats
+  Bootstrap). Regression test = dependency-free `scripts/check-map-layout.mjs`
+  (`npm run check:layout`): parses the CSS rules (brace-depth state machine,
+  no substring) and asserts the complete flex-direction contract
+  {`.app`: column, `.app-body > .app`: row, `.legend-grid`: column}, so any
+  future override anywhere fails it. Risk-accepted note (carried to QA): the
+  check asserts CSS source, not rendered geometry — gate G5 remains the live
+  verification. Dispatching Stage 3 (coder), exact spec of root-cause.md
+  sections 4-5; scope fixed at 3 files: `src/styles.css`,
+  `scripts/check-map-layout.mjs`, `package.json`.
+- 2026-10-24: Stage 3 PASSED (lead-verified on disk). `src/styles.css`:
+  `flex-direction: column;` added to the `.app` rule + the new
+  `.app-body > .app { flex: 1 1 auto; flex-direction: row; }` rule, exactly
+  per root-cause.md section 4 (checked by reading lines 11-29); `scripts/
+  check-map-layout.mjs` implements the section 5.2 contract (brace-depth
+  state machine, assertions A/B/C, node:fs/path/url only); `package.json`
+  gained only the `check:layout` script. Lead re-ran `npm run check:layout`
+  independently: exit 0, `check-map-layout: OK`. `git status --porcelain`:
+  only `M src/styles.css`, `M package.json`, `?? scripts/check-map-layout.mjs`
+  (+ stage artifacts) — no stray changes. Coder's negative-mutation runs
+  (both directions exit 1, restored byte-for-byte) and `npm run build`
+  exit 0 (147 modules) recorded in `.agents/implementation.md`. Dispatching
+  Stage 4 (QA) — independent re-run of the full validation matrix +
+  regression-scope check.
+- 2026-10-24: Stage 4 PASSED (lead-verified on disk: `.agents/qa.md`
+  verdict PASSING). All 7 QA checks PASS, zero Blocking. QA independently
+  re-ran the full matrix: diff scope clean (styles.css +9, package.json +1,
+  new script only); positive check exit 0; NEGATIVE 1 and NEGATIVE 2 each
+  exit 1 with the expected assertion failure, each restored byte-for-byte
+  (git-apply patches proven byte-exact, diff back to exactly +9); tree clean
+  after each restore; G6 `npm run build` exit 0 (147 modules). G5 live
+  smoke remains the open human gate (no browser in the QA environment;
+  expected visuals recorded in qa.md from root-cause §4.3). Risk-accepted:
+  F-1 static-vs-geometry check; F-2 abbreviated (non-normative) comment;
+  F-3 optional argv superset. No rework loop needed (rounds remain 0 of 2).
+  Dispatching Stage 5 (hindsight).
+- 2026-10-24: Stage 5 done (lead-verified on disk: `.agents/hindsight.md`
+  records the shared-class trap with file/line citations, the two-line fix,
+  the `npm run check:layout` regression guard, G5 open as the human gate,
+  and the 5 open user questions; lead corrected a garbled header label).
+  All stages done, zero Blocking findings, 0 of 2 rework rounds used.
+  PIPELINE COMPLETE — final one-screen report delivered in chat.

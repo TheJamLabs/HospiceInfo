@@ -10,10 +10,19 @@ body,
    anchors the mobile bottom sheet's panel, FAB and scrim (pm 4.5). */
 .app {
   display: flex;
+  flex-direction: column;
   min-width: 0;
   min-height: 0;
   height: 100%;
   position: relative;
+}
+
+/* Inner map container (src/App.tsx:108): the `.app` class is shared with the
+   outer shell (AppShell.tsx:21) — keep it a row (panel left / map right) and
+   stretch it to full width inside main.app-body. */
+.app-body > .app {
+  flex: 1 1 auto;
+  flex-direction: row;
 }
 
 .app-header {
