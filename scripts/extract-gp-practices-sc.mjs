@@ -11,9 +11,14 @@
 //      to data-raw/gp-practices-scotland-2026-10.geojson for provenance;
 //   3. else: log the exact human fetch procedure, write [] and exit 0
 //      (execution rule 3 — the build stays valid until the fetch lands).
-// GeoJSON shape is UNVERIFIED: property keys are tried case-insensitively
-// (name/Name, address/Address), location from geometry (Point) or a
-// "location"/"Location" property; features without a name are skipped.
+// GeoJSON shape (verified against the 2026-10-24 download of the Spatial Hub
+// gp_practices-is layer): 911 features, properties
+// prac_code/uprn/address/postcode/local_authority/la_s_code — no name column,
+// so the practice name is derived from the first comma-delimited segment of
+// `address` (e.g. "Garthdee Medical Group, Health Centre Garthdee Road, ...").
+// Geometry is British National Grid E/N and is ignored: location comes from
+// postcode geocoding (same pattern as England). Keys below are still tried
+// case-insensitively in case the register format changes.
 //
 // Output: data-raw/gp-practices-sc.json — {id, name, address[], postcode},
 // same shape as England.
@@ -54,17 +59,23 @@ const pick = (obj, keys) => {
 function fromGeoJSON(obj) {
   const feats = obj.features || [];
   const out = [];
-  let skipped = 0;
+  let skipped = 0, derived = 0;
   feats.forEach((f, i) => {
     const p = f.properties || {};
-    const name = pick(p, ['name', 'practice name', 'gp name']);
-    if (!name) { skipped++; return; }
+    let name = pick(p, ['name', 'practice name', 'gp name']);
     let address = pick(p, ['address', 'address line 1', 'street', 'street address']);
     if (p.address_array && Array.isArray(p.address_array)) address = p.address_array.join(', ');
+    if (!name) {
+      // This layer's register has no name column (see header note).
+      name = address ? address.split(',')[0].trim() : '';
+      if (name) derived++;
+    }
+    if (!name) { skipped++; return; }
     const postcode = pick(p, ['postcode', 'postal code']);
     out.push({ id: `sc-${i + 1}`, name, address: address ? address.split(',').map((s) => s.trim()).filter(Boolean) : [], postcode: postcode.toUpperCase() });
   });
   if (skipped) console.log(`sc geojson: ${skipped} features without a name skipped`);
+  if (derived) console.log(`sc geojson: ${derived} names derived from first address segment (source has no name column)`);
   return out;
 }
 

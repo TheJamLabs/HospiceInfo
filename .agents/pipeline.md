@@ -1,5 +1,51 @@
 # Pipeline: Make the map public-ready
 
+## Cycle 2 (active, started 2026-10-24): pre-launch completion
+
+Goal: ship-ready state for public launch, per James's five 2026-10-24
+pre-launch items:
+1. Complete Scotland, Wales and Northern Ireland nation data: three human
+   browser fetches with scripts already ready (RQIA XLSX → NI hospices,
+   `data-raw/rqia-regulated-services-2026-06.xlsx`; data.wales DataMap
+   layers `geonode:gpmainsites_ogl` + `geonode:gpbranchsites_ogl` → Wales GP
+   practices; NHS Scotland Spatial Hub `gp_practices-is` GeoJSON → Scottish
+   GP practices); each lands via the documented extract → geocode →
+   build-data → validate-tessellation → build chain in `data/README.md`.
+   Wales hospices: Care Inspectorate Wales data request pending — PROCEED
+   as a documented pending gap (James, 2026-10-24); the extract script is
+   already wired for the reply.
+2. Map performance: profile first (James's symptom: "not sure / a mix");
+   fix the measured costs — per-render O(n²) `hospices.find` across ~9.6k
+   practices and the ~9.7k canvas layers — including an evidence-based
+   decision on point restriction/downsampling.
+3. Logo + favicon: heart + map-pin mark (James, 2026-10-24), wired into
+   `index.html` (no favicon exists at all today) and the app header.
+4. Hospice list ordering + filtering: replace raw-JSON order with a sensible
+   default (alphabetical) plus sort options and richer filtering.
+5. User flows: landing "start here" card — postcode → your GP practice →
+   your catchment hospice — with patient / fundraiser / clinician journey
+   surfaces (James chose landing card over dedicated pages, 2026-10-24).
+
+Cycle 2 human gates:
+- H1: James fetches the 3 browser files above (scripts ready; lead runs the
+  extract chains once files land). **Re-scoped 2026-10-24:** Scotland
+  **landed (911 practices)** — remaining fetches are 2, both on re-sourced
+  URLs awaiting James's browser confirmation of exact URL + as-of date:
+  NI hospices → Public Regulation Authority register (RQIA's 2024 successor;
+  `publicregulation.gov.uk` is dead), Wales GP practices → new DataMap portal
+  (candidate `data.gov.wales`; `data.wales` is a holding page). Wales
+  hospices remain the CIW-email documented gap (proceed, per James).
+- H2: Cycle 1 gates G5 (8-point mobile live pass, `.agents/qa.md` §A6) and
+  G7 (Overpass re-fetch when a mirror has capacity) remain open and
+  carry over as pre-launch gates.
+
+Done when (Cycle 2): all ten stage artifacts for this cycle exist, no open
+Blocking findings (resolved or risk-accepted), G6 re-run green after every
+tree change (final run after the data landings), the Reporter's one-screen
+report is delivered in chat, and this ledger is current.
+
+## Cycle 1 (closed 2026-10-24): Make the map public-ready
+
 Goal: Public release of the UK-wide hospice catchment map — coastline-clipped
 catchments, hospice-assignment tooltips, public-safe UI, feedback +
 corrections mechanism, About/legal pages, verified mobile. Cloudflare Pages.
@@ -8,7 +54,27 @@ Done when: all ten stage artifacts exist, no open Blocking findings
 (resolved or risk-accepted), the Reporter's one-screen report is delivered
 in chat, and this ledger is current. Scope: `.agents/feature.md`.
 
-## Stage status
+## Stage status — Cycle 2 (active)
+
+| # | Stage | Status |
+|---|-------|--------|
+| 0 | Init | done (2026-10-24) |
+| 1 | Research | running |
+| 2 | Architect | pending |
+| 3 | Reviewer | pending |
+| 4 | PM | pending |
+| 5 | Coding | pending |
+| 6 | QA | pending |
+| 7 | Security | pending |
+| 8 | DevOps | pending |
+| 9 | Documentation | pending |
+| 10 | Hindsight | pending |
+| T | Reporter | pending |
+
+(QA and Security run in parallel after Coding and both must complete
+before rework-loop rules apply.)
+
+## Stage status — Cycle 1 (closed)
 
 | # | Stage | Status |
 |---|-------|--------|
@@ -110,6 +176,40 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Notes
 
+- 2026-10-24: **Scottish practices landed — H1 re-scoped.** James downloaded
+  the NHS Scotland Spatial Hub `gp_practices-is` layer: 911 features, landed
+  as `data-raw/gp-practices-scotland-2026-10.geojson.json` → renamed to the
+  canonical name. `extract-gp-practices-sc.mjs` adapted to the register's
+  name-less schema (first-run detection: name = first comma-delimited
+  `address` segment; 911/911 rows, 0 skipped; BNG geometry ignored — location
+  via postcode geocoding). G6 chain **COMPLETE 2026-10-24**: geocode pass
+  (729 new, 6 district-fallback, same 9 known gaps) → build-data ×2
+  byte-identical (10,475 practices; 10,463 assigned; **sc=911 all
+  assigned**) → tessellation 100.00% coverage, 0 slivers → `tsc && vite
+  build` green. `data/README.md` numbers updated (Current state +
+  postcode-geo.csv + practices.json rows). **H1 re-scope:** James
+  reports `publicregulation.gov.uk` does not exist and `data.wales` is a
+  holding page → item 1 (NI hospices: re-source to the Public Regulation
+  Authority, RQIA's 2024 successor) and item 2 (Wales practices: re-source to
+  the new DataMap portal, candidate `data.gov.wales`) need browser
+  confirmation of the exact URLs — H1 is now effectively Scotland-only plus
+  two blocked/re-sourced fetches; the CIW email (Wales hospices) is
+  unchanged. `data/README.md` provenance updated accordingly.
+- 2026-10-24: **Cycle 2 opened — James's five pre-launch items.** (1)
+  complete Scotland/Wales/NI nation data — 3 browser fetches with scripts
+  already ready (RQIA XLSX → NI hospices; data.wales main+branch layers →
+  Wales GP practices; NHS Scotland GeoJSON → Scottish practices); Wales
+  hospices remain the CIW email gap — proceed as a documented pending gap
+  (James, 2026-10-24). (2) Map performance — profile-first per James
+  ("not sure / a mix"); lead ground-truth found per-render O(n²)
+  `hospices.find` across ~9.6k practices and ~9.7k canvas layers. (3)
+  Logo + favicon — heart + map-pin mark (James); `index.html` has no
+  favicon at all today and no brand assets exist. (4) Hospice list ordering
+  + filtering — list is raw-JSON order today, no sort. (5) User flows —
+  landing "start here" card (postcode → GP practice → catchment hospice)
+  plus patient/fundraiser/clinician journeys (James chose the landing card
+  over dedicated pages). Cycle 1 closes: goal met, 0 open Blocking,
+  H1/H2/H4/H5/H6/H8/H9 + G1–G4 closed; G5 + G7 carry over as Cycle 2 gate H2.
 - 2026-10-24: **G1 + G4 closed; G6 re-run green after the G4 tree change.**
   G1: all cycle changes committed in `e4b8503` (48 files) and the G4 change in
   `557e553` (2 files); remote `origin` = github.com/TheJamLabs/HospiceInfo.git;
