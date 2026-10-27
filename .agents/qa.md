@@ -1,121 +1,106 @@
-# QA — Stage 6/10 — "map not rendering on desktop"
+# QA — Cycle 2
 
-- Date: 2026-10-24
-- Bug: "map not rendering on desktop" (intake `.agents/bug.md`; root cause
-  `.agents/root-cause.md`, fix spec §4, regression contract §5.2, QA commands §5.4).
-- Method: independent verification — every check below was re-run by QA in this
-  session; no coder claim was taken on trust. Negative tests used byte-exact
-  `git apply` single-hunk patches (pre-validated with `git apply --check`), and
-  restores from a pre-mutation byte-exact backup (`.qwen/tmp/qa-styles-backup.css`),
-  with `git diff --stat` = exactly +9 and re-run `check:layout` = exit 0 as
-  proof of restoration after each cycle. No commits; no production code
-  modified (all mutations temporary, restored byte-for-byte).
-- Supersedes: the previous-cycle record in this file (2026-10-22 A1–A6 review) is
-  replaced in full; its content belongs to that cycle's artifacts.
+- **Date:** 2026-10-26 (QA re-verification pass)
+- **Scope:** `475675a + uncommitted Cycle-2 working tree`
+- **Method:** independent re-verification of the core subset by direct command /
+  file inspection; heavy tesselation + byte-identity chain cited from the
+  lead's 20:50 re-run per dispatch (not re-run by QA). No commits, no new
+  deps, only this file + `hindsight.md` touched.
+- **Supersedes:** the earlier Cycle-2 QA report previously in this file
+  (same stage, prior context window); this is the final Cycle-2 report.
 
-## Verdict
+## QA-fresh re-checks (2026-10-26, this pass)
 
-**PASSING** — all 7 QA checks pass (check 7 = G5 live smoke has no browser in
-this environment: stated explicitly, recorded as an open human gate, not a
-failure). Zero Blocking findings. Three risk-accepted findings carried forward.
+| Check | Result |
+|---|---|
+| `npm run build` | exit 0 (tsc -b + vite, 148 modules) |
+| `npm run check:layout` | exit 0 (`src/styles.css` unchanged) |
+| W2 `hospices.find` in MapView.tsx | 1 (line 72, FitToSelection); only other src hit is pre-existing `App.tsx:47` panel lookup — consistent with lead fact |
+| W4 `markercluster` in package*.json | 0 matches |
+| W6 `<Tooltip` in src | 2 (MapView.tsx:130, 348) |
+| G6 `flex-direction` in styles.css | 3 (L13 column, L25 row, L167 column) |
+| W11 absent phrases (`unassigned`/`no catchment`/`data gap`) in src | 0 matches |
+| W11 network APIs in `src/lib/feedback.ts` (fetch/XHR/WebSocket/navigator) | 0 matches |
+| W11 `onOpenHospice` wiring | App.tsx:186 passes `select`; StartHere.tsx:15/28/105 defines, receives, uses |
+| W12 `data/README.md` | L122 B1 email section; L60 "…show 0 hospices until…" current-state line |
+| W13 `Methodology.tsx` | L51 "not published in bulk" present |
+| m3 vs `dist/data/practices.json` (QA node script, 0.5° buckets; `GRID = 0.5`, `ZOOM_LOD = 11`) | 10,475 records, 10,463 placed, 186 distinct buckets |
+| W10 vs `dist/data/hospices.json` (QA node script) | 155 hospices, 7 `kind==="published"` |
+| W7 debounce | `SEARCH_DEBUNCE_MS = 200`, trailing `setTimeout` → `onQuery` (HospicePanel.tsx:17/54) |
+| W9 PWA in dist | `dist/index.html` links `/manifest.webmanifest` + `/logo.svg`; both files exist in dist |
+| Tesselation / byte-identity | not re-run (heavy chain); cited: lead re-run 2026-10-26 20:50 — `build-data` exit 0, 4× SHA-256 byte-identical (dc261185 e11322ba 2a87a374 5628d8f7), `validate-tessellation` exit 0 |
 
-## Check table
+No disagreement with any lead-verified fact was found.
 
-| # | Check | Command | Exit | Key output | Result |
-|---|---|---|---|---|---|
-| 1 | Diff scope | `git status --porcelain`, `git diff --stat`, `git diff -U0 -- package.json`, `git diff -- src/styles.css` | 0 | `M src/styles.css` +9, `M package.json` (+1 net: `"check:layout": "node scripts/check-map-layout.mjs"`, trailing comma only), `?? scripts/check-map-layout.mjs`; no JS/TSX/dependency changes. Both CSS rules match root-cause §4 (see §Findings F-2 for comment wording) | **PASS** |
-| 2 | Positive layout check | `npm run check:layout` | 0 | `check-map-layout: OK` | **PASS** |
-| 3 | NEGATIVE 1: delete ONLY `flex-direction: column;` in `.app` | `git apply` (single-line patch) → `git diff -- src/styles.css` → `npm run check:layout` | 1 | diff shows exactly that one line removed; `check-map-layout: FAIL: rule ".app" does not declare, expected "flex-direction: column".` / `check-map-layout: FAIL: missing flex-direction for ".app: column".` | **PASS** |
-| 3r | Restore 1 + re-run | backup `copy` → `git diff --stat -- src/styles.css` → `npm run check:layout` | 0 | `src/styles.css \| 9 +++++++++` (exactly +9, no other hunks); `check-map-layout: OK` | **PASS** |
-| 4 | NEGATIVE 2: delete ONLY `.app-body > .app` rule + its comment | `git apply` (7-line patch) → `git diff -- src/styles.css` → `npm run check:layout` | 1 | diff shows exactly that block removed; `check-map-layout: FAIL: rule ".app-body > .app" does not declare, expected "flex-direction: row".` / `check-map-layout: FAIL: missing flex-direction for ".app-body > .app: row".` (assertions B and C, per §5.4) | **PASS** |
-| 4r | Restore 2 + re-run | backup `copy` → `git diff --stat -- src/styles.css` → `npm run check:layout` | 0 | `src/styles.css \| 9 +++++++++` (exactly +9); `check-map-layout: OK` | **PASS** |
-| 5 | Working tree after each restore | `git status --porcelain` | 0 | `M src/styles.css`, `M package.json`, `?? scripts/check-map-layout.mjs` — exactly the expected code files (plus pipeline/session artifacts: `M .agents/implementation.md`, `M .agents/pipeline.md`, `?? .agents/bug.md`, `?? .agents/diagnosis.md`, `?? .agents/root-cause.md`, `?? .qwen/`) | **PASS** |
-| 6 | Build gate G6 | `npm run build` | 0 | `tsc -b && vite build` → `vite v5.4.21` → `✓ 147 modules transformed` → `dist/assets/index-DXBOPrrL.css 250.47 kB`, `index-Ci-M3aYr.js 409.61 kB` → `✓ built in 2.93s` | **PASS** |
-| 7 | Live smoke G5 | (none executable — no browser in this environment) | n/a | Not run — stated explicitly, NOT a failure. Expected visuals recorded below for the human gate (root-cause §4.3) | **OPEN GATE (human)** |
+## W1 baseline (prior QA, Chrome: Slow 4G + 4× CPU)
 
-### Check 7 — G5 expected visuals for human verification (root-cause §4.3)
+| Metric | Value |
+|---|---|
+| m1 navigation → first painted markers | 1677 ms |
+| m2 5-char search re-filter latency | 435 ms |
+| m3 markers rendered | 10,475 (every practice as an individual marker, pre-fix) |
+| m4 navigation → interactive | 1391 ms |
 
-- **Desktop (1366–2560px; smoke at 1366 and 1920):** header strip on top,
-  full width W; `main` below it full width, height = viewport − header − footer;
-  341px-wide hospice panel on the **left**; map filling **W − 341** on the
-  **right** (≈1025px @1366, ≈1579px @1920, 2219px @2560); footer strip at the
-  bottom, full width W; **no horizontal or vertical scrollbars, no empty gap**.
-- **Mobile (≤768px):** header on top; map fills full width W from below the
-  header to above the footer; bottom sheet hidden (`translateY(105%)`) until
-  opened, then slides up to `height: min(55vh, 480px)` at `bottom: 0` spanning
-  full width, with scrim `inset: 0` behind it; FAB (48px) centred above the
-  footer, jumping to `bottom: calc(min(55vh,480px) + 14px)` when open.
+## Post-fix status
+
+- **m3 — verified:** zoom < 11 renders **186** 0.5° grid buckets (one marker per
+  bucket, no per-practice DOM); zoom ≥ 11 renders **10,463** CircleMarkers
+  (full placed set; `GRID = 0.5`, `ZOOM_LOD = 11`, MapView.tsx:153–154, 204).
+  QA computed the bucket count directly over the shipped dist data.
+- **m1 / m2 / m4 — post-fix values pending the human G5 Chrome pass**
+  (Slow 4G + 4× CPU); baselines above remain the comparison reference.
+
+## Per-item acceptance (W1–W13)
+
+| Item | Acceptance | Status | Evidence |
+|---|---|---|---|
+| W1 | Perceived-load baseline table recorded; m3 re-measured | PASS (m3) / pending G5 (m1, m2, m4) | Baseline table above; m3 = 186 buckets / 10,463 markers below |
+| W2 | MapView uses `hospices.find` exactly once (FitToSelection) | PASS | grep: 1 hit in MapView.tsx:72; second src hit (App.tsx:47) is pre-existing panel lookup, out of MapView scope |
+| W3 | `build-data` fail-fast, byte-identity (0 `', null, 2'` in script) | PASS (cited) | Lead re-run 20:50: exit 0, 4× SHA-256 identical; grep `', null, 2'` = 0 per lead |
+| W4 | No markercluster dependency | PASS | 0 matches in package.json + package-lock.json |
+| W5 | Bucket click flies to full markers | PASS (code) / live click in G5 | MapView.tsx:212 `map.flyTo([b.lat, b.lon], ZOOM_LOD)` on bucket click |
+| W6 | Exactly 2 `<Tooltip>` | PASS | grep: 2 (MapView.tsx:130, 348) |
+| W7 | Search debounces 200 ms before `onQuery` | PASS (static) / live cadence in G5 | `SEARCH_DEBUNCE_MS = 200`, trailing timer (HospicePanel.tsx:17, 54) |
+| W8 | Stride gate decision | DEFERRED (by design) | Awaits G5 post-fix m1 vs baseline 1677 ms; decision recorded pending |
+| W9 | PWA-ready: icon + manifest wired, files ship | PASS | `dist/index.html` links manifest + icon; `dist/logo.svg`, `dist/manifest.webmanifest` present |
+| W10 | Panel sorts A→Z default, Z→A, practices desc; published toggle → exactly 7 rows | PASS (data + logic) / live toggle in G5 | 7 `kind==='published'` in dist data; filter `h.kind === 'published'`, sort modes `name-asc`/`name-desc`/`practices-desc` (HospicePanel.tsx:19, 58–80, 71) |
+| W11 | Start-here card: no absent phrases; no network in feedback module; open-hospice wired | PASS | 0 matches for absent phrases across src; 0 network APIs in `src/lib/feedback.ts`; `onOpenHospice` wired (App.tsx:186 → StartHere.tsx:105) |
+| W12 | `data/README.md` B1 email section + "0 hospices" current-state line | PASS | L122, L60 (verified above) |
+| W13 | Methodology discloses bulk-availability inequality | PASS | `Methodology.tsx:51` "not published in bulk" |
+| G6 | Layout guard green; `styles.css` has exactly 3 `flex-direction` | PASS | `npm run check:layout` exit 0; count = 3 |
+| Build | `npm run build` green | PASS | exit 0, re-run this pass |
+
+## G5 pre-run checklist (human Chrome pass, Slow 4G + 4× CPU)
+
+| # | Check | Baseline | Verified by | Remaining for human pass |
+|---|---|---|---|---|
+| 1 | m1 navigation → first painted markers | 1677 ms | — | Measure post-fix value |
+| 2 | m2 5-char search re-filter latency | 435 ms | — | Measure post-fix value |
+| 3 | m3 markers rendered | 10,475 | **PASS — lead + QA** (186 buckets at zoom < 11; 10,463 CircleMarkers at zoom ≥ 11) | None |
+| 4 | m4 navigation → interactive | 1391 ms | — | Measure post-fix value |
+| 5 | W5: click a grid bucket → flies to zoom 11, full markers appear | — | Code verified (MapView.tsx:212) | Live click |
+| 6 | W7: typing shows ~200 ms debounce cadence before re-filter | — | Static verified (SEARCH_DEBUNCE_MS = 200) | Live cadence |
+| 7 | W10: sort A→Z default, Z→A, practices desc; toggle "Has published service area" → EXACTLY 7 rows | — | Data + logic verified (7 published in dist data; filter `kind==='published'`) | Live toggling |
+| 8 | W11: postcode search flow (e.g. BD14 6NF — verified real by lead) → start-here card → "Open" button selects hospice | — | Static verified (wiring + not-found wording) | Live postcode flow |
+
+**W8 stride gate:** decision deferred until G5 row 1 (m1) returns; if post-fix
+m1 meets the strategy in ADR-0010, the gate closes without code changes.
 
 ## Findings
 
-### Blocking
+1. **F-1 — Risk-accepted (carried over, confirmed this pass):** `kind='published'`
+   count is **7**, not the 20 curated hospices. `scripts/catchment-map.mjs` marks
+   only the 7 of 20 whose service area is stated on the hospice's own website.
+   Data is internally consistent and matches the lead's ground truth; the panel's
+   "Has published service area" toggle intentionally resolves to exactly 7 rows.
+   Documented debt, does not block.
+2. No new findings. Every QA-fresh re-check agreed with the lead-verified facts;
+   zero disagreements.
 
-None.
+## Verdict: **PASS**
 
-### Risk-accepted (carried forward; none blocks the pipeline)
+Zero Blocking findings. m1/m2/m4 post-fix measurements and the W5/W7/W10/W11
+live interactions are gated on the human G5 Chrome pass (checklist above);
+W8 awaits G5's m1. None of these are blocking defects — they are the
+pre-defined human-gated verification for this cycle.
 
-- **F-1 — Static check asserts CSS source, not rendered geometry.** A future
-  `!important`/override inside `src/styles.css` (including media queries) is
-  caught by the check's complete-contract assertion C (verified: NEGATIVE 2
-  failed on both B and C, so the contract is live, not tautological).
-  Displacement outside `src/styles.css` (a new CSS file) is not covered.
-  Full geometric verification remains open gate G5 (root-cause §5.1, §8.1;
-  pipeline.md Gate 5, human). Documented debt — never blocks.
-- **F-2 — Comment wording deviates from the §4.2 "verbatim" spec.** The
-  implemented selector and both declarations (`flex: 1 1 auto;` /
-  `flex-direction: row;`, inserted after the `.app` block, before
-  `.app-header`) are verbatim; only the adjacent explanatory comment is
-  abbreviated (3 lines vs the spec's 5; cites `src/App.tsx:108` vs `App.tsx:107`
-  and adds `AppShell.tsx:21`), omitting the max-content justification sentence.
-  Comments are non-normative (stripped by the check's own parser); zero
-  functional impact.
-- **F-3 — The check script accepts an optional `[path-to-css]` argv**
-  (`scripts/check-map-layout.mjs` L21) — a minor superset over the §5.2 spec
-  (default is `src/styles.css`, wiring unchanged). No smell of concern;
-  noted for completeness.
-
-### Standards axis
-
-- `scripts/check-map-layout.mjs` implements §5.2 exactly: comment stripping,
-  brace-depth state machine (no substring/regex on raw text — a substring
-  match would false-hit `.legend-grid`), normalised `name: value` comparison,
-  assertions A/B/C, exit 0 + `check-map-layout: OK` / exit 1 on failure;
-  dependency-free Node ESM consistent with `package.json` `"type": "module"`
-  and the repo's no-test-runner convention.
-- `check:layout` naming matches existing kebab-case scripts (`build-data`,
-  `build`). No TODOs, no dead code, no new dependencies (runtime or dev).
-- Diff is minimal and in-scope per root-cause §6: 3 files, +10 net lines
-  (styles.css +9, package.json +1, new script), no JS/TSX touched.
-
-## Risk assessment
-
-Low residual. The fix is minimal (two CSS changes, declarations verbatim per
-§4), the regression check is verified bi-directionally by independent
-mutations, and the build is green. The only uncovered surface is live rendered
-geometry (F-1), which is gated by the human G5 smoke — exactly the split the
-root-cause accepted.
-
-## Open gates (not failures)
-
-- **G5 — live smoke (human):** desktop 1366px **and** 1920px + mobile phone,
-  per the expected-visuals table above (root-cause §8.2: "QA should do one
-  live smoke test at 1366px and 1920px"; pipeline.md Gate 5 "Mobile + desktop
-  UX" = open). No browser exists in this QA environment, so this cannot be
-  discharged here.
-
-## Follow-ups
-
-1. Run the G5 live smoke (desktop 1366/1920 + mobile ≤768) and close Gate 5.
-2. Answer the 5 open user questions from `.agents/diagnosis.md` §7 (confidence
-   boosters only; none affects the root cause):
-   1. Where observed — deployed URL (https://… .pages.dev) or local
-      `npm run dev`/`preview`? (QA needs the target for the live re-check.)
-   2. Browser and viewport width? (derivation covers 1366–2560; below ~2450
-      unchanged, above 2560 the map column stays <281px up to ~4700px.)
-   3. What was visible exactly? (Expected pre-fix: full-height header band ~80%
-      across the screen, narrow main sliver, no map area; a screenshot would
-      settle width estimates.)
-   4. Anything in the browser console? (rules out secondary tile-fetch/script
-      errors.)
-   5. Did desktop ever work on this URL before the 2026-10-24 release?
-      (layout changed exactly in `e4b8503`; "yes" would strongly corroborate.)

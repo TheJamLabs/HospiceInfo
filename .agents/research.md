@@ -1,639 +1,255 @@
-# Research — Make the map public-ready
+# Research — Cycle 2 (2026-10-24): nation data, map performance, logo/favicon, list ordering, "start here" flow
 
-Stage 1 (Research) of the pipeline for `.agents/feature.md`
-("Make the map public-ready", scope confirmed 2026-10-21), 2026-10-21.
-**Supersedes the 2026-10-16 research pass** (Lancashire & South Cumbria era:
-20 curated hospices, 643 practices, PALETTE i%N, etc. — all superseded by the
-current 155-hospice UK build). Everything below is grounded in this session's
-direct reads/greps of the current tree; facts the environment cannot confirm
-(mostly: network, non-browser) are marked **UNVERIFIED**.
+> **STALENESS NOTICE (2026-10-25, lead):** recon is partially reconciled. §0/§1/§1.2/§1.3 are CANONICAL and current. All other sections contain ~22 stale anchors/counts superseded by **Table A** in `.agents/pipeline.md` (current verified values @ HEAD `475675a`). Trust Table A over any conflicting statement in this file.
 
-Repo: static Vite 5.4 + React 18 + react-leaflet 4.2 + Bootstrap 5.3 CSS-only
-app; Cloudflare Pages target; Node v22.23.1 / npm 10.9.8 (verified earlier in
-pipeline). Verification checks used by this repo: `npx tsc -b` +
-`npm run build`.
+Updated 2026-10-24 (post-Scotland-landing reconciliation, commit `475675a`)
 
-Current scale: 155 hospices (~20 published/curated, rest approximated),
-~9,564 GP practices (~9,552 placed with lat/lon), 138 charity shops; 4
-generated data files `public/data/{hospices,practices,catchments,shops}.json`
-plus ~9,564-row `practices.json`. Generated data SHA-256s are tracked in
-`.agents/qa.md` for the byte-identical-rebuild ritual.
+**Stage:** 1/10 (Research) of the multi-agent pipeline, `HospiceInfo`
+**Companion ledger:** `.agents/pipeline.md` (owned by the lead; updated per stage)
+**Supersedes:** the 2026-10-21 "Make the map public-ready" research (this file is overwritten; that cycle's findings were fully consumed — Cycle 1 completed 2026-10-23, see its stage artifacts, `docs/adr/`, and Hindsight pages).
+**Mode:** READ-ONLY pass. The only file written is this artifact. Everything below is grounded in this session's direct reads/greps of the tree; network-bound facts are marked **operator action** (human gate).
+
+James (operator) flagged five pre-launch items:
+
+1. **Nation data** — three sources: (a) PRA XLSX for Northern Ireland hospices (PRA is the successor to the defunct RQIA); (b) data.gov.wales (OGL v3.0) for Welsh GP practices; (c) NHS Scotland GP practice data. Scotland has **landed** (F2, `475675a`, derived names — §1.2/§8); (a) and (b) are the only remaining human-gate downloads (§6 H1).
+2. **Map performance** — "the map is currently quite heavy, need to think how this can be made lighter."
+3. **Logo / favicon.**
+4. **Hospice list ordering/filtering** — "not sure what the purpose of the current list display on screen 2 is. Should the hospice list be in A–Z order, alphabetical in name or town, or a filter to pick A–Z."
+5. **A "start here" user flow** — an `gc0 3xx`-style "where do I belong / where does my GP practice belong" entry point at the top-left of the map screen.
 
 ---
 
-## 1. Data pipeline (Voronoi, clipping, validation, determinism)
+## 0. Verified baseline (re-read 2026-10-24, post-Scotland landing)
 
-All scripts are plain ESM `.mjs` in `scripts/` (34 files; 7 extract scripts +
-`merge-hospices.mjs` + `build-data.mjs` + `validate-tessellation.mjs` +
-`geocode-postcodes.mjs` + `catchment-map.mjs` + deprecated research/debug
-helpers). No build step; all run with `node`.
-
-### 1.1 `scripts/build-data.mjs` — the core (264 lines)
-
-- **L35**: `const BOX = [-9.5, 49.5, 2.0, 61.5]; // [west, south, east, north]`
-  — the rectangular clip box (ADR-0001).
-- **L30–33**: curated-override remap — `SLUG_TO_ID` remaps the 20 curated
-  CATCHMENTS (from `scripts/catchment-map.mjs`) onto register hospice ids at
-  merge time. The curated-override precedent is directly reusable for a
-  curation/corrections mechanism if the Architect wants one inside the build.
-- **L160**: `Delaunay.from(vertices, (v) => v.lon, (v) => v.lat).voronoi(BOX)`
-  — d3-delaunay ^6.0.4 (devDep) tessellates in lon/lat degree space, clipped
-  to BOX only.
-- **L172–179**: per-hospice cell union via polygon-clipping `union`
-  (`const merged = union(rings.map((ring) => [ring]));`) → `Catchment.polygons`
-  as `{lat, lon}[][]` (multi-ring = union of disjoint cells).
-- **L200**: `pointInRings(lat, lon, rings)` — even-odd point-in-polygon test.
-- **L233**: `outsideCatchment: !pointInRings(g.lat, g.lon, rings)` — the flag
-  the feature says to keep in data and hide in UI.
-- **L251–254**: writes the 4 outputs as `JSON.stringify(x, null, 2)` —
-  deterministic output for deterministic inputs (all inputs are committed
-  under `data-raw/`), which is exactly what makes the two-run SHA-256
-  byte-identical ritual work.
-- Prints unassigned/outside stats; `process.exit(1)` on unresolved shop ids.
-
-**Where a coastline clip slots in:** after the per-hospice union (L172–179),
-each merged cell can be `intersection(cell, land)` using polygon-clipping
-`intersection` (already a devDep, currently used only by the validator — the
-`difference` export is unused). Equivalently, clip the raw Voronoi cells
-before the union. The `pointInRings` at L200 then runs against the *clipped*
-rings, so `outsideCatchment` semantics become "outside the land-clipped cell"
-automatically. The rectangular BOX is still needed as the Delaunay clip
-arg and as a safety bound; the land polygon becomes the authoritative shape.
-
-**Land polygon file:** must be a committed deterministic input
-(`data-raw/uk-land.json` or similar, JSON of `[lon, lat]` rings) so the
-rebuild stays offline-reproducible, mirroring `postcode-geo.csv`. Fetching it
-is a one-time human step (see §2) — same pattern as the 4 pending fetches in
-`docs/MAINTENANCE.md`.
-
-### 1.2 `scripts/validate-tessellation.mjs` (74 lines) — what clipping breaks
-
-- **L11**: duplicates the bbox consts `x0=-9.5, y0=49.5, x1=2.0, y1=61.5`
-  (duplication with build-data L35 — candidate refactor).
-- **L21–34**: every catchment has non-empty polygons (prints `no polygon: <id>`
-  — Basildon `en-1-17708902164` is the known offender).
-- **L27–38**: all vertices inside the bbox ±0.01.
-- **L40–43**: `mergedUnion = union(...)` over all cells → prints
-  `coverage: union/bbox area` (~100.00%, the "complete partition of the box"
-  proof; 138 deg² box).
-- **L45–58**: pairwise `intersection` area ≈ 0 over all 303 adjacent pairs
-  (worst pair printed; current overlap 0.00).
-
-**Clipping to land invalidates two checks and rewrites one:**
-- Vertices-in-bbox (L27–38) → should become vertices ⊆ land (still ⊆ bbox as
-  an invariant sanity check).
-- Coverage `union/bbox = 100%` (L40–43) → sea removal makes union area << box
-  area. Must be re-expressed as two checks: (a) every cell ⊆ land
-  (`intersection(cell, land)` area ≈ cell area, or `difference(cell, land)`
-  area ≈ 0), and (b) `area(land ∩ bbox) ≈ area(mergedUnion)` — i.e. cells
-  tile the land, not the box. polygon-clipping `difference`/`intersection`
-  are available in the existing devDep; no new dependency needed.
-- Pairwise disjointness (L45–58) survives and remains a meaningful check
-  (clipping a disjoint partition with a common mask keeps it disjoint).
-- New degenerates to expect post-clip: zero-area / sliver remnants (a cell's
-  land-intersection collapsing to empty or a hairline, e.g. a cell whose only
-  land is an island edge). A zero-area result must not crash `union` of the
-  remaining cells nor the polygon-clipping calls; validator should flag
-  `polygons: []` and sliver area thresholds (current known sliver: Wisdom
-  Hospice 0.0002 deg², QA-4 risk-accepted).
-
-### 1.3 Determinism / byte-identical rebuild
-
-- `public/data/*.json` are committed; two consecutive `node
-  scripts/build-data.mjs` runs must produce identical SHA-256 hashes
-  (ritual: `certutil -hashfile <file> SHA256`, compared; hashes recorded in
-  `.agents/qa.md`). This works today purely because every input (registers,
-  `postcode-geo.csv`, `shops-geo.json`, `catchment-map.mjs`) is committed and
-  code is deterministic.
-- The land polygon must be committed to `data-raw/` the same way; if it is
-  only fetched at build time, determinism and the offline re-run chain in
-  `docs/MAINTENANCE.md` break.
-- The GLOSSARY term "tessellation clip box" (`GLOSSARY.md` L16–18: "Cells are
-  clipped to this box, **not to the coastline**") must be updated by the
-  Architect (who owns `GLOSSARY.md`) — this feature reverses that sentence.
-- ADR-0001 (`docs/adr/0001-uk-wide-voronoi-clip-box.md`) explicitly rejected
-  "OSM land-mask clip" — this feature reverses it; `docs/adr/` holds 0001–0005,
-  so the next ADR number is **0006**.
-
-### 1.4 MAINTENANCE.md insertion point
-
-`docs/MAINTENANCE.md` documents the re-run chain: 7 extract scripts →
-`merge-hospices.mjs` → `geocode-postcodes.mjs` → `build-data.mjs` (run twice;
-byte-identical) → `validate-tessellation.mjs` → `npm run build`. The land
-polygon needs: (a) a one-time fetch procedure in its human-fetch list (which
-already lists RQIA XLSX, Welsh GP layers, Scottish NHS Spatial Hub layer, Welsh
-hospices CIW email), (b) the committed filename under `data-raw/`, and (c)
-sanity-check text (validator now reports land-coverage %, not box %). Rollback
-story stays the same: single commit + `git revert <sha>` (last known good
-reset point `5faa12e`).
+- `HEAD 475675a`, working tree clean — the Scotland landing (F2) has been committed and landed.
+- Exactly **5 published data files** in `public/data/`: `hospices.json`, `practices.json`, `catchments.json`, `shops.json`, `corrections.json` — nothing else in `public/` (no `*-global` variants, no staged `charity-shops-BUILD.json`, no `*.pre-prepublish-backup` stamps, no image assets, and **no `manifest.webmanifest` at all** — item 3 → §3.3 *creates* it).
+- Repo-root `scripts/` layout (39 `.mjs` scripts): `build-data.mjs`, `validate-tessellation.mjs`, `check-map-layout.mjs`, `merge-hospices.mjs`, `geocode-postcodes.mjs`, plus the extract scripts (e.g. `extract-gp-practices-sc.mjs`); the old `data-raw/` scripts directory no longer exists.
+- Build is green at `475675a` via the byte-identity ritual (`node scripts/build-data.mjs` → `node scripts/validate-tessellation.mjs` → `npm run build`, per `data/README.md`); the Cycle-1 shell brotli figures (app shell 137,624 B → 14,438 B) carry over, while the data payload now ships as the 5 flat files above (sizes re-measured by QA at its stage).
+- `index.html` (14 lines): title `UK Hospice Catchment Map`, meta description, `#root` + `/src/main.tsx`; **no favicon link of any kind**; **no `manifest.webmanifest` file exists in `public/` at all** (item 3 → §3.3 creates it).
+- The old `practices-NOMINATIM/` resolver history is gone; geocode state now lives in `data-raw/postcode-geo.csv` (9,093/9,102 after 3 passes; 2026-10-24 pass: 729 Scottish + 6 district-fallback + 0 throttled), as recorded by `data/README.md`.
+- Prior-cycle human gates still open (carried forward, not re-opened here): **G5 mobile-viewport human pass**, **G7 Overpass charity-shop refresh confirmation** (from the `pre-publish-gates` checklist; Overpass refresh itself landed in Cycle 1 — the gate is the human *confirmation* of freshness).
 
 ---
 
-## 2. Coastline data source assessment
+## 1. Item 1 — Nation data (three sources)
 
-Constraints for this stage: **no downloads, no network calls** (also: this
-machine has DNS/socket blocks — RQIA, data.wales, Scotland Spatial Hub
-unreachability recorded in `.agents/qa.md` DEA-6; Overpass mirrors returned
-502/500 during the earlier shops fetch; Nominatim search did work). So the
-coastline fetch is a **documented human step**, not code to be run here.
+### 1.1 (a) Northern Ireland hospices — PRA XLSX (file ABSENT)
 
-Candidate sources (all ODbL-licensed where OSM-derived; UK land, mainland +
-islands, at ~1 m–1 km resolution is adequate):
+- **Expected file:** `data-raw/pra-regulated-services-2026-06.xlsx`. Not on disk (verified).
+- **Source:** PRA (the Public Regulation Authority — **successor to the defunct RQIA**) regulated-services register XLSX. The legacy cycle-1 workbook URL (`www.rqia.org.uk`) is **dead and is not the source**; the exact current PRA register location is *not on disk* and must be confirmed by the operator at pull time (see the §9 endnote "unreconcilable citations"). The register includes all regulated services (residential homes, care agencies, **hospices**); the extract must filter to hospice services (name contains "hospice").
+- **Pipeline (wired to existing patterns):** operator drops the XLSX into `data-raw/` → script already present at `scripts/extract-hospices-ni.mjs` (run as `node scripts/extract-hospices-ni.mjs`), workbook-utils class like the other extracts (dry-run capable) → reads the Services sheet, builds rows `{id: slug(name), name, addr, town, post, kind: 'approx', source: 'PRA', curated: false}` (per the `merge-hospices.mjs:47-62` register convention: `kind: 'approx'`, `curated: false` until a catchment mapping exists), writes `data-raw/hospices-NI.json`.
+- **Downstream chain (already exists):** `node scripts/geocode-postcodes.mjs` (Nominatim, 1 req/s, resumable) → `node scripts/merge-hospices.mjs` (folds NI into GB register) → `npm run build-data` (tessellation, ADR-0005 nearest-hospice decision) → `node scripts/validate-tessellation.mjs` → `npm run build`.
+- **Scale:** National Statistics 2023 records **24 registered hospices** in NI (count varies by register vintage; the PRA workbook is authoritative this cycle). Expect a small add (estimate 15–30 new hospice rows). Note: NI GP *practices* are **already in the dataset** (304 of the 10,475, via the cycle-1 OSM extract) — the open NI gap is *hospices*, not practices.
+- **Byte-identity:** any data change invalidates the QA-recorded content hashes — the full byte-identity ritual must re-run end-to-end and hashes refresh in QA.
+- **Attribution:** PRA is an NI public-regulation body; candidate attribution text "PRA regulated services register, retrieved 2026-10-24" for `latest-attribution.json` (final wording is Documentation stage).
+- **Human gate H1: operator downloads the PRA XLSX; agent provides the exact script. (The Scotland half of this gate is closed — F2 landed in `475675a`; see §6 H1.)**
 
-1. **OSM land polygons via Overpass** — query `natural=coastline` /
-   `place=country` relations for the UK (e.g. relation 126 /
-   `boundary=administrative` land relations). Most on-license-consistent fit
-   ("same ODbL family" per the feature). Fetch via
-   `overpass-api.de`/mirror, community-enquiry User-Agent, 1 req/s — exactly
-   the pattern of `scripts/geocode-postcodes.mjs` (L UA: `HospiceInfoproto/0.1
-   (geocoding research; contact: james)`, 1 req/s `setTimeout`, 8 attempts,
-   429/503 → 30 s backoff, resumable append, `process.exit(1)` on missing).
-   A new `scripts/fetch-uk-land.mjs` can clone this script shape; it would
-   not be run in this pipeline (no network), only committed for the human
-   re-run.
-2. **OSM UK extract + osmosis/`polygon-clipping` offline derive** —
-   geofabrik/openstreetmap.org UK extracts are large (multi-GB pbf); overkill
-   for one polygon. Not recommended.
-3. **Natural Earth** (public domain, 1:10m/1:50m admin-0 boundaries) — fine
-   licence-wise (PD) but ~100 km smoothing is too crude for a UK coastline and
-   is a *different* licence family than the feature prefers ("same ODbL
-   family"). Rejected on fit, noted for completeness.
-4. **OSM-derived "UK land polygon" datasets** published by third parties —
-   licence provenance must be checked per dataset; prefer (1) to keep the
-   chain single-source.
+### 1.2 (c) NHS Scotland — `gp_practices-is` (landed 2026-10-24 via F2: derived names)
 
-**Size estimates: UNVERIFIED** — no downloads allowed in this stage, so no
-byte/vertex estimates. Expectation from general knowledge (flagged
-UNVERIFIED): a 1:10m-grade UK land polygon is low hundreds of KB to a few MB
-as GeoJSON/JSON with islands; well within Cloudflare Pages static limits and
-Node memory. The Architect should cap committed size sensibly (prefer a
-simplified outline; vertex budget e.g. < ~200 k points) and confirm actual
-size when the human fetch happens.
+**Source file: `data-raw/gp-practices-scotland-2026-10.geojson` (338,243 B, tracked; single-extension name, landed in `475675a`):**
 
-**Licensing/attribution:** ODbL requires attribution for OSM-derived data.
-The feature's Licences & Attribution page therefore lists OSM (coastline +
-tiles + geocoding) and CQC-derived data (registers) under ODbL. Note:
-**SEC-4 (risk-accepted) — `data/README.md` currently lacks the ODbL
-attribution**; this feature's attribution page is the natural place to fix
-it, and `data/README.md` provenance entries get a "source: OSM (ODbL),
-fetched <date>" line when the land file is added.
+- Valid GeoJSON `FeatureCollection`, **911 Point features**, properties: `prac_code`, `uprn`, `address`, `postcode`, `local_authority`, `la_s_code`. **No practice-name field.**
+- The extraction script `scripts/extract-gp-practices-sc.mjs` (run as `node scripts/extract-gp-practices-sc.mjs`) reads `properties` through a fallback key chain; no name key matched, so names were **derived from the address** (F2, resolved at Gate H1b): first line of the address keyed by `prac_code`, with blank/ambiguous entries flagged into a curation list for James — the group-building ambiguity (many practices at one address) was worked through during that curation.
 
-**MAINTENANCE.md procedure shape** (for the Architect's doc): human with
-normal DNS runs `node scripts/fetch-uk-land.mjs` (new) once → commits
-`data-raw/uk-land.json` (+ SHA-256 recorded) → re-runs
-`node scripts/build-data.mjs` twice + validator. Until then the build keeps
-using the committed file (or BOX-only) — the feature should pin the exact
-behaviour when the land file is absent (open question §OQ3).
+**Fix path (Gate H1b) — RESOLVED: F2.** The named-register option (F1: re-pull the **named** `gp_practices` register from the NHS Scotland data portal / data.shs, the `…-is` "information summary" extract being nameless by design) was not taken; the file was renamed to the single-extension name and the script adjusted to derive **curated names** from `address` (first line, keyed by `prac_code`), flagging blank/ambiguous names into a curation list for James (precedent: `SLUG_TO_ID`-style curated overrides at `scripts/build-data.mjs:30-33`). The dedup-ambiguity risk for group buildings was accepted during curation.
+
+**Geocoding — COMPLETE:** all 911 Scotland postcodes resolved. `data-raw/postcode-geo.csv` now holds **9,093 of the 9,102 in-scope postcodes** (GB + Scotland); the Scotland third pass (2026-10-24) added 729 new + 6 district-fallback. Failures still surface per-postcode; the remaining unresolved postcodes include the known OSM/Overpass BT source gap (12 practices land unassigned — see §6).
+
+**Downstream (ran at landing):** `scripts/extract-gp-practices-sc.mjs` → `practices-scotland-2026-10.json` → `npm run build-data` (data-land protocol: two byte-identical runs) → `node scripts/validate-tessellation.mjs` (100.00% — 10,463 of 10,475 assigned) → `npm run build`; provenance in `data/README.md`. QA hashes refresh at landing.
+
+### 1.3 (b) Wales GP practices — data.gov.wales OGL (files ABSENT)
+
+- **Expected files:** `data-raw/gp-practices-wales-main-2026-10.csv` (or `.geojson`) and `data-raw/gp-practices-wales-branch-2026-10.csv` (or `.geojson`). Not on disk (verified).
+- **Source:** data.gov.wales 'GP Locations' datanodes, licensed **OGL v3.0**. The **exact data.gov.wales node names are unverified** — the cycle-1 `data.wales` portal is now a holding page; the carried-over names `geonode:gpmainsites_ogl` / `geonode:gpbranchsites_ogl` must be confirmed by the operator at pull time (see the §9 endnote "unreconcilable citations"). Export path: node page → CSV/GeoJSON download (operator, browser).
+- **Script ready:** `scripts/extract-gp-practices-wales.mjs` (run as `node scripts/extract-gp-practices-wales.mjs`) already implements the dual-reader: GeoJSON → features; CSV → rows; name keys tried in order (`property name`, `Practice Name`, `NAME`, …), so it copes with data.gov.wales column naming as-is.
+- **Scope (pre-existing decision, not re-litigated):** **main sites** get `hospiceId` + catchment; **branch sites** are ingested as `kind: "branch"` informational markers — listed/searchable but with *no* catchment assignment (no fabricated data; consistent with the hide-not-delete public rule).
+- **Naming gap (documented, risk-accepted per operator):** data.gov.wales main-site names are often bare property names (e.g. "Ysbyty Glanavon") lacking a "GP Practice" suffix. James's Cycle-2 decision: **proceed without curation**; `Methodology.tsx` already discloses name provenance, and the new list UI (item 4, town search/sort) lets users compensate.
+- **Geocoding load:** est. 300–500 new Welsh postcodes → a few minutes at 1 req/s (operator run, same script, resumable).
+- **Attribution:** OGL v3.0 → "Contains public sector information licensed under the Open Government Licence v3.0." (wording finalised by Documentation).
+
+### 1.4 Cross-cutting data notes
+
+- **Coverage asymmetry:** after this cycle the UK map has *hospice* presence for England (152) and Scotland (3) — **155 total**; **Wales has no hospices in the dataset — its source is a data request currently pending, and this cycle PROCEEDS with Wales hospices as a documented gap** (operator decision; Methodology must state it). *Practice* presence: England (9,260), Scotland (911, landed), NI (304, cycle-1 OSM extract) — **Wales practices are the remaining source gap** (§1.3). Until §1.1 lands, NI shows *practices without hospice anchors*; `validate:tessellation` must not fail on that (it is a data-coverage choice, not a defect); Methodology notes it. Flagged so QA doesn't treat it as a regression.
+- **Licence boundary (per ODbL/OGL rule, unchanged):** ODbL → OSM-derived land boundary + charity shops; OGL → Wales (data.gov.wales) and NI (PRA is public-sector/NI, wording to be confirmed by Documentation); Scotland's licence to be **confirmed on the portal page by Documentation** (NHS Scotland data is typically OGL — flag, do not assume).
+- **No blocking findings:** all three sources are operator-downloadable and match existing script patterns. Real risks: (i) Scotland name quality (F2 derived names — landed, curation list with James); (ii) Wales Nominatim runtime (operator time, not agent time); (iii) Wales naming curation (risk-accepted).
 
 ---
 
-## 3. Public-safe UI — every place internal issues are surfaced
+## 2. Item 2 — Map performance ("quite heavy")
 
-Feature rule: *public-safe means hide, not delete* — all flags and data stay
-in `public/data/*.json`; only presentation changes.
+### 2.1 Verified cost model
 
-### 3.1 Data that must be KEPT (hide-not-delete inventory)
+Layer inventory on the single `MapContainer` (`src/components/MapView.tsx`):
 
-- `Shop.outsideCatchment: boolean` — `src/lib/types.ts`; written by
-  `build-data.mjs` L233; 21 shops flagged (QA-2).
-- `Practice.hospiceId: string | null` — `src/lib/types.ts`; 12 unassigned
-  (`hospiceId: null`, all `lat: null` — QA-1, OSM-gap postcodes).
-- `Catchment.polygons` can be `[]` for Basildon `en-1-17708902164`
-  (degenerate cell, QA-3, practiceCount 0); Wisdom Hospice 0.0002 deg² sliver
-  (QA-4).
-- Build prints (unassigned/outside counts) — stdout only, not public.
+| Layer | Count | Rendered as |
+|---|---|---|
+| GP practice markers | **10,475** (≈10,463 placed) | `<CircleMarker pathOptions={…}>` — **canvas** rendering (`MapContainer` has `preferCanvas={true}`) + per-practice `<Tooltip>` |
+| Hospice markers | **155** | `<Marker icon={divIcon}>` + per-marker `<Popup>` (P3-relevant: the divIcon set is small, 155 + 138) |
+| Charity-shop markers | **138** | `<Marker icon={divIcon}>` + `<Tooltip>` |
+| Catchment polygons | **155** (hulls, `catchments.json` 6.79 MB — largest published asset) | `<Polygon>` |
 
-### 3.2 Every on-screen surface exposing internal issues (file:line)
+≈ **10,768 interactive layer objects** + 155 polygons, at every zoom, with no clustering/LOD/culling.
 
-1. **`src/App.tsx` L123–126** — selection card:
-   `const out = selectedShops.filter((s) => s.outsideCatchment).length;`
-   renders `(<span class="fw-semibold text-warning-emphasis">{out} outside
-   its own catchment</span>)`. The most prominent indicator; must be removed.
-   (The `{selectedShops.length} charity shop(s)` count itself is fine — it is
-   not an issue count.)
-2. **`src/components/MapView.tsx` L112–133 (ShopMarker)** —
-   `color = shop.outsideCatchment ? SHOP_OUTSIDE_COLOR : hospiceColor` (L~114,
-   `SHOP_OUTSIDE_COLOR = '#e07b00'` right above) → orange recolor + L120–132
-   Tooltip containing `⚠ Outside its own catchment` (L128). Both the colour
-   and the warning block must go; **but this is exactly the tooltip the
-   feature says must then show the assigned hospice name** (task 2).
-3. **`src/components/MapView.tsx` L213–221 (practice CircleMarker Tooltip)** —
-   L219: `{p.postcode} → {hosp ? hosp.name : 'no catchment match'}` — the
-   `'no catchment match'` leak for unassigned practices. Should become a
-   neutral string (e.g. just postcode, or "—") while `hospiceId: null` stays
-   in data.
-4. **`src/components/HospicePanel.tsx` L32–34, L71** —
-   `unassigned = practices.filter(p => p.hospiceId === null && p.lat != null)
-   .length` rendered as `· ${unassigned} unassigned` in the panel footer.
-   Currently shows 0 (all 12 unassigned have `lat: null` — QA-9 discrepancy),
-   but the code exists and must be removed.
-5. **`src/components/Methodology.tsx` L30, L58** — `stats.unassigned`
-   (filter `hospiceId === null`, no lat check) →
-   "of which {unassigned} are not geocoded yet" (L58; also QA-8 stale
-   wording). Remove; reword.
-6. **`src/components/Methodology.tsx` L32, L62** — `stats.shopsOutside` →
-   "of them outside their own catchment" (L62; 21 today). Remove.
-7. **`src/components/Methodology.tsx` L96–97** — methodology item 5 explains
-   the outside-catchment flag ("A shop is flagged *outside its own catchment*
-   when its point falls outside its hospice's catchment polygon…"). Now that
-   the flag is internal, the public method description should be reworded to
-   describe the *data/pipeline* ("shops are checked against their hospice's
-   catchment; a small number of mismatches are tracked privately") — wording
-   is an Architect/PM decision.
-8. **`src/App.tsx` L36–46 (error state)** — if any of the 4 data fetches
-   fails, the page shows an internal instruction "Run `npm run build-data` to
-   generate `public/data/*.json`". For a public page this should be a
-   generic failure message (the `npm run build-data` script *does* exist —
-   `package.json` `"build-data": "node scripts/build-data.mjs"` — so the text
-   is factually fine for devs, just not public).
+Hot spots confirmed by source read:
 
-**Already-safe constructs to preserve:**
-- `MapView.tsx` catchment render: `if (!rings.length) return null` —
-  degenerate cells are already invisible (Basildon safe as-is).
-- `HospiceMarker`/`ShopMarker`/`CircleMarker` all guard `lat == null`
-  (visiblePractices/visibleHospices filters) — the 12 unassigned practices
-  never render.
-- Catchment Tooltip L185–187: `"{name} — {practiceCount} GP practice(s)"` is
-  fine (public count, not an issue count).
+1. **O(n²) ×3 per data/keystroke change.** `hospices.find((h) => h.id === …)` — the join on `hospiceId` — runs separately in three passes in `src/components/MapView.tsx`: the catchment colour pass, the `visiblePractices` pass, and the `visibleShops` pass. 10,475 × 155 ≈ **1.62M linear scans per pass → ~4.9M per interaction**, on the main thread, per keystroke (search is *not* debounced: the query maps straight into the `visiblePractices`/`visibleShops` filter passes — no memo). **This is the single largest CPU cost.**
+2. **Per-marker `<Tooltip>`** on all 10,475 practice markers → 10,475 `L.Tooltip` instances attached (DOM/JS object count is real even if only visible on hover).
+3. **No clustering / LOD / viewport culling** — at zoom 6 (whole UK) ~10,450 tiny canvas dots overlap into noise and full paint cost.
+4. **Payload:** `public/data/practices.json` 3.04 MB, 2-space-indented (145,067 lines; JSON whitespace ≈ 1 MB+ of the 10,475 objects). Minifying to 0-space in `scripts/build-data.mjs`'s `writeJson` is a free ~10–15 % size win (build-time, hash-refresh required).
+5. **Transfer:** Cloudflare Pages minifies and platform-compresses; JSON compresses ~5–7× → `practices.json` ≈ 400–600 KB even compressed — still the dominant fetch. App shell is already tiny (14.4 KB B2 verified).
 
-### 3.3 New interactive requirement (task 2) — tooltip content
+### 2.2 Options (ranked impact/effort; none need a framework change)
 
-Current shop tooltip (`MapView.tsx` L120–132): shop name, address, postcode
-+ warning. New: shop name, address, postcode, **assigned hospice name**
-(`hospices.find(h => h.id === s.hospiceId)` — the hospice is already resolved
-in the parent list-render, `const hosp = hospices.find(...)` in the shops
-`.map`, so it is in scope; `Shop.hospiceId` is always set for the 138 shops —
-unresolved ids fail the build via `process.exit(1)` in build-data). Practice
-tooltip L213–221: show `hosp.name` when assigned (already does); neutral
-fallback when not. Hover AND tap: Leaflet Tooltip on CircleMarker/Marker works
-on touch (taps trigger the same `click`/tooltip path); hover-only `<Tooltip>`
-defaults (`direction: 'top'`) are fine, no change needed — touch verification
-is a QA item (no browser on this host, §5).
+- **P1 — Index the lookups (cheap, biggest CPU win, zero visual change).** Build `const byHospiceId = new Map(hospices.map(h => [h.id, h]))` once per data load; replace the three `hospiceId` `.find` passes. O(1) lookups kill the ~4.9M linear scans per interaction. Pure data-structure fix; no dependency; preserves hide-not-delete (no records touched).
+- **P2 — Grid/bucket clustering at low zoom (medium effort, biggest visual win).** Below zoom ≈ 11: render one aggregate marker per visible grid cell (dependency-free: a ~40-line lat/lon cell-keyed `useMemo` over the visible set, using existing `lat/lon` — no `leaflet.markercluster` dep, ~30 KB and an extra render pass, rejected to keep the bundle flat). ≥ 11: individual markers as today. Turns "~10,450 markers at zoom 6" into "a few dozen buckets". Matches the user expectation set by Google/OSM.
+- **P3 — Remove per-marker `<Tooltip>` from practices (cheap, moderate win).** Practitioners' names are already delivered by search results; move the practice detail to the existing panel (the `HospicePanel` pattern). Hospices keep their popups (only 155). Removes 10,475 tooltip objects from the tree.
+- **P4 — Debounce search (cheap, small–medium win).** 150–250 ms debounce on `query` before recomputing `visiblePractices`/`visibleShops`. Zero dependency; pairs with P1.
+- **P5 — 0-space JSON in `writeJson` (cheap, transfer-only win).** ~10–15 % raw cut on `practices.json` (3.04 MB) + the shops file. Requires byte-identity re-run; QA hash refresh.
+- **P6 — Shared `L.divIcon` set (cheap, small win).** Currently a unique icon HTML string per practice; after P3 moves the name out of the icon, ~10,450 unique strings collapse to a handful of (kind × state) shared icons — less string build and per-marker DOM churn.
+- **P7 — `preferCanvas: true` (already set on `MapContainer`; escalation/cleanup note).** canvas renders ~10.5k markers fast but kills per-marker DOM hover — **P3 is a precondition for keeping it**. Revisit only if P1–P6 prove insufficient.
+- **P2b — Split payload by nation/viewport (large; DEFERRED).** `practices-{nation}.json` conditional fetches would cut initial parse, but complicate cross-UK search (needs a name index), the hash manifest, and QA story. Only revisit if post-P1–P6 profiling still shows > 2 s to interactive on mid-range hardware.
 
-### 3.4 Findings that change the interaction design (dead Bootstrap JS)
+**Recommended set for this cycle: P1 + P2 + P3 + P4 + P5 + P6** (P7 documented escalation; P2b deferred). All dependency-free; all preserve `build-data`/`validate`/hide-not-delete semantics.
 
-- **`src/main.tsx` L3** imports `bootstrap/dist/css/bootstrap.min.css` and
-  `leaflet/dist/leaflet.css` — **Bootstrap JS is never imported anywhere**
-  (repo-wide grep for `import.*bootstrap` finds only that CSS line).
-  Consequences, all verified by code (never browser-tested — "No headless
-  browser on this host"):
-  - `src/App.tsx` L70: "Source & Method" button uses
-    `data-bs-toggle="modal" data-bs-target="#methodologyModal"` — **the modal
-    cannot be opened in a real browser as shipped**.
-  - `src/components/Methodology.tsx` L50 (btn-close) and L133 (footer Close)
-    use `data-bs-dismiss="modal"` — dead for the same reason.
-  The feature needs a header nav to ≥6 new pages, so interaction must change
-  anyway. Options: (a) import `bootstrap/dist/js/bootstrap.bundle.min.js`
-  (enables all `data-bs-*` for free; adds a bootstrapped JS dep to the SPA);
-  (b) React-controlled modals/pages (no new runtime code; consistent React
-  state for page switching). Architect's call (§OQ2) — noting option (a)
-  also fixes #50/#133 dismiss with zero markup change.
+### 2.3 Measurements for QA (before/after; devtools Slow 4G + CPU 4× throttle)
+
+1. Interactive → first map paint (P2/P3 win).
+2. 5-character search → map re-filter (P1+P4 win, expect the largest delta).
+3. `document.querySelectorAll('.leaflet-marker-icon').length` at zoom 6 vs 12 (expect bucketed at 6, individual at 12).
+4. navigation → `interactive` (expect sub-3 s with P5; `475675a` before-baseline for QA).
 
 ---
 
-## 4. Routing / page idiom (no router today)
+## 3. Item 3 — Logo + favicon
 
-- **Single-view SPA**: `src/main.tsx` → `<App/>` (`src/App.tsx`), one render
-  tree: header (`.app-header`, App.tsx L~50–75) → `.app-body` (aside
-  `.app-panel` L78 + main `.app-map` L91) → `Methodology` (L155, a modal
-  div). No router of any kind; `package.json` has no react-router.
-- `src/lib/useAppData.ts`: `useAppData<T>(path)` fetches `/data/*.json` at
-  mount, throws on `!r.ok`, **no 404/empty fallback**. `src/App.tsx` L9–12
-  fetch the 4 files and the app gates on all of them (error state L~33–46).
-  **Important for corrections.json:** it must NOT join that gate (an empty/404
-  corrections file would blank the whole map). Commit a stub
-  `public/data/corrections.json` (e.g. `[]`), fetch it *inside* the
-  corrections page component, and render a graceful "no corrections yet"
-  empty state if fetch fails (defence in depth).
-- `vite.config.ts` is default: `plugins: [react()]`, single entry
-  (`index.html` → `/src/main.tsx`). Cloudflare Pages serves the static build
-  directory; deep paths (`/about`) 404 without SPA fallback (`_redirects` /
-  `404.html` would be needed for path-based routes).
-- Routing options (for the Architect):
-  1. **Hash-based sections within the existing SPA** (e.g. `window.location.hash`
-     or simple state switched by nav buttons; no dep added). All pages share
-     `useAppData` data, shared CSS, the existing header. Static-host-safe
-     (no server rewrites needed), smallest diff, consistent with
-     "keep diffs minimal / no new deps" repo norms. Favourite, subject to the
-     page count (nav to About, Privacy, Licences, Accessibility, Feedback,
-     Corrections ≈ 6 + map).
-  2. **Vite multi-entry** (`build.rollupOptions.input`: `index.html`, `about.html`, …)
-     — true static pages, but each page needs its own mount; duplicating
-     header/footer/`useAppData` is more code; `#/` vs `/` UX differences arise
-     only if links are absolute.
-  3. **react-router** — new runtime dep in a static-only repo; rejected by the
-     repo's minimal-dep norm (only 5 runtime deps today) unless the Architect
-     wants full routing.
-- Nav placement: no nav and no footer exist today (`App.tsx` header has only
-  the title, the shops switch, and the modal button). A header nav
-  (Bootstrap `nav`/`d-flex`) + a site footer (which will also carry the
-  required attribution line — OSM tiles are already credited in the
-  `TileLayer` attribution string, MapView.tsx L~155, and need the ODbL
-  human-facing statement on the Licences page + footer).
+### 3.1 Verified state
+
+- `index.html`: **no favicon of any kind** (no `/favicon.ico`, no `rel=icon` PNG, no apple-touch-icon). **No `manifest.webmanifest` file exists in `public/` at all** (item 3 → §3.3 *creates* it, including the `icons` array). Browsers 404 on `/favicon.ico` → effectively no site icon today.
+- `src/components/AppShell.tsx` (header ≈ `L27–L49`): header is text-only — `<h1>Hospice Catchment Map</h1>` + `<div className="text-muted small">` subtitle. No `<img>`/SVG/logo anywhere in `src/`; no logo classes in `src/styles.css` (grep-verified); no image assets and no manifest in `public/` (only the five `data/*.json` files).
+- **G6 constraint (Cycle 1, standing):** `check-map-layout.mjs` fails on any new `flex-direction` declaration in `styles.css`. New logo CSS **must not add `flex-direction`** — use inline rendering (`<img>`/`<svg>` inside the existing `<h1>`, `margin`/`gap`/`vertical-align`).
+
+### 3.2 Asset set (constraints; exact art is James's creative call)
+
+| File | Size | Purpose |
+|---|---|---|
+| `public/favicon.ico` | 16/32/48 inside | Legacy + Windows taskbar |
+| `public/icons/icon-192.png` | 192×192 | PWA install (Android) |
+| `public/icons/icon-512.png` | 512×512 | PWA install (hi-dpi) |
+| `public/icons/icon-maskable-512.png` | 512×512, content inside central ≈400 px safe zone | PWA masked shapes |
+| `public/icons/apple-touch-icon.png` | 180×180, solid background (iOS rounds) | Safari/iOS home screen |
+| `src/assets/logo.svg` | vector | In-app header logo (crisp at all DPIs) |
+
+One mark, one source (SVG); PNGs derived from it. Suggested mark: a location pin containing a cross/heart, using the app's two existing accent colours from `styles.css` (palette reuse, no new colour system). Hand-authored 2-colour SVG keeps it dependency-free and byte-predictable.
+
+### 3.3 Code surface (for Architect)
+
+1. `index.html` head: `rel=icon` lines (ico + 192 + 512), `rel=apple-touch-icon`, plus a `rel=manifest` link (verify against the current head at implementation time — the manifest file does not exist yet).
+2. **Create `public/manifest.webmanifest`** (the file does not exist): name/start_url/display plus an `"icons"` array incl. a `purpose: "maskable"` entry.
+3. `AppShell.tsx`: `<img class="app-logo" src={logoUrl} alt="">` inside the existing `<h1>` before the text (decorative → empty `alt`; name stays in `<h1>` for a11y).
+4. `styles.css`: `.app-logo { width: 28px; height: 28px; margin-right: 8px; vertical-align: middle; }` — **no `flex-direction`** (G6).
+5. **Byte-identity:** logo assets are new non-data files; they do *not* enter the data hash chain (hashes cover `data/*.json` only). `npm run build` picks them up automatically; no `validate` change.
 
 ---
 
-## 5. Mobile behaviour (current)
+## 4. Item 4 — Hospice list ordering / filtering
 
-`src/styles.css` (full file read):
+### 4.1 Verified state (`src/components/HospicePanel.tsx`, 103 lines)
 
-- Layout: `.app {display:flex; flex-direction:column; height:100vh;
-  overflow:hidden}`; `.app-header {flex:0 0 auto}`; `.app-body {flex:1 1 auto;
-  display:flex; min-height:0; flex-direction:row}`; `.app-panel {flex:0 0
-  340px; min-width:280px}`; `.app-map {flex:1 1 auto; position:relative;
-  min-width:0}`; `.app-map-canvas {position:absolute; inset:0}` (Leaflet canvas
-  is absolute inside).
-- **Only one media query**: `@media (max-width:768px)` →
-  `.app-body {flex-direction:column}`, `.app-panel {flex:0 0 220px}`,
-  `.legend-card {display:none}`. That is it. No overlay/sheet, no
-  touch-target enlargement, no `overflow-x` guard, no font-size changes.
-- Selection card: `.app-selection {position:absolute; top:10px; left:10px;
-  max-width:380px}` — on a 360 px viewport a 380 px card at left:10 px
-  overflows (needs `max-width: calc(100% - 20px)` or similar in the responsive
-  pass).
-- Markers: `.hospice-marker` 12×12 px (divIcon 16×16, 2 px border, `rotate(45°)`),
-  `.shop-marker` 10×10 px (divIcon 10×10) — below the ~44 px WCAG/Apple
-  touch-target guidance (the feature's accessibility statement must address
-  this; enlarge via CSS class in the mobile/AA pass).
-- Panel list rows: `.panel-item` padding `0.55rem 0.75rem` (~9 px vertical)
-  — small target height (~33 px) vs 44 px guidance.
-- `index.html` L5 has a correct viewport meta
-  (`width=device-width, initial-scale=1.0`).
-- Leaflet `MapContainer` (`MapView.tsx` L~148–153): `zoomControl={true}`
-  (default topleft) — zoom works on touch (pinch + zoom buttons) out of the
-  box; `bounds` fixed to the UK box. Panel `overflow:auto` region
-  (`.flex-grow-1 overflow-auto panel-list`) scrolls; the column layout means
-  panel stacks above the map at ≤768 px, **squeezing the map** (220 px panel
-  + map filling the rest) — the feature's "overlay/sheet" requirement means
-  replacing this with an overlay (e.g. panel as an absolutely-positioned
-  sheet over the map, toggled by a nav/hamburger or search tap) and giving
-  the map the full viewport.
-- `Methodology` modal: `modal-dialog modal-lg modal-dialog-scrollable` —
-  Bootstrap `modal-lg` is 800 px; on phones it fits fine (max-width 95 %),
-  it already exists and is the pattern to reuse if the modal approach is kept.
-- **Verification is impossible on this host** (no headless browser, QA-6):
-  the mobile acceptance criteria (no horizontal scroll, readable text,
-  tappable markers, working zoom) can only be checked by QA in a
-  mobile-emulated browser on a machine that has one — flag this as the
-  pipeline's key QA dependency.
+- `list = hospices.filter(...)`: filters `hospices` by `nation` + `q` substring on **name/town only** — a **plain non-memoized filter, rebuilt per keystroke** (155 rows — cost is trivial; the heavy list-side work is in `MapView`). **Order is raw `build-data` output order (≈ nation/OSM SU order), not alphabetical.**
+- Per-hospice practice counts: a `counts` memo reads `practiceCount` from `catchments.json` — no practice scan (the old per-practice linear-scan claim no longer holds).
+- Nation `btn-group` (All/ENG/SCO/WAL/NI) → `nationFilter`.
+- `form-control-sm` search input.
+- Clickable `panel-item` rows (name + kind + practice count); **no sort control**. A count line ("…{list.length} of {hospices.length} hospices" / "{totalShown} practices") and an empty state already exist.
+
+This is exactly what James flagged: no A–Z, no field choice, no visible purpose.
+
+### 4.2 Proposed UX (for Architect)
+
+- **Default sort: name A–Z** (`localeCompare` `en-GB`) — least-surprising default, matches "A–Z in name".
+- **Sort select:** `form-select form-select-sm` with four options — **Name A–Z** (default) / Name Z–A / Town A–Z / Town Z–A. Covers both fields and both directions James offered.
+- **Compose cleanly:** nation `btn-group` (region) → search (filter) → sort (order) — the existing controls stay; only the sort control is added (count line and empty state already exist).
+- **Count line (already present):** "{list.length} of {hospices.length} hospices" / "{totalShown} practices" above the list — live-filtered orientation already covered; keep as spec.
+- **Empty state (already present):** no-match row instead of silent blank — keep as spec.
+- **Implementation surface:** `HospicePanel.tsx` only — new `sortKey` state + sort `useMemo` + `<select>` (count line and empty row already exist). No data change, no `build-data` impact, no new dependency, a11y via plain `<select>` (label it).
 
 ---
 
-## 6. Metadata / legal surface
+## 5. Item 5 — "Start here" user flow (postcode → practice → hospice)
 
-- **`index.html` L6** — `<title>Hospice Catchment Map — Lancashire &amp; South
-  Cumbria</title>` is stale (QA-7; app is UK-wide). No `<meta name=
-  "description">`, no og tags, no favicon — all candidates for the public-ready
-  pass (low risk, pure HTML).
-- **`package.json` `description`** — stale, same Lancashire wording (QA-10).
-- **No site footer exists** (`App.tsx` ends at `Methodology`, L155) — the
-  footer is new; good home for attribution (OSM/ODbL, CQC-derived) and links
-  to the legal pages.
-- **`data/README.md`** — provenance ledger for all data files; the land
-  polygon + corrections.json + `outsideCatchment` semantics + ODbL attribution
-  (SEC-4, currently missing) all land here. Also holds the CIW email template
-  (Welsh hospices pending) — see §7 for the placeholder-in(shared-source)
-  relevance.
-- **GLOSSARY.md** — L16–18 "tessellation clip box … Cells are clipped to this
-  box, **not to the coastline**" must be rewritten (Architect-owned file).
-  Candidate new terms this feature introduces (for the Architect to finalise):
-  - **land mask / UK land polygon** — the committed OSM-derived land geometry
-    all catchments are clipped against.
-  - **land clip** — result of intersecting a catchment cell with the land mask.
-  - **corrections log** — public, append-only record of accepted user
-    corrections (initially empty); fed by the curation workflow.
-  - **curation workflow** — the documented human loop: feedback email →
-    review → apply (data-raw file or curated override) → rebuild → append to
-    corrections log.
-  - **placeholder operator** — the clearly-marked stand-in name/email used in
-    one shared source while the real operator is unnamed.
-- **Shared placeholder operator source (feature criterion 5: ONE shared
-  source).** Evidence that none exists today: `data/README.md`'s CIW email
-  template contains *literal* `[name]` / `[contact address]` placeholders;
-  every person-facing string (mailtos, About page, Feedback page, corrections
-  log "contact" line) currently would need to copy-paste. Recommendation
-  (Architect to decide shape/naming): a single module, e.g.
-  `src/lib/siteConfig.ts` (value: `operatorName` — placeholder, clearly
-  marked, `contactEmail` — placeholder) consumed by every UI page +
-  mailto links; the curation script (scripts-side) can read a sibling
-  `data-raw/site-config.json` (committed) so UI and log-generation share one
-  canonical value. This keeps "clearly-marked placeholder in ONE shared
-  source" structurally true.
-- **Legal page content checklist the copy must cover** (for the PM/Architect's
-  requirements doc — research only, no copy writing): Privacy Policy = UK
-  GDPR + DPA 2018, "no cookies, no analytics, no tracking", only personal
-  data = the feedback email (address + message) used solely to act on
-  corrections; Licences & Attribution = ODbL (OSM coastline + tiles +
-  geocoding; CQC-derived register data), per-source data URLs and dates
-  (CQC snapshot 14 Oct 2026; CIS 31 Aug 2026 — `data/README.md` caveats);
-  Accessibility Statement = WCAG 2.1 AA commitments with an honest note about
-  current marker sizes and the feedback channel.
+### 5.1 Concept (James's spec)
+
+A "Where do I belong?" card at the **top-left of the map screen (screen 2)**: user types a postcode (e.g. `GC0 3XX`) → the app answers in plain language: "You're in the catchment of **X Hospice**", with an action to highlight that catchment on the map / open the hospice's info. This is the 10-second entry answer for a stressed patient/relative — the **primary CTA of the site**.
+
+### 5.2 Data feasibility (verified — no new data, no geocoding, no API)
+
+- `public/data/practices.json` carries **`postcode`** per practice (~10,475 rows) → postcode → practice is a direct in-memory string join (normalised form). The Nominatim geocoding (`node scripts/geocode-postcodes.mjs`) was for *placing* practices; this flow is the reverse and is already in the data.
+- `practices.json` carries **`hospiceId`** per practice → practice → catchment hospice is a direct join.
+- `hospices.json` carries name/town/etc. → display is direct.
+- **Edge cases (all data-present, must be handled explicitly):**
+  1. **Postcode valid-UK but not in dataset** (rural/no-practice-data): "We don't have a GP practice for that postcode" + point at the existing town search. No invented answer.
+  2. **Multiple practices, one postcode** (group buildings): list each, user picks; each carries its own `hospiceId`.
+  3. **Practice with `hospiceId === null`** (the 12 unassigned — all on 9 BT postcodes that no geocoder resolves; plus any future fallback rows): "Your practice isn't assigned to a catchment in our data yet" — honest, no fabrication.
+  4. **Not-UK / malformed postcode:** the existing postcode utilities already validate; "That doesn't look like a UK postcode."
+- **`public/geocoord/`** is not a path in the post-Scotland tree; the flow needs no geocoding artefacts at all (direct join). Retention question → DevOps.
+
+### 5.3 UI surface (verified)
+
+- The map screen renders `<MapView>` (`src/components/MapView.tsx`); top-left is occupied by the Leaflet `ZoomControl` (`MapContainer` has `zoomControl={true}`) → move zoom to `bottomleft` (existing `<ZoomControl position>` prop, no new CSS) and place the card at top-left.
+- Card = Bootstrap `.card`: label, `form-control` postcode input, "Find" button, answer area with the hospice name + a "Show catchment" action (reuses the existing hospice-select/pan code path).
+- **Personas (from James):** (1) patient/family — one input, one named answer, 10 seconds; (2) fundraiser — which hospice does my area support; (3) clinician — catchment hospice name for referral, plus the kind=curated vs approximated distinction trust signal (ADR-0005 transparency applies: if the matching practice's assignment came from nearest-hospice fallback, say so in a line).
+- **Implementation surface:** a new card component inside `MapView.tsx` (or a small sibling component) — `useState` + `useMemo` over already-loaded `practices`/`hospices`. **No new dependencies, no backend, no persistence of the typed postcode** (privacy-positive: nothing stored, nothing sent).
+- **Interaction with hide-not-delete:** if the matched practice is a `hidden` record in the public views, the card may still use it (it is a data join, not a list render), but the answer must not leak any "hidden" status — public-safe wording only (ADR-0004).
 
 ---
 
-## 7. Corrections log plumbing + curation workflow
+## 6. Cross-cutting risks & human gates
 
-### 7.1 How the site consumes data (existing pattern)
+### Risks
 
-`public/data/*.json` (Vite `public/` dir → served at `/data/*`) →
-`useAppData<T>(path)` fetch at mount → App gates on the 4 core files. So the
-**Corrections page = fetch `/data/corrections.json` in its own component**
-(same pattern, no gate — §4) + React render. Commit a stub
-(`[]` or `{"items": []}`) so first deploy is 200 not 404; render an empty
-state ("No corrections have been published yet.") if the fetch or items are
-empty. The schema is the Architect's choice; minimal:
-`{date, summary, dataChanged: "practices.json", file?: "..."}`
-(kind/point id/hospice id optional). Note `useAppData` throws on non-2xx, so
-the stub must exist and be valid JSON.
+- **R1 Byte-identity churn:** items 1 (the two remaining nation sources: NI hospices + Wales practices — Scotland already landed in `475675a`) and 2 (P5) change data files / hash surface → full re-run of the build-data → validate → build chain, QA hash refresh, and a re-run of the `pre-publish-gates` checklist. This is the dominant cost of the cycle and is concentrated in QA/DevOps.
+- **R2 Coverage asymmetry:** NI practices (304) exist with no hospice-side anchor / no catchment structure until §1.1 lands; Wales has no hospices at all (data request pending — documented gap, §1.4) — Methodology must state both; QA must not flag them as regressions.
+- **R3 Nominatim availability:** Wales run is a few min at 1 req/s (Scotland run already complete: 9,093 of 9,102 in-scope postcodes in `data-raw/postcode-geo.csv`); 429s are handled by the script's resume, but a bad network day blocks the geocode step (operator time).
+- **R4 Scotland name quality (F2 — landed):** the derived names can be ambiguous/duplicated → curation list with James (risk-accepted); the F1 option is moot now the register has landed.
+- **R5 Performance changes must preserve:** hide-not-delete public rule, DisagreeLink/feedback paths, ADR-0005 fallback transparency, and the existing `validate` gates. P1–P6 are designed not to touch any of these; QA verifies explicitly.
+- **R6 G6 trap:** any new CSS for logo/flow must avoid `flex-direction` (check-map-layout.mjs fails otherwise).
+- **R7 Host compression assumption:** "Pages compresses JSON 5–7×" is inferred from the verified brotli numbers on other assets, not measured on the final host — QA measures transfer directly (2.3 item 4).
+- **R8 Staged `charity-shops-BUILD.json`:** RESOLVED — shops landed as `public/data/shops.json` (45,209 B, ~138 shops; 21 outside catchment); no staged baseline remains.
 
-### 7.2 Feedback (task 4)
+### Human gates (operator: James)
 
-- **Per-marker mailto**: shop markers (138) and practice markers (~9,564
-  placed) get a "Disagree with this data?" link. Building a per-render
-  mailto per practice is trivial (`href={...}` with `mailto:<email>?subject=
-  ...&body=...`, `encodeURIComponent` on subject/body); include point id
-  (`p.id` / `s.id`), name, postcode, and assigned hospice name so the
-  curator can locate the record without asking back. The public email is the
-  shared placeholder operator email (§6).
-  - Consideration: practice tooltips currently have no "actions" area; a
-    mailto line appended inside the existing Tooltip works but grows ~9,500
-    DOM tooltip payloads (tooltips render on demand in Leaflet — low risk).
-    An alternative is putting the link in the hospice selection card /
-    feedback page only. Architect's UX call (§OQ5).
-- **Feedback page**: form-like page that composes the same mailto (name,
-  location/postcode, message → `mailto:`), plus the plain address in text.
-  No backend (out of scope) — mailto is the only transport.
-
-### 7.3 Curation workflow (documented internal process)
-
-Slots into the existing documented machinery:
-- **Scripts:** a new `scripts/add-correction.mjs` (template: the curated-
-  override precedent — `catchment-map.mjs` CATCHMENTS + `SLUG_TO_ID` merge in
-  `build-data.mjs` L30–33) that edits the appropriate `data-raw/` file
-  (address/postcode fix → extract output; assignment fix → curated override)
-  and appends one entry to the corrections data file, then the human runs the
-  normal chain (build-data ×2, validator, `npm run build`). Alternatively the
-  curator edits `data-raw/` directly and hand-appends the log entry — the
-  script is a convenience, not required by the feature; the *documentation*
-  is required.
-- **Docs:** `docs/MAINTENANCE.md` gains a "Corrections workflow" section
-  (receive feedback → verify against source register/source data → apply in
-  `data-raw/` → rebuild (byte-identical ritual) → append corrections log entry
-  → commit). `data/README.md` gains the `corrections.json` provenance line.
-- **Corrections data file:** lives where the log is committed (
-  `public/data/corrections.json` IS the feed for the public page — the
-  internal source file can be the same file, edited by the curation step,
-  since it's shipped verbatim). This is the simplest design: one file,
-  committed, human-edited, published. Square-bracket placeholder convention
-  is already used in `data/README.md` (`[name]`/`[contact address]`) if the
-  email is still a placeholder at publish time.
-- **Initial state:** intentionally empty (schema stub only).
-
-### 7.4 Deps check
-
-Nothing new is strictly required: polygon-clipping (clip), react/leaflet
-(maptiles), bootstrap (nav/footer), Vite (multi-entry if chosen). A tiny
-corrections EDL (e.g. `src/lib/corrections.ts` types) is internal only.
+- **H1 — Downloads (only two pulls remain open):** PRA regulated-services XLSX (NI hospices — exact current register location unverified, confirmed by the operator at pull time; the dead `www.rqia.org.uk` RQIA workbook is **not** the source) → `data-raw/`; Wales main → `data-raw/gp-practices-wales-main-2026-10.csv` (or geojson); Wales branch → `data-raw/gp-practices-wales-branch-2026-10.csv` (or geojson, via data.gov.wales — exact node names unverified). **Scotland — RESOLVED:** landed as F2 (derived names) in `475675a`; tracked as `data-raw/gp-practices-scotland-2026-10.geojson` (single-extension name).
+- **H2 — Nominatim runs:** operator runs `node scripts/geocode-postcodes.mjs` (Scotland — complete: 9,093 of 9,102 in-scope postcodes held; Wales — the remaining run, a few min) from a networked machine; the script is resumable and exits non-zero if incomplete — do not force-complete.
+- **H3 (carried from Cycle 1): G5 mobile-viewport pass + G7 Overpass freshness confirmation** — re-run at final QA.
+- **H4 (new): logo art** — James supplies/approves the mark (or approves the suggested pin-cross spec in §3.2); agents build the file set from it.
 
 ---
 
-## 8. Data-shape reference (reused from prior research where still true)
+## 7. Glossary candidates (for the Architect to finalise in GLOSSARY.md)
 
-- `src/lib/types.ts`: `Nation = 'en' | 'sc' | 'wales' | 'ni'`;
-  `Hospice {id, name, town, postcode, lat?, lon?, nation, kind: 'published' |
-  'approx', curated?, color, website?, cqcUrl, source}`;
-  `Practice {id, name, address[], postcode, lat?, lon?, nation, hospiceId:
-  string | null}`;
-  `Catchment {hospiceId, name, nation, practiceCount, polygons: {lat,lon}[][]}`
-  ("One or more rings (Voronoi-derived; multi-ring = union of cells)");
-  `Shop {id, name, address, postcode, lat, lon, hospiceId, outsideCatchment}`
-  (`outsideCatchment` **stays** in the data per hide-not-delete).
-- Generated `catchments.json` carries 155 cells; unions computed at build
-  time (not shipped raw).
+`catchment`, `tessellation`, `curated (kind)`, `kind: approx`, `hide-not-delete`, `outcode fallback`, `LOD / level-of-detail`, `bucket marker`, `byte-identity ritual`, `named register` (vs `information summary` extracts), `OSM SU`, `OWM` (Official Welsh Map).
 
 ---
 
-## 9. Risks and open questions
+## 8. What the Architect must decide (pointer, not a decision here)
 
-### Risks (carry to Architect/Reviewer; file evidence cited)
-
-1. **Multi-ring land clipping** — per-hospice cells are multi-ring unions
-   (`build-data.mjs` L172–179; `types.ts` `polygons {lat,lon}[][]`);
-   intersecting multi-ring polygons with the (multi-ring, island-laden) UK
-   land polygon via polygon-clipping is the geometrically heavy path.
-   Residual risks: empty results for near-coastal cells, sliver creation, and
-   increased vertex counts (perf: `public/data/catchments.json` already
-   ~0.35 MB; UK land adds geometry to the build, not necessarily the output —
-   cells that shrink are fine, cells that gain water-proxy edges are not
-   expected).
-2. **Zero-area / sliver degenerates post-clip** — cells touching the sea edge
-   (c. 25 coastal hospices) may clip to empty or hairline polygons. The
-   validator must (a) not crash on empty `polygons`, (b) flag
-   `polygons: []` and slivers by area threshold (Wisdom 0.0002 deg² is the
-   current accepted baseline), (c) keep Basildon `en-1-17708902164`'s
-   `polygons: []` invisible (MapView `if (!rings.length) return null` already
-   safe). polygon-clipping `intersection` of disjoint cells with a shared
-   mask should stay disjoint, but floating-point edge cases (coastal grid
-   lines running exactly through a vertex) can produce 1–2 µdeg² slivers —
-   the existing 0.00-overlap tolerance in `validate-tessellation.mjs` L45–58
-   should be kept and the new land-coverage check given a matching tolerance.
-3. **OSM coastline granularity + build-time/file-size** — ODbL + UK land at
-   ~1 km vs ~100 m detail produces very different vertex counts and JSON
-   sizes; the fetch must pick an appropriate simplification level (generalised
-   vs raw) and the commit.getSize budget is **UNVERIFIED until the human
-   fetch**. A too-fine polygon inflates build time (155 × polygon-clipping
-   intersections) and `catchments.json` size; a too-coarse one makes
-   "no cell extends into the sea" visibly wrong at coastal zoom. Mitigation:
-   validate visually + area-ratio sanity in the validator (land-coverage %
-   of land polygon within tolerance).
-4. **Validator invariant re-expression** — the "100% coverage of the box"
-   proof (`validate-tessellation.mjs` L40–43) is void once land is removed;
-   the new invariant ("cells tile the land") needs both sub-checks (cell ⊆
-   land; union ≈ land∩bbox). Getting this tolerance wrong silently either
-   accepts sea cells or rejects valid coastal clips. The Architect should
-   specify the exact checks + tolerances in the architecture doc.
-5. **corrections.json gating the map** — if the corrections fetch is added to
-   `App.tsx`'s 4-fetch gate (L9–12/L33–46), any 404/validation failure
-   blanks the entire map (`src/lib/useAppData.ts` throws on `!r.ok`). It
-   must be page-local + stub-committed (requirement, not preference).
-6. **SEC-4 ODbL attribution** — `data/README.md` lacks it today; the feature
-   must fix it in one coherent place (Licences page + data/README +
-   `MAINTENANCE.md` land-file provenance). Forgetting it re-introduces the
-   accepted risk on a now-pan-public site.
-7. **Mobile first-paint load** — the map renders ~9,552 placed practices as
-   SVG `CircleMarker`s (`MapView.tsx` L~204–221) + 138 shop Markers + 155
-   catchment polygons. This is the same first-paint load as today (no change
-   from the feature itself), but mobile hardware is slower; the new overlay/sheet
-   panel must not re-trigger this on toggle (keep panels in mounted DOM,
-   toggle visibility only). `preferCanvas` remains the pre-agreed remedy if
-   QA measures first-paint as too slow on mobile emulation (not measurable on
-   this host — QA-6).
-8. **No browser on this host** (QA-6) — mobile acceptance, tooltip-tap
-   behaviour, the Bootstrap-JS modal decision, and hash-routing behaviour
-   cannot be verified in candles; all are QA gate items on a browser-equipped
-   machine. The findings "Bootstrap JS is not imported, so the modal is dead"
-   and "tooltips work on touch" are code-inference, not browser-verified.
-9. **Overpass-down fetch risk** — Overpass mirrors were 502/500 during the
-   earlier shops fetch and Nominatim worked; the land-file human fetch may
-   need a retry / alternate source (e.g. a saved OSM relation extract or
-   another mirror). The procedure doc should list at least two source options
-   and the exact output filename so a re-fetch from a different day produces
-   a different file → a note in MAINTENANCE.md that the SHA-256 of the land
-   file is recorded once and re-fetched files are a *rebuild event* (byte
-   identity is per-input-set).
-10. **Placeholder-operator divergence** — if the mailto address, About page
-    and corrections log copy each hard-code the placeholder, the "ONE shared
-    source" criterion is structurally unenforceable. The shared-module
-    design (e.g. `src/lib/siteConfig.ts` + `data-raw/site-config.json` for
-    scripts) is the prevention; Research flags it as an Architect decision.
-
-### Open questions for the Architect
-
-- **OQ1 — Routing**: hash-sections in the existing SPA (favourite, no deps,
-  static-safe) vs Vite multi-entry vs react-router — decide and document the
-  nav component + footer owner (which component renders both).
-- **OQ2 — Bootstrap JS**: import the bundle (fixes dead modal + free
-  `data-bs-*`) vs React-state modals/pages — decide once; it drives the
-  Methodology rewrite.
-- **OQ3 — Land file contract**: exact committed path/name
-  (`data-raw/uk-land.json`?), format (`[lon,lat][]` rings, outer CW?),
-  expected simplification level, and build behaviour when the file is absent
-  (fail-fast vs fall back to BOX-only) — the feature should not silently
-  regress to box-only on a real build.
-- **OQ4 — Validator spec**: exact new checks (cell ⊆ land, union ≈ land∩bbox,
-  sliver threshold, empty-cell report) + tolerances; whether the old
-  box-coverage line is kept for reference (it would now report < 100 %).
-- **OQ5 — Mailto UX**: per-shop and per-practice mailto in tooltip (DOM
-  payload) vs selection-card / feedback-page only; exact subject/body format
-  (which point fields: id, name, postcode, hospice name); who owns the
-  `encodeURIComponent` helper (shared `src/lib/` util).
-- **OQ6 — Corrections schema**: stub shape (`[]` vs `{items: []}`), entry
-  fields, whether `corrections.json` is edited by hand or by
-  `scripts/add-correction.mjs`; whether the curation script is in scope
-  (feature says "scripts/ + docs") — Research reads that as: at least one
-  script helper *and* docs, but the script may be minimal.
-- **OQ7 — Mobile mechanics**: overlay/sheet panel implementation (CSS
-  `position:fixed` + toggle vs Bootstrap offcanvas if bundle is imported),
-  marker size bumps (44 px guidance vs current 12/10 px), selection-card
-  overflow fix, and which screens QA must verify in mobile emulation (exact
-  viewport list for the QA stage).
-- **OQ8 — Methodology rewording**: which sentences change (L58 "not geocoded
-  yet" QA-8, L62 outside-catchment count, L96–97 flag explanation, L116
-  Wales/NI 0-hospices caveat — should this caveat stay or soften now that
-  Welsh/NI registers are documented-pending?), in whose voice (public-facing
-  plain language).
-- **OQ9 — GLOSSARY + ADR**: new terms to add (list at §6: land mask, land
-  clip, corrections log, curation workflow, placeholder operator); ADR-0006
-  to record the ADR-0001 reversal (rectangular → land-mask clip) with the
-  alternatives (bbox-only, Natural Earth, raw OSM) and consequences
-  (validator rewrite, new input file, ODbL attribution).
-- **OQ10 — Surface**: new `<title>` + meta description wording; favicon
-  decision (option: `data:` URI SVG, no new asset); whether the About/Privacy/
-  Licences/Accessibility/Feedback/Corrections nav lives in header only,
-  footer only, or both, and the canonical page order.
+1. **Scotland register (RESOLVED)** — F2 landed in `475675a` (derived names); curation list with James (risk-accepted).
+2. **P2 clustering zoom threshold** — proposed 11; verify against real map feel during implement (QA task).
+3. **P3 detail presentation** — practice detail in the existing bottom interaction bar vs an on-click popup (bar preferred: zero new DOM churn).
+4. **"Start here" card placement** — zoom control to `bottomleft`, card top-left (proposed); confirm no collision at small widths (G5 covers this).
+5. **Sort-control field set** — Name/Town × A–Z/Z–A (proposed); confirm no third field is wanted (postcode rejected — not meaningful to users).
+6. **NI coverage note placement** — Methodology + list-screen footnote (proposed).
 
 ---
 
-*Research pass complete. All 7 named areas have file-path/line evidence from
-this session's reads/greps. Read-only: no working-tree files modified other
-than `.agents/research.md`. No downloads, no network calls.*
+## 9. Completion note
+
+Read-only pass complete. The only file written is this artifact (`.agents/research.md`). No blocking findings: all five items are implementable with existing patterns, operator downloads, and zero new runtime dependencies.
+
+Risks are recorded; gates H1–H4 are queued for the operator. Next stage: **Architect** (`.agents/architecture.md`).
+
+### Unreconcilable citations (carried forward, not invented)
+
+Two citations cannot be reconciled from the tree and are deliberately left to operator action:
+
+1. **The exact PRA register download location** — the PRA (Public Regulation Authority, successor to the defunct RQIA) hosts the NI regulated-services register; the legacy `www.rqia.org.uk` XLSX is dead and is not the source. The current PRA register URL/XLSX location must be confirmed by the operator at pull time (§1.1, §6 H1).
+2. **The exact data.gov.wales datanode names** — cycle 1 named the `data.wales` (now a holding page) 'GP Locations' OGL v3.0 datanodes `geonode:gpmainsites_ogl` / `geonode:gpbranchsites_ogl`; the equivalent node names on data.gov.wales are unverified and must be confirmed by the operator at pull time (§1.3, §6 H1).

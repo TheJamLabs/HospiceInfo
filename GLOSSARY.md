@@ -60,3 +60,42 @@ provenance, and documentation. New terms are formatted in *italics*.
 - **ODbL attribution**: ODbL (Open Database License) is required for any data
   or geometry derived from OSM (e.g. the coastline land mask, map tiles, geocoding).
   See `data/README.md` §Licences & Attribution and the Licences page.
+
+## Cycle 2 terms (landings, performance, identity, list, flows)
+
+- **hide-not-delete**: the public-safe rule — data fields that mark internal gaps
+  (unassigned practices, `outsideCatchment` flags, degenerate cells, missing
+  geocoding) are never removed from the data model; the UI simply does not render
+  them, and "not found" surfaces use neutral wording that never names an internal
+  flag. See `.agents/architecture.md` §5 and ADR-0012.
+- **LOD bucket marker** (*italics*): one rendered marker standing in for many
+  practices at low zoom, produced by grouping placed practices into grid buckets
+  (`floor(lon/grid) × floor(lat/grid)`); the bucket shows a count and expands on
+  click. P2 is a bounded fix applied in measured sequence; the *evidence-gated*
+  mechanism is the §2c stride (on only if the §2c metric justifies it); zoom 12
+  shows every marker. See ADR-0010 (P2/§2c).
+- **start-here card** (*italics*): the dismissible landing card anchored
+  top-left of the map viewport; runs the postcode → practice → catchment →
+  hospice flow with persona sections (patient / fundraiser / clinician). See
+  ADR-0012.
+- **published / approx `kind`**: `kind` on a hospice row — `"published"` is one
+  of the 20 hand-verified (curated) catchments with a published service area;
+  `"approx"` is the remaining geometric (Voronoi) estimate. The UI filter
+  "Has published service area" exposes only the `published` rows. (The adjectival
+  form *approx kind* is used in review shorthand.)
+- **branch site**: a secondary surgery location of a main GP practice; the Wales
+  practices register ships main and branch sites as two separate datasets
+  (`gp-practices-wales-{main,branch}-2026-10.{csv,geojson}`), both fed into the
+  same extract. See `data/README.md` §Human fetch procedures (2).
+- **nation filter**: the panel control that restricts the visible hospices
+  (and their catchments/practices) to one nation (`en` / `sc` / `ni` / `wales`);
+  added with the UK-wide map.
+- **PRA**: the **Public Regulation Authority**, Northern Ireland's public
+  regulator from 2024 (successor to RQIA and HSCQC); the source of the
+  prospective `data-raw/rqia-regulated-services-2026-06.xlsx` NI hospice
+  register. See `data/README.md` §Human fetch procedures (1).
+- **profile-first**: the Cycle 2 performance discipline — instrument and record
+  a baseline (Slow 4G + 4× CPU, fixed metric set in `.agents/qa.md §Baseline`)
+  *before* any fix; every fix is measured against that baseline, and
+  downsampling is off by default, triggered only by the recorded metric. See
+  ADR-0010.

@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import {
   MapContainer,
   TileLayer,
@@ -6,6 +6,7 @@ import {
   Polygon,
   Tooltip,
   useMap,
+  useMapEvent,
   Marker,
   Popup,
 } from 'react-leaflet';
@@ -81,20 +82,20 @@ function FitToSelection({ selectedId, catchments, hospices }: {
   return null;
 }
 
-function HospiceMarker({ hospice, opacity, onSelect }: {
+function HospiceMarker({ hospice, icon, opacity, onSelect }: {
   hospice: Hospice;
+  icon: L.DivIcon | undefined;
   opacity: number;
   onSelect: (id: string | null) => void;
 }) {
+  const markerRef = useRef<L.Marker>(null);
+  useEffect(() => {
+    const el = markerRef.current?.getElement();
+    if (el) el.style.opacity = String(opacity);
+  }, [opacity]);
   if (hospice.lat == null || hospice.lon == null) return null;
-  const icon = L.divIcon({
-    className: 'hospice-marker-wrap',
-    html: `<span class="hospice-marker" style="background:${hospice.color};opacity:${opacity}"></span>`,
-    iconSize: [16, 16],
-    iconAnchor: [8, 8],
-  });
   return (
-    <Marker position={[hospice.lat, hospice.lon]} icon={icon} eventHandlers={{ click: () => onSelect(hospice.id) }}>
+    <Marker ref={markerRef} position={[hospice.lat, hospice.lon]} icon={icon} eventHandlers={{ click: () => onSelect(hospice.id) }}>
       <Popup>
         <div style={{ minWidth: 180 }}>
           <strong>{hospice.name}</strong>
@@ -112,21 +113,20 @@ function HospiceMarker({ hospice, opacity, onSelect }: {
   );
 }
 
-function ShopMarker({ shop, hospiceColor, hospiceName, opacity, onSelect }: {
+function ShopMarker({ shop, icon, hospiceName, opacity, onSelect }: {
   shop: Shop;
-  hospiceColor: string;
+  icon: L.DivIcon | undefined;
   hospiceName: string | null;
   opacity: number;
   onSelect: (id: string | null) => void;
 }) {
-  const icon = L.divIcon({
-    className: 'shop-marker-wrap',
-    html: `<span class="shop-marker" style="background:${hospiceColor};opacity:${opacity}"></span>`,
-    iconSize: [10, 10],
-    iconAnchor: [5, 5],
-  });
+  const markerRef = useRef<L.Marker>(null);
+  useEffect(() => {
+    const el = markerRef.current?.getElement();
+    if (el) el.style.opacity = String(opacity);
+  }, [opacity]);
   return (
-    <Marker position={[shop.lat, shop.lon]} icon={icon} eventHandlers={{ click: () => onSelect(shop.hospiceId) }}>
+    <Marker ref={markerRef} position={[shop.lat, shop.lon]} icon={icon} eventHandlers={{ click: () => onSelect(shop.hospiceId) }}>
       <Tooltip>
         <strong>{shop.name}</strong>
         <br />
@@ -145,6 +145,108 @@ function ShopMarker({ shop, hospiceColor, hospiceName, opacity, onSelect }: {
   );
 }
 
+// Practice-layer LOD (ADR-0010 P2): below ZOOM_LOD the ~10k practices are
+// aggregated into 0.5-deg grid buckets (one marker per bucket, white count
+// on blue) so the canvas renderer draws a few hundred dots instead of ten
+// thousand; clicking a bucket flies down to ZOOM_LOD. No simplification or
+// subsampling — every practice is present at full zoom.
+const GRID = 0.5;
+const ZOOM_LOD = 11;
+
+function PracticeLayer({ practices, hospiceById, selectedId, onSelect, nation }: {
+  practices: Practice[];
+  hospiceById: Map<string, Hospice>;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  nation: NationFilter;
+}) {
+  const map = useMap();
+  const [zoom, setZoom] = useState(() => map.getZoom());
+  useMapEvent('zoomend', () => setZoom(map.getZoom()));
+  const nationDim = (n: string) => nation !== 'all' && n !== nation;
+  const buckets = useMemo(() => {
+    const m = new Map<string, { count: number; latSum: number; lonSum: number }>();
+    for (const p of practices) {
+      const key = `${Math.floor((p.lon as number) / GRID)}:${Math.floor((p.lat as number) / GRID)}`;
+      const b = m.get(key) ?? { count: 0, latSum: 0, lonSum: 0 };
+      b.count += 1;
+      b.latSum += p.lat as number;
+      b.lonSum += p.lon as number;
+      m.set(key, b);
+    }
+    return m;
+  }, [practices]);
+  const bucketItems = useMemo(
+    () =>
+      [...buckets.entries()].map(([key, b]) => ({
+        key,
+        count: b.count,
+        lat: b.latSum / b.count,
+        lon: b.lonSum / b.count,
+      })),
+    [buckets]
+  );
+  const bucketIcons = useMemo(() => {
+    const m = new Map<string, L.DivIcon>();
+    for (const b of bucketItems) {
+      m.set(
+        b.key,
+        L.divIcon({
+          className: '',
+          html: `<div style="width:28px;height:28px;line-height:24px;background:#1d4ed8;color:#fff;border:2px solid #fff;border-radius:50%;text-align:center;font-size:11px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)">${b.count}</div>`,
+          iconSize: [28, 28],
+          iconAnchor: [14, 14],
+        })
+      );
+    }
+    return m;
+  }, [bucketItems]);
+  if (zoom < ZOOM_LOD) {
+    return (
+      <>
+        {bucketItems.map((b) => (
+          <Marker
+            key={b.key}
+            position={[b.lat, b.lon]}
+            icon={bucketIcons.get(b.key)}
+            eventHandlers={{ click: () => map.flyTo([b.lat, b.lon], ZOOM_LOD) }}
+          />
+        ))}
+      </>
+    );
+  }
+  return (
+    <>
+      {/* GP practices — all placed practices are shipped; no downsampling.
+          pm 3.2/W6: the per-practice hover Tooltip is removed (10k tooltip
+          elements on the canvas layer were the dominant DOM cost); catchment
+          and shop tooltips remain. The Disagree link is still reachable on
+          every point that keeps a popup/tooltip. */}
+      {practices.map((p) => {
+        const hosp = p.hospiceId ? hospiceById.get(p.hospiceId) ?? null : null;
+        const dim = selectedId !== null && p.hospiceId !== selectedId;
+        const dimmedNation = nationDim(p.nation);
+        return (
+          <CircleMarker
+            key={p.id}
+            center={[p.lat as number, p.lon as number]}
+            // pm 2.3: larger radius as the touch-target mitigation (a 5px
+            // radius ≈ 10px dot is ~(3-4)× bigger than the pre-fix 3px one).
+            radius={selectedId === p.hospiceId ? 7 : 5}
+            pathOptions={{
+              color: '#ffffff',
+              weight: 1,
+              fillColor: hosp?.color ?? '#999',
+              fillOpacity: dimmedNation ? 0.15 : dim ? 0.12 : 0.85,
+            }}
+            eventHandlers={{ click: () => (p.hospiceId ? onSelect(p.hospiceId) : undefined) }}
+          />
+        );
+      })}
+    </>
+  );
+}
+
 export default function MapView({ hospices, practices, catchments, shops, showShops, selectedId, onSelect, nation }: Props) {
   const visiblePractices = useMemo(
     () => practices.filter((p) => p.lat != null && p.lon != null),
@@ -154,8 +256,51 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
     () => hospices.filter((h) => h.lat != null && h.lon != null),
     [hospices]
   );
+  const hospiceById = useMemo(() => {
+    const m = new Map<string, Hospice>();
+    for (const h of hospices) m.set(h.id, h);
+    return m;
+  }, [hospices]);
   const visibleShops = useMemo(() => (showShops ? shops : []), [shops, showShops]);
   const nationDim = (n: string) => nation !== 'all' && n !== nation;
+
+  // Shared divIcons, one per colour (created once, not per render); per-marker
+  // opacity is applied to the marker element itself so the icons stay pristine.
+  const hospiceIcons = useMemo(() => {
+    const m = new Map<string, L.DivIcon>();
+    for (const h of visibleHospices) {
+      if (!m.has(h.color)) {
+        m.set(
+          h.color,
+          L.divIcon({
+            className: 'hospice-marker-wrap',
+            html: `<span class="hospice-marker" style="background:${h.color}"></span>`,
+            iconSize: [16, 16],
+            iconAnchor: [8, 8],
+          })
+        );
+      }
+    }
+    return m;
+  }, [visibleHospices]);
+  const shopIcons = useMemo(() => {
+    const m = new Map<string, L.DivIcon>();
+    for (const s of visibleShops) {
+      const c = hospiceById.get(s.hospiceId)?.color ?? '#666';
+      if (!m.has(c)) {
+        m.set(
+          c,
+          L.divIcon({
+            className: 'shop-marker-wrap',
+            html: `<span class="shop-marker" style="background:${c}"></span>`,
+            iconSize: [10, 10],
+            iconAnchor: [5, 5],
+          })
+        );
+      }
+    }
+    return m;
+  }, [visibleShops, hospiceById]);
 
   return (
     <MapContainer
@@ -181,7 +326,7 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
       {catchments.map((c) => {
         const rings = c.polygons ?? [];
         if (!rings.length) return null;
-        const hospColor = hospices.find((h) => h.id === c.hospiceId)?.color ?? '#666';
+        const hospColor = hospiceById.get(c.hospiceId)?.color ?? '#666';
         const dim = selectedId !== null && selectedId !== c.hospiceId;
         const dimmedNation = nationDim(c.nation);
         return (
@@ -210,66 +355,27 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
         );
       })}
 
-      {/* GP practices (all placed practices are shipped; no downsampling)
-          pm 3.2: the tooltip is NEUTRAL for unassigned practices — postcode
-          only — and never names a catchment; for assigned ones it says which
-          hospice the practice is assigned to. */}
-      {visiblePractices.map((p) => {
-        const hosp = p.hospiceId ? hospices.find((h) => h.id === p.hospiceId) : null;
-        const dim = selectedId !== null && p.hospiceId !== selectedId;
-        const dimmedNation = nationDim(p.nation);
-        return (
-          <CircleMarker
-            key={p.id}
-            center={[p.lat as number, p.lon as number]}
-            // pm 2.3: larger radius as the touch-target mitigation (a 5px
-            // radius ≈ 10px dot is ~(3-4)× bigger than the pre-fix 3px one).
-            radius={selectedId === p.hospiceId ? 7 : 5}
-            pathOptions={{
-              color: '#ffffff',
-              weight: 1,
-              fillColor: hosp?.color ?? '#999',
-              fillOpacity: dimmedNation ? 0.15 : dim ? 0.12 : 0.85,
-            }}
-            eventHandlers={{ click: () => (p.hospiceId ? onSelect(p.hospiceId) : undefined) }}
-          >
-            <Tooltip>
-              <strong>{p.name}</strong>
-              <br />
-              {p.address.join(', ')}
-              <br />
-              {p.postcode}
-              {hosp ? (
-                <span className="text-muted">
-                  <br />
-                  → assigned to {hosp.name}
-                </span>
-              ) : null}
-              <DisagreeLink
-                point={{
-                  id: p.id,
-                  name: p.name,
-                  postcode: p.postcode,
-                  hospiceName: hosp ? hosp.name : null,
-                }}
-              />
-            </Tooltip>
-          </CircleMarker>
-        );
-      })}
+      {/* GP practices — rendered through the grid-bucket LOD layer (W5) */}
+      <PracticeLayer
+        practices={visiblePractices}
+        hospiceById={hospiceById}
+        selectedId={selectedId}
+        onSelect={onSelect}
+        nation={nation}
+      />
 
       {/* charity shops — pm 3.1: always drawn in their assigned hospice's
           colour; the outsideCatchment flag stays in the data and types
           (hide-not-delete) but is no longer exposed on screen. */}
       {visibleShops.map((s) => {
-        const hosp = hospices.find((h) => h.id === s.hospiceId);
+        const hosp = hospiceById.get(s.hospiceId) ?? null;
         const dim = selectedId !== null && s.hospiceId !== selectedId;
         const dimmedNation = hosp ? nationDim(hosp.nation) : false;
         return (
           <ShopMarker
             key={s.id}
             shop={s}
-            hospiceColor={hosp?.color ?? '#666'}
+            icon={shopIcons.get(hosp?.color ?? '#666')}
             hospiceName={hosp ? hosp.name : null}
             opacity={dimmedNation ? 0.15 : dim ? 0.25 : 1}
             onSelect={onSelect}
@@ -282,6 +388,7 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
         <HospiceMarker
           key={h.id}
           hospice={h}
+          icon={hospiceIcons.get(h.color)}
           opacity={nationDim(h.nation) ? 0.15 : selectedId !== null && selectedId !== h.id ? 0.35 : 1}
           onSelect={onSelect}
         />

@@ -1,12 +1,140 @@
-# Ops — public-ready hospice catchment map (stage 8, 2026-10-22)
+# Ops — HospiceInfo, Cycle 2 (stage 8, 2026-10-26)
 
+Cycle 2 pre-launch ops. Supersedes the 2026-10-22 Cycle 1 ops file; the
+Cycle 1 Cloudflare Pages playbook that remains valid is preserved verbatim
+at the end of this file ("## Cycle 1 playbook (preserved)").
+
+## Cycle 2 pre-launch
+
+DevOps (stage 8) done 2026-10-26. The Cycle 2 working tree is
+deploy-neutral for Cloudflare Pages; everything outstanding before public
+publish is the human-gated verification in §3 plus one final green re-run of
+the build chain (§4) after the gates close.
+
+### 1. Deploy procedure — unchanged
+
+Use the Cycle 1 Cloudflare Pages playbook preserved at the end of this file,
+unchanged: `npm run build` → `npx wrangler pages deploy dist --project-name
+=hospiceinfo`; branch preview for pre-promote checks (`--branch-name=test`).
+No new routes, no server, no env vars, no form endpoints — the deploy
+topology is unchanged for Cycle 2.
+
+### 2. Cycle 2 delta checklist
+
+**What changed** (uncommitted working tree; the lead commits after the gates
+close):
+- NEW `public/logo.svg` + `public/manifest.webmanifest` — Vite copies
+  `public/` into `dist/` (lead-verified present in `dist/`).
+- Regenerated `public/data/{catchments,hospices,practices,shops}.json`
+  (0-space format); `npm run build-data` ×2 byte-identical (SHA-256 prefixes
+  `dc261185` / `e11322ba` / `2a87a374` / `5628d8f7`);
+  `validate-tessellation` exit 0 (100.00% land coverage, 0 slivers, 2 known
+  empty cells).
+- Modified: `index.html`, `scripts/build-data.mjs`, `src/App.tsx`,
+  `src/components/{AppShell,HospicePanel,MapView}.tsx`; NEW
+  `src/components/StartHere.tsx`.
+
+**Why deploy-neutral:** Cloudflare Pages serves the static SPA; every delta
+is static assets plus page-local JSON fetches at the same `/data/…` paths.
+No new dependencies (git dep-diff clean), no new routes, no backend, no env
+vars.
+
+**Verify in the live preview after deploy** (can be done inside the G5
+browser session):
+- [ ] Tab shows the favicon (heart + pin from `logo.svg`).
+- [ ] `GET /logo.svg` and `GET /manifest.webmanifest` resolve (200) —
+      installability is not required; icon links must resolve.
+- [ ] `GET /data/{catchments,hospices,practices,shops}.json` return 200 and
+      each SHA-256 matches the committed `public/data/` snapshot.
+- [ ] Map renders buckets/markers; the landing "start here" card is present.
+
+### 3. Pre-launch gates (owner + acceptance)
+
+| Gate | Item | Owner | Acceptance |
+|---|---|---|---|
+| G5 | Chrome mobile pass, Slow 4G + 4× CPU: post-fix m1/m2/m4 vs baselines 1677 / 435 / 1391 ms (m3 already verified: 186 buckets at zoom < 11, 10,463 markers at zoom ≥ 11 — measured at the 2026-10-26 snapshot; the 2026-10-27 data landing puts placed practices at 11,002, so re-verify m3 against the new count); live checks W5 (bucket click flies to zoom 11), W7 (~200 ms debounce cadence), W10 (sort A→Z / Z→A / practices-desc + "Has published service area" toggle → EXACTLY 7 rows), W11 (postcode flow: real postcode BD14 6NF → found state → "Open in panel" selects; unmatched → neutral not-found + working mailto; × dismiss re-opens via panel "Start here" pill). Full checklist: `.agents/qa.md` §G5. | James (human) | All 8 checklist rows pass; post-fix m1/m2/m4 values recorded. |
+| W8 | ADR-0010 stride gate, decided after G5: if post-fix m1 > 800 ms ⇒ add `STRIDE_K` follow-up (named constant + bounded render-time filter in `MapView.tsx` + provenance line in `data/README.md`); otherwise record "gate not triggered (m1 = X ms at k=1)". | lead (code) — decision data from James's G5 m1 | Outcome recorded in the implementation record. If tripped: `grep -n "STRIDE_K" src/components/MapView.tsx` shows the constant; `npm run build` + `npm run check:layout` exit 0. |
+| G7 | Overpass re-fetch when a mirror has capacity (carried from Cycle 1, pre-launch): `node scripts/fetch-uk-land.mjs` on a networked machine (malformed-point diagnosability guard already in the script; kumi served the committed query when it had capacity, 2026-10-24). Any successful re-fetch is a rebuild event: re-pin the SHA-256 in `data/README.md`, `build-data` ×2 byte-identical, `validate-tessellation.mjs` exit 0, then publish. G2 stays done (landed file SHA-256 unchanged). | James (human) | Re-fetch green + rebuild chain green + SHA re-pinned — OR one "mirror at capacity" diagnosis recorded (feed-unavailable rule: no retry loop; stays a non-blocking carry-over). |
+| H1a | Wales GP practices landing: James browser-fetches the DataMap layers `geonode:gpmainsites_ogl` + `geonode:gpbranchsites_ogl` (candidate portal `data.gov.wales`; `data.wales` is a holding page — record the exact URL + as-of date on fetch) → `data-raw/gp-practices-wales-{main,branch}-2026-10.{csv,geojson}` per `data/README.md` procedure 2. Lead then runs the §5 chain. — **DONE 2026-10-27** (GeoJSON file as provided; 539 practices, 369 main + 170 branch, all placed from source coordinates; §5 chain steps 1–6 green — record in §5). | James (fetch) → lead (chain) | met: `wales` count 539, lat/lon non-null; §5 chain green; provenance row + ledger note recorded. |
+| H1b | NI hospices landing: James browser-fetches the Public Regulation Authority (RQIA's successor) register export ("All Registered Services" XLSX; record exact URL + as-of date) → `data-raw/rqia-regulated-services-2026-06.xlsx` per `data/README.md` procedure 1. Lead then runs the §5 chain. — **DONE 2026-10-27** (`rqia-regulated-services-2026-06.xlsx`, header row 3, 6 services; §5 chain steps 1–6 green — record in §5). | James (fetch) → lead (chain) | met: `ni` hospice count 6 (ids `ni-r1`–`ni-r6`), curated set still EXACTLY 20 (merge asserts unique ids); §5 chain green; provenance row + ledger note recorded. |
+
+Non-gating note: the Care Inspectorate Wales hospices data request remains a
+documented pending gap (proceed per James, 2026-10-24; the extract script is
+wired for the reply).
+
+### 4. Validation + rollback story
+
+Pre-publish, after the gates close (lead — final G6-equivalent):
+1. `npm run build-data` ×2 → `public/data/*.json` byte-identical (record
+   SHA-256).
+2. `node scripts/validate-tessellation.mjs` → exit 0.
+3. `npm run build` → exit 0; `npm run check:layout` → exit 0 (styles.css keeps
+   exactly 3 `flex-direction`).
+4. Publish per §1.
+
+Rollback:
+- **Live site:** Cloudflare Pages keeps every deployment; rollback =
+  redeploy the previous release from the Pages dashboard (Deployments →
+  restore). Blast radius: the published URL only.
+- **Code:** git. The Cycle 2 working tree is uncommitted — the lead commits it
+  after the human gates close; `git revert <sha>` (or reset) restores the
+  previous published state. No commit/push by the agent.
+- **Data:** `public/data/*.json` regenerate byte-identically from committed
+  `data-raw/` — a bad data set rolls back by re-running the chain, no code
+  rollback needed.
+- No migrations, no shared state, no external writes beyond the publish
+  itself.
+
+### 5. Post-data-landing re-run checklist (H1a / H1b)
+
+When James's file(s) land, run in order (lead):
+1. Extract: `node scripts/extract-gp-practices-wales.mjs` (H1a) /
+   `node scripts/extract-hospices-ni.mjs` (H1b); H1b only: then
+   `node scripts/merge-hospices.mjs` (asserts exactly 20 curated, unique ids).
+2. `node scripts/geocode-postcodes.mjs` — only if the landing introduced new
+   postcodes (1 req/s to Nominatim, resumable append; monitor >1 h batches;
+   exits non-zero on coverage gaps — do not loop).
+3. `npm run build-data` ×2 — `public/data/*.json` must be byte-identical
+   (SHA-256).
+4. `node scripts/validate-tessellation.mjs` — exit 0.
+5. `npm run build` + `npm run check:layout` — both exit 0.
+6. Provenance row in `data/README.md` (source URL + as-of date, SHA-256 where
+   applicable) + note in `.agents/pipeline.md`.
+7. Commit + publish (lead, once all gates are green).
+
+### 5.1 Data-landing run record (2026-10-27, H1a + H1b)
+
+Steps 1–6 ran green; step 7's commit landed, **publish remains blocked**
+(G5/W8/G7 not green — no Cloudflare deploy):
+1. Extracts: `extract-hospices-ni.mjs` → 6 services (`ni-r1`–`ni-r6`, all
+   geocoded from postcodes); `extract-gp-practices-wales.mjs` → 539
+   practices (369 main + 170 branch) from the two DataMap GeoJSON layers,
+   placed from source lat/lon (the layers carry no postcodes → geocoder
+   not needed for them).
+2. `geocode-postcodes.mjs` (fourth pass): 5 new NI hospice postcode units,
+   0 new practice units, 0 throttled; exit 1 on the known 9-postcode
+   OSM gap (documented, non-blocking; no loop per feed-unavailable rule).
+3. `npm run build-data` ×2 — byte-identical (SHA-256 recorded in §4).
+4. `validate-tessellation.mjs` — exit 0.
+5. `npm run build` + `npm run check:layout` — both exit 0; largest dist
+   asset 3.14 MiB (Cloudflare's 25 MiB per-file limit is not approached).
+6. Provenance: `data/README.md` rows for both files (source name +
+   retrieved date + SHA-256; exact URLs pending James's confirmation) +
+   notes in `.agents/pipeline.md` and `.agents/hindsight.md`.
+7. Commit done (SHA recorded in `.agents/pipeline.md`); **publish
+   deferred** until G5 → W8 → G7 close, per ADR-0009.
+
+## Cycle 1 playbook (preserved)
+
+Preserved from the 2026-10-22 ops file (Cycle 1, stage 8). Its pre-publish
+gate table is a 2026-10-22 snapshot and is superseded for pre-launch by the
+Cycle 2 gate table in §3; the deploy, data-refresh, corrections, validation,
+rollback, and risk playbooks below remain valid and unchanged for Cycle 2.
 Supersedes the 2026-10-16 ops file (whose deploy assumption — "any static
-host" — predates the Cloudflare Pages decision). Author: the Engineering
-Lead (inline; the gate sub-sessions in this environment are timeout-prone —
-QA/Security both died with zero writes, precedent 2026-10-22). User-facing
-summary: `docs/MAINTENANCE.md` (Docs stage refreshes it from this file).
+host" — predates the Cloudflare Pages decision). User-facing summary:
+`docs/MAINTENANCE.md` (Docs stage refreshes it from this file).
 
-## Host
+### Host
 
 Cloudflare Pages (grill decision). Static site, **no backend, no
 environment variables, no build-time secrets, no form endpoint** — the only
@@ -15,7 +143,7 @@ runtime egress is OSM tile requests and user-initiated `mailto:` links
 means the server only ever serves `index.html`: fragments never reach it, so
 no SPA rewrites, no `_routes.json`, no 404 page are needed.
 
-## Running the app
+### Running the app
 
 - `npm install` (new machine), then:
   - Dev: `npm run dev` — Vite on `http://localhost:5173` (auto-increments
@@ -24,7 +152,7 @@ no SPA rewrites, no `_routes.json`, no 404 page are needed.
     `public/data/` by Vite — verified present after the 2026-10-22 build).
     Deploy `dist/`.
 
-## Deploying to Cloudflare Pages (operator-run)
+### Deploying to Cloudflare Pages (operator-run)
 
 1. One-time: `npm i -D wrangler` (wrangler is a dev tool, not a runtime
    dep), `npx wrangler login`.
@@ -42,7 +170,7 @@ no SPA rewrites, no `_routes.json`, no 404 page are needed.
 5. Custom domain: operator configures in the Pages dashboard when chosen;
    none is required for the site to function.
 
-## Pre-publish gate — BLOCKING (do not publish public until all green)
+### Pre-publish gate (Cycle 1 snapshot, 2026-10-22 — superseded by §3)
 
 | # | Item | Owner | Status at 2026-10-22 |
 |---|------|-------|----------------------|
@@ -53,7 +181,7 @@ no SPA rewrites, no `_routes.json`, no 404 page are needed.
 | G5 | 8-point mobile live pass (`qa.md` §A6 checklist) | human | open |
 | G6 | `npm run build` exit 0; `node scripts/validate-corrections.mjs` exit 0 | lead/human | green now (re-run after G1–G5) |
 
-## Data refresh (canonical chain, in order)
+### Data refresh (canonical chain, in order)
 
 1. One-time only: `node scripts/fetch-uk-land.mjs` (networked machine) →
    commit `data-raw/uk-land.json` (ADR-0006; while absent, steps 4–5 fail
@@ -76,28 +204,33 @@ no SPA rewrites, no `_routes.json`, no 404 page are needed.
 8. Commit `data-raw/` + `public/data/` (plus any touched scripts); publish
    per the deploy steps above.
 
-Pending human fetches (4 files + 1 email; exact steps in `data/README.md`):
-RQIA XLSX (NI hospices), data.wales GP layers, NHS Scotland GP GeoJSON, CIW
-email reply (Welsh hospices). On receipt: run the extract → (merge for
-hospice files) → geocode → build → validate, then commit + publish.
+Pending human fetches (exact steps in `data/README.md`): CIW email reply
+(Welsh hospices) — the only one outstanding as of 2026-10-27 (RQIA XLSX and
+the data.wales GP layers landed that day; the NHS Scotland GP file landed
+2026-10-24). On receipt: run the §5 chain, then commit + publish.
 
-## Corrections log (public, post-deploy)
+### Corrections log (public, post-deploy)
 
 Any data fix after launch: `node scripts/add-correction.mjs "summary"
 [--data-changed]` → `validate-corrections.mjs` → commit → publish. The site
 renders the log at `#corrections` (page-local fetch only).
 
-## Validation (definition of healthy)
+### Validation (definition of healthy)
 
 - `npm run build` exit 0; `validate-tessellation.mjs` exit 0 (after G2).
 - Double `build-data.mjs`: SHA-256 of the four `public/data/*.json`
-  identical across runs. (Hashes recorded in the 2026-10-16 ops file are
-  stale — pre-land-file build; re-record after G2 lands.)
-- Build invariants: `hospices: 155 (unplaced: 0)`; `assigned: 9552,
-  unassigned: 12` (the 9 OSM-gap postcodes); `shops: 138, unresolved ids: 0`.
-- `data-raw/postcode-geo.csv`: 8,364 rows of 8,373 in scope.
+  identical across runs. Post-data-landing hashes recorded 2026-10-27
+  (prefixes `f7df12fd` / `65818ace` / `cc096f17` / `dd19e8ae` —
+  catchments / hospices / practices / shops); the 2026-10-16 and
+  2026-10-26 prefixes (`dc261185` / `e11322ba` / `2a87a374` / `5628d8f7`)
+  are the pre-landing snapshot.
+- Build invariants: `hospices: 161 (unplaced: 0)` (en 152 / sc 3 / ni 6 /
+  wales 0); `assigned: 11,002, unassigned: 12` (all 12 sit in the 9 OSM-gap
+  NI practice postcodes: 8 units × 1 practice + 1 unit × 2 practices);
+  `shops: 138, unresolved ids: 0`.
+- `data-raw/postcode-geo.csv`: 9,098 rows of 9,107 in scope.
 
-## Rollback
+### Rollback (Cycle 1)
 
 - **Live site:** Cloudflare Pages keeps every deployment; roll back by
   re-deploying the previous deployment (dashboard → Deployments → restore,
@@ -112,7 +245,7 @@ renders the log at `#corrections` (page-local fetch only).
 - No migrations, no shared state, no external writes beyond the publish
   itself.
 
-## Known operational risks
+### Known operational risks
 
 - Geocoding wall time (hours) — resumable; 429/503 backoff can stretch it.
 - The 9 OSM-gap postcodes persist until OSM coverage changes — the geocoder
@@ -122,3 +255,4 @@ renders the log at `#corrections` (page-local fetch only).
 - Port 5173 frequently held by a prior session's server; Vite auto-increments.
 - `wrangler` is not pinned in `package.json` when installed ad-hoc — pin it
   as a devDependency at G1 time so deployment is reproducible.
+

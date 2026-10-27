@@ -1,143 +1,174 @@
 # Maintenance — UK-wide hospice catchment map
 
-Short operational guide for keeping the map current. Provenance detail
-per file: `data/README.md`. Decisions: `docs/adr/`. Vocabulary: `GLOSSARY.md`.
+Operator-facing guide for running, building, deploying, and validating the
+UK-wide hospice catchment map. Provenance detail per file:
+[`data/README.md`](data/README.md). Design rationales: [`docs/adr/`](docs/adr/).
+Vocabulary: [`GLOSSARY.md`](GLOSSARY.md).
 
-## Commands
+Cycle 2 (2026-10-26).
+
+## What you'll see
+
+- **Diamond markers** — hospice sites (colour is a deterministic hash of the
+  hospice id, so it is stable across rebuilds)
+- **Point markers** — each GP practice, colour-coded by catchment
+- **Polygons** — each hospice's catchment: a Voronoi tessellation clipped to
+  the UK coastline
+- **Square markers** — charity shops (toggleable). Non-matching-nation shops
+  are dimmed on the map based on the selected tab
+- **Grid-bucket markers** — at low zoom one marker per 0.5° grid cell
+  stands in for its practices; clicking a bucket flies to zoom 11, where
+  that area renders individual practice markers
+
+## Start here
+
+Use the **Start here** card on the landing page (postcode lookup) or load
+practices directly on map load with the data present. Interact with the
+card via a pill; unknown routes default to the landing card.
+
+## Quick start
+
+Requires Node 18+ (tested on Node 22). The app is a static single-page app;
+no server required.
 
 ```bat
-npm install        :: once, per machine
-npm run dev        :: dev server → http://localhost:5173
-npm run build      :: tsc + vite → dist/ (deployable static site)
+npm install      :: once, per machine
+npm run dev      :: dev server → http://localhost:5173
 ```
 
-## Refreshing the data
-
-Run the chain in order (all exit 0 when healthy):
+In a new terminal from the same folder:
 
 ```bat
-node scripts/fetch-uk-land.mjs       :: one-time — only on a networked machine (ADR-0006)
-node scripts/extract-gp-practices.mjs
-node scripts/extract-gp-practices-sc.mjs
-node scripts/extract-hospices-sc.mjs
-node scripts/extract-gp-practices-ni.mjs
-node scripts/extract-hospices-ni.mjs
-node scripts/extract-gp-practices-wales.mjs
-node scripts/extract-hospices-wales.mjs
-node scripts/merge-hospices.mjs
-node scripts/geocode-postcodes.mjs   :: the long one — 1 req/s, resumable
-node scripts/build-data.mjs          :: run twice; outputs must be byte-identical
-node scripts/validate-tessellation.mjs
-npm run build
+npm run build    :: tsc + vite → dist/ (static site ready for deploy)
 ```
 
-Missing source files never abort the chain: the extracts emit a documented
-`[]` placeholder and log the human fetch procedure they need.
+When the static build is ready and the lead commits after the gates close:
 
-### Fetches still to do (one-time, from a machine with normal DNS/browser)
+```bat
+npm run preview   :: local test of the shipped static file
+```
 
-1. **RQIA (N. Ireland)** — "All Registered Services" XLSX from
-   `https://publicregulation.gov.uk` →
-   `data-raw\rqia-regulated-services-2026-06.xlsx`.
-2. **Welsh GP practices** — data.wales catalog, layers
-   `geonode:gpmainsites_ogl` + `geonode:gpbranchsites_ogl` →
-   `data-raw\gp-practices-wales-{main,branch}-2026-10.csv` (or .geojson).
-3. **Scottish GP practices** — NHS Scotland Spatial Hub layer →
-   `data-raw\gp-practices-scotland-2026-10.geojson`.
-4. **Welsh hospices** — CIW email request (exact text in
-   `data/README.md`); save the reply as
-   `data-raw\wales-hospices-2026-10.csv`.
+## Providing feedback
 
-After each file lands: run its extract script, then
-`merge-hospices.mjs` (hospice files only) → `geocode-postcodes.mjs` →
-`build-data.mjs` (twice) → `validate-tessellation.mjs` → `npm run build`,
-and commit `data-raw/` + `public/data/`.
+The `#feedback` route opens your default mail client with a stub body and
+recipient placeholder. No data is sent or collected.
 
-## Land file block — `data-raw/uk-land.json` (ADR-0006)
+## Updating data
+
+The site has no forms: feedback is a user-triggered `mailto:` only — no
+outbound connections beyond OSM tiles and the user's own mail client.
+
+1. Refresh the raw registers as documented in [`data/README.md`](data/README.md),
+   which records exact URL/as-of info, then re-run the extract scripts in
+   order. A missing source file yields a documented `[]` placeholder.
+2. `node scripts/merge-hospices.mjs`, then `node scripts/geocode-postcodes.mjs`
+   (Nominatim = 1 req/s, resumable; takes roughly 2.5h for ~8,400 areas).
+3. `node scripts/build-data.mjs` (run **twice** and check byte-identity of each
+   output), then `node scripts/validate-tessellation.mjs`, then `npm run build`.
+
+The extract scripts exit 0 on success and log the register header;
+Nominatim backs off on 429/503, so a fresh run is safe to leave unattended.
+
+## Land file — `data-raw/uk-land.json` (ADR-0006)
 
 The tessellation is clipped to the committed OSM land file
-`data-raw/uk-land.json`. That file is **absent in the current commit**
-(could not be fetched offline from the build machine), so
-`build-data.mjs` and `validate-tessellation.mjs` fail fast by design —
-no box-only fallback, no synthetic coastline. To resolve, on a machine
-with a normal network run:
+[`data-raw/uk-land.json`](data-raw/uk-land.json).
 
+The committed version is SHA-256
+`038a1635f65d8ae28e8b6388e3eaea1d29d5757fcb4c8b78c7c06cec82653819` (22,999
+polygons), recorded in `data/README.md`. Both `build-data.mjs` and
+`validate-tessellation.mjs` fail fast if the file is absent. Do not weaken
+the coverage check.
+
+Site contact details: [`data-raw/site-config.json`](data-raw/site-config.json)
+(the operator-controlled source that `src/lib/siteConfig.ts` mirrors).
+
+### Fetching guidelines
+
+The OSM coastline was fetched once via Overpass:
 ```bat
-node scripts/fetch-uk-land.mjs
+node scripts/fetch-uk-land.mjs  :: networked machine only
 ```
 
-then commit `data-raw/uk-land.json`, record its SHA-256 and polygon count
-in the provenance row in `data/README.md`, and re-run
-`node scripts/build-data.mjs` (twice — the outputs must be byte-identical)
-and `node scripts/validate-tessellation.mjs`.
-
-**Coverage invariant** (enforced by `validate-tessellation.mjs` once the
-land file is present): every placed practice, hospice, and charity-shop
-point must fall inside some Voronoi cell after clipping to land. A point
-with no cell fails the build — the map never serves an uncovered catchment
-silently. Do not weaken the invariant or special-case points to make the
-check pass.
+Re-fetching (e.g. the carried G7 re-check) is a rebuild event: re-pin the
+SHA-256 in `data/README.md`, re-run the byte-identity and tessellation
+checks, then publish. Once the file is committed, subsequent builds use it
+as-is.
 
 ## Deploy (Cloudflare Pages)
 
-The site is static: `npm run build` produces `dist/`, and a one-command
-push publishes it (full playbook in `.agents/ops.md`).
+The site is static: `npm run build` produces `dist/`, and a single
+`wrangler` command publishes it.
 
 1. Build: `npm run build` (`tsc` + Vite → `dist/`).
 2. Push: `npx wrangler pages deploy dist --project-name=hospiceinfo`
-   (needs a one-time `wrangler login`; run from a machine with network).
-   Hash routing (ADR-0007) means no rewrites, `_routes.json` or 404 page
-   are needed.
+   (a one-time `wrangler login` only; run from a machine with network).
+   Hash routing (ADR-0007) means no rewrites, `_routes.json`, or 404 page
+   needed.
 
-**Pre-publish gate** (from `.agents/ops.md`; all six must be green
-before the first live deploy):
+**Rollback (deployment):** Cloudflare Pages keeps every prior deployment.  To
+rollback, click "restore" from the Pages dashboard (Pages → project →
+Deployments). No local action is needed. `dist/` is rebuilt from source at
+every deploy, so a bad data change is undone by re-running the "Updating the
+data" chain.
 
-- **G1** — commit all uncommitted work
-- **G2** — fetch and commit `data-raw/uk-land.json` (human fetch
-  procedure 4 in `data/README.md`) so catchments clip to land and
-  `build-data.mjs`/`validate-tessellation.mjs` pass again
-- **G3** — ODbL attribution for the OSM-derived land geometry
-  (applied to the `#licences` page and `data/README.md`)
-- **G4** — real operator name and contact email in
-  `data-raw/site-config.json` **and** `src/lib/siteConfig.ts` (keep both
-  in lockstep), then rebuild
-- **G5** — a human mobile pass on the live URL
-- **G6** — `npm run build` + every validator green
+## Pre-launch gates
 
-**Rollback (deployment):** Cloudflare Pages keeps every prior deployment —
-roll back anytime from the dashboard (Pages → project → Deployments → pick
-the earlier deployment → restore), no local action needed. `dist/` is
-rebuilt from source at every deploy, so a bad data change is undone by the
-normal "Updating the data" chain above plus a fresh push.
+The pre-launch gates table tracks the final checks before publish. Each gate
+has an owner and acceptance criteria; all gates must be green before the
+first live deploy.
+
+| Gate | Item | Owner | Acceptance |
+|---|---|---|---|
+| G5 | Chrome mobile pass, Slow 4G + 4× CPU: post-fix m1/m2/m4 vs baselines 1677 / 435 / 1391 ms (m3 already verified: 186 buckets at zoom < 11, 10,463 markers at zoom ≥ 11 — baseline measured at the 2026-10-26 snapshot; the 2026-10-27 data landing brings placed practices to 11,002, so re-verify m3 against the new count); live checks W5 (bucket click flies to zoom 11), W7 (~200 ms debounce cadence), W10 (sort A→Z / Z→A / practices desc + "Has published service area" toggle → exactly 7 rows), W11 (postcode search: BD14 6NF found → selects hospice; unmatched → neutral not-found + working mailto). Full checklist: `.agents/qa.md` §G5 (8 rows). | James (human) | All 8 checklist rows pass; post-fix m1/m2/m4 values recorded. |
+| W8 | ADR-0010 stride gate, decided after G5: if post-fix m1 > 800 ms ⇒ add the `STRIDE_K` follow-up (named constant + bounded render-time filter in `MapView.tsx`); otherwise record "gate not triggered (m1 = X ms)". | lead (code) — decision data from James's G5 m1 | Outcome recorded in the implementation record. If tripped: `grep -n "STRIDE_K" src/components/MapView.tsx` shows the constant; `npm run build` + `npm run check:layout` exit 0. |
+| G7 | Overpass mirror capacity: `node scripts/fetch-uk-land.mjs` on a networked machine (malformed-point guard in script; kumi resolution when available). Any re-fetch triggers a rebuild. G2 remains confirmed. | James (human) | Re-fetch green; build chain green; SHA re-pinned — OR "capacity blocked" non-blocking note. |
+| H1a | Wales GP practices: browser-fetch DataMap layers `geonode:gpmainsites_ogl` + `geonode:gpbranchsites_ogl` (candidate portal `data.gov.wales`, record exact URL + as-of date) → `data-raw/gp-practices-wales-{main,branch}-2026-10.{csv,geojson}`. Lead runs §5 chain. — **DONE 2026-10-27.** | James (fetch) → lead (chain) | 539 practices (369 main + 170 branch), all with source lat/lon (no geocoding needed); §5 chain green; provenance rows + ledger note recorded. |
+| H1b | NI hospices: browser-fetch Public Regulation Authority (Public Register Services' successor) XLSX ("All Registered Services"; record exact URL + as-of date) → `data-raw/rqia-regulated-services-2026-06.xlsx`. Lead runs §5 chain. — **DONE 2026-10-27.** | James (fetch) → lead (chain) | 6 services (ids `ni-r1`–`ni-r6`), all geocoded from postcodes; §5 chain green; provenance rows + ledger note recorded. |
+
+H1a's and H1b's files landed on 2026-10-27 and the post-data-landing chain
+has already run (see the data-landing note in `.agents/pipeline.md`). When
+the next pending file lands (the CIW Wales-hospice reply), the lead runs
+the chain in `docs/MAINTENANCE.md` again, then commits + publishes.
+
+### Validation + rollback story
+
+Pre-publish, after gates close (lead — final G6-equivalent):
+
+1. `npm run build-data` ×2 → outputs byte-identical (SHA-256 recorded).
+2. `node scripts/validate-tessellation.mjs` → exit 0.
+3. `npm run build` → exit 0; `npm run check:layout` → exit 0 (3 `flex-direction`).
+4. Publish per the procedure above.
+
+**Rollback:**
+
+- **Live site:** restore the previous deployment from the Cloudflare Pages
+  dashboard (no local action needed).
+- **Data:** re-run `build-data` from committed `data-raw/` — a bad data set
+  rolls back by re-running the chain, no code rollback needed.
+- **Code:** git — the Cycle 2 tree is uncommitted until the lead commits
+  after the gates close; `git revert <sha>` restores the previous published
+  state. No commit/push by the agent.
 
 ## Corrections log
 
-`public/data/corrections.json` is a committed JSON array, **newest first**,
-whose entries carry `{date, summary, dataChanged}` (extra optional fields
-such as a point id are allowed). To record a correction:
+`public/data/corrections.json` is a committed array, newest first, storing
+a `date`, `summary`, and `dataChanged` flag. To add one:
 
 ```bat
-node scripts/add-correction.mjs "what was corrected" [--data-changed]
-node scripts/validate-corrections.mjs
+node scripts/add-correction.mjs "summary" [--data-changed]
 ```
 
-The site renders the log at `#corrections` (page-local fetch; the log is
-never part of the map data bundle).
+Then validate with `node scripts/validate-corrections.mjs`, commit, and
+publish. The site renders the log at `#corrections` (page-local fetch only).
 
 ## Sanity checks for a healthy build
 
-- `hospices: 155 (unplaced: 0)` and the per-nation counts in the Methodology
-  modal of the app.
-- `unassigned: 12` — these sit in 9 postcodes with no OSM coverage
-  (documented in `data/README.md`); do not chase them in the geocoder.
-- `shops: … unresolved ids: 0`.
+- `hospices: 161 (unplaced: 0)` and the per-nation counts in the modal.
+- `unassigned: 12` — see `data/README.md`; do not chase them in the geocoder.
+- `shops: 138, unresolved ids: 0`.
 - SHA-256 of the four `public/data/*.json` identical across two builds.
-- Validator: 100% coverage; the printed Basildon missing-polygon line and
-  the "Wisdom Hospice" sliver line are known, accepted quirks.
-
-## Rollback
-
-The feature is a single commit; `git revert <sha>` (or reset to
-`5faa12e`) restores the previous pilot-scope state.
-`public/data/*.json` can also be regenerated at any time from
-`data-raw/` — data and code roll back independently.
+- Validator: 100% coverage (the Basildon degenerate cell and "Wisdom
+  Hospice" sliver entries are known, accepted quirks).
+- `npm run check:layout` exits 0 (styles.css keeps exactly 3
+  `flex-direction`).

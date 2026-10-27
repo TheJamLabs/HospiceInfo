@@ -116,7 +116,9 @@ console.log(`hospices: ${hospicesOut.length} (unplaced: ${unplacedHospices})`);
 // ---- practices + assignment (nearest-hospice rule, ADR-0005) -------------------
 const missingGeo = [];
 const practicesOut = practices.map((p) => {
-  const g = geoOf(p.postcode);
+  // Source-provided coordinates take precedence (the Wales DataMap layer ships
+  // lat/lon and no postcode); postcode geocoding (ADR-0002) locates everything else.
+  const g = p.lat != null && p.lon != null ? { lat: p.lat, lon: p.lon } : geoOf(p.postcode);
   if (!g) missingGeo.push(p.postcode);
   return {
     id: p.id,
@@ -264,10 +266,10 @@ for (const [id, n] of [...outsideByHospice.entries()].sort((a, b) => b[1] - a[1]
 
 // ---- write outputs -------------------------------------------------------------
 fs.mkdirSync('public/data', { recursive: true });
-fs.writeFileSync('public/data/hospices.json', JSON.stringify(hospicesOut, null, 2));
-fs.writeFileSync('public/data/practices.json', JSON.stringify(practicesOut, null, 2));
-fs.writeFileSync('public/data/catchments.json', JSON.stringify(catchmentsOut, null, 2));
-fs.writeFileSync('public/data/shops.json', JSON.stringify(shopsOut, null, 2));
+fs.writeFileSync('public/data/hospices.json', JSON.stringify(hospicesOut));
+fs.writeFileSync('public/data/practices.json', JSON.stringify(practicesOut));
+fs.writeFileSync('public/data/catchments.json', JSON.stringify(catchmentsOut));
+fs.writeFileSync('public/data/shops.json', JSON.stringify(shopsOut));
 
 // ---- report ---------------------------------------------------------------------
 console.log(`practices: ${practicesOut.length} (geocoded ${practicesOut.length - missingGeo.length}, missing ${missingGeo.length})`);

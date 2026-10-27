@@ -6,6 +6,7 @@ import type { Hospice, Practice, Catchment, Shop } from './lib/types';
 import AppShell from './components/AppShell';
 import MapView from './components/MapView';
 import HospicePanel from './components/HospicePanel';
+import StartHere from './components/StartHere';
 import Methodology from './components/Methodology';
 import AboutPage from './pages/AboutPage';
 import AccessibilityPage from './pages/AccessibilityPage';
@@ -35,6 +36,9 @@ export default function App() {
     setSelectedId(id);
     if (id) closeSheet();
   };
+  // wm W11: the start-here landing card is open on first load; dismissing it
+  // leaves a "Start here" pill in the panel header to re-open it.
+  const [startHereOpen, setStartHereOpen] = useState(true);
 
   const error = hospicesError || practicesError || catchmentsError || shopsError;
   const loading = !error && (!hospices || !practices || !catchments || !shops);
@@ -117,6 +121,7 @@ export default function App() {
             onQuery={setQuery}
             nation={nation}
             onNation={setNation}
+            onStartHere={startHereOpen ? undefined : () => setStartHereOpen(true)}
           />
         </aside>
       <div className="app-map">
@@ -173,6 +178,16 @@ export default function App() {
               </a>
             </div>
           </div>
+        )}
+        {startHereOpen && (
+          <StartHere
+            practices={practices!}
+            hospices={hospices!}
+            onOpenHospice={select}
+            onOpenShopSearch={select}
+            onSearchList={setQuery}
+            onDismiss={() => setStartHereOpen(false)}
+          />
         )}
         <MapView
           hospices={hospices!}

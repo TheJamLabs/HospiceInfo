@@ -25,13 +25,16 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
       <header className="app-header">
         <div className="container-fluid px-3">
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div>
-              <h1 className="h4 mb-0">
-                <a href="#map" className="text-decoration-none">
-                  Hospice Catchment Map
-                </a>
-              </h1>
+            <div className="d-flex align-items-center gap-2">
+              <img src="/logo.svg" width="28" height="28" alt="" aria-hidden="true" className="d-block" />
+              <div>
+                <h1 className="h4 mb-0">
+                  <a href="#map" className="text-decoration-none">
+                    Hospice Catchment Map
+                  </a>
+                </h1>
               <div className="text-muted small">UK — catchments approximated from GP practice locations</div>
+              </div>
             </div>
             <nav aria-label="Site pages" className="d-flex flex-wrap align-items-center gap-2">
               {headerExtras}

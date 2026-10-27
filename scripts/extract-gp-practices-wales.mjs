@@ -2,11 +2,15 @@
 // Wales GP practices (work list item 9): merge the two DataMap.wales OGL
 // layers (main sites + branch sites) into the common practice shape.
 //
-// Inputs (human-fetched; A4 ledger section holds the exact procedure —
-// DataMap.wales 404s/DNS-fails from this machine, so the files are NOT on
-// disk yet). For each layer the script accepts GeoJSON or CSV:
-//   data-raw/gp-practices-wales-main-2026-10.geojson  (or .csv)
-//   data-raw/gp-practices-wales-branch-2026-10.geojson (or .csv)
+// Inputs (human-fetched; A4 ledger section holds the exact procedure).
+// For each layer the script accepts GeoJSON (.geojson or a plain .json
+// FeatureCollection) or CSV:
+//   data-raw/gp-practices-wales-main-2026-10.geojson  (or .json / .csv)
+//   data-raw/gp-practices-wales-branch-2026-10.geojson (or .json / .csv)
+// The DataMap.wales layers (geonode:gpmainsites_ogl / geonode:gpbranchsites_ogl)
+// carry practicename + latitude/longitude and NO postcode column, so
+// coordinates pass through this script as lat/lon; build-data.mjs uses
+// source-provided coordinates when present (see data/README.md provenance).
 //
 // First-run discovery (ADR-0003): whichever file is parsed first gets its
 // header (CSV) or first feature (GeoJSON) logged before it is trusted.
@@ -55,18 +59,22 @@ const pick = (obj, keys) => {
   return '';
 };
 
+const NAME_KEYS = ['name', 'practice name', 'practicename', 'practice_name'];
+
 function fromGeoJSON(obj, tag) {
   const feats = obj.features || [];
   if (feats.length) {
     const p = feats[0].properties || {};
-    console.log(`wales ${tag} geojson sample feature properties: ${Object.keys(p).join(', ')} | name=${pick(p, ['name', 'practice name'])}`);
+    console.log(`wales ${tag} geojson sample feature properties: ${Object.keys(p).join(', ')} | name=${pick(p, NAME_KEYS)}`);
   }
   return feats.map((f) => {
     const p = f.properties || {};
+    const lat = Number(p.latitude), lon = Number(p.longitude);
     return {
-      name: pick(p, ['name', 'practice name']),
+      name: pick(p, NAME_KEYS),
       address: pick(p, ['address', 'street']) ? pick(p, ['address', 'street']).split(',').map((s) => s.trim()).filter(Boolean) : [],
       postcode: pick(p, ['postcode', 'postal code']).toUpperCase(),
+      ...(Number.isFinite(lat) && Number.isFinite(lon) ? { lat, lon } : {}),
     };
   }).filter((e) => e.name);
 }
@@ -96,19 +104,21 @@ let anyFile = false;
 for (const layer of LAYERS) {
   let entries = null;
   const geoPath = `${layer.base}.geojson`;
+  const jsonPath = `${layer.base}.json`;
   const csvPath = `${layer.base}.csv`;
-  if (fs.existsSync(geoPath)) {
-    entries = fromGeoJSON(JSON.parse(fs.readFileSync(geoPath, 'utf8')), layer.tag);
-    console.log(`wales ${layer.tag} (geojson): ${entries.length}`);
+  const geoFile = fs.existsSync(geoPath) ? geoPath : fs.existsSync(jsonPath) ? jsonPath : null;
+  if (geoFile) {
+    entries = fromGeoJSON(JSON.parse(fs.readFileSync(geoFile, 'utf8')), layer.tag);
+    console.log(`wales ${layer.tag} (geojson ${geoFile}): ${entries.length}`);
   } else if (fs.existsSync(csvPath)) {
     entries = fromCSV(fs.readFileSync(csvPath, 'utf8'), layer.tag);
     console.log(`wales ${layer.tag} (csv): ${entries.length}`);
   } else {
-    console.log(`wales ${layer.tag}: file absent (${geoPath} / ${csvPath}) — skipped`);
+    console.log(`wales ${layer.tag}: file absent (${geoPath} / ${jsonPath} / ${csvPath}) — skipped`);
     continue;
   }
   anyFile = true;
-  for (const e of entries) out.push({ id: `wales-${out.length + 1}`, name: e.name, address: e.address, postcode: e.postcode });
+  for (const e of entries) out.push({ id: `wales-${out.length + 1}`, name: e.name, address: e.address, postcode: e.postcode, ...(e.lat != null ? { lat: e.lat, lon: e.lon } : {}) });
 }
 if (!anyFile) {
   console.log('No Wales GP layer files present.');

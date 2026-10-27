@@ -29,7 +29,7 @@ import { CATCHMENTS } from './catchment-map.mjs';
 const SOURCES = {
   en: 'CQC register (data-raw/cqc-directory-2026-10.csv, produced 14 Oct 2026)',
   sc: 'Care Inspectorate Scotland (data-raw/care-inspectorate-scotland-2026-08.csv, as at 31 Aug 2026)',
-  ni: 'RQIA (fetched export pending — data-raw/: A3 ledger)',
+  ni: 'RQIA bulk export "All Registered Services" (data-raw/rqia-regulated-services-2026-06.xlsx, human-fetched 2026-10-27)',
   wales: 'Care Inspectorate Wales (fetched list pending — B1 email, data/README.md)',
 };
 

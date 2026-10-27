@@ -59,17 +59,17 @@ in chat, and this ledger is current. Scope: `.agents/feature.md`.
 | # | Stage | Status |
 |---|-------|--------|
 | 0 | Init | done (2026-10-24) |
-| 1 | Research | running |
-| 2 | Architect | pending |
-| 3 | Reviewer | pending |
-| 4 | PM | pending |
-| 5 | Coding | pending |
-| 6 | QA | pending |
-| 7 | Security | pending |
-| 8 | DevOps | pending |
-| 9 | Documentation | pending |
-| 10 | Hindsight | pending |
-| T | Reporter | pending |
+| 1 | Research | done (2026-10-25: Option A risk-accept — §0/§1 canonical + Table A; 22 residual stale markers documented debt, banner in file) |
+| 2 | Architect | done (2026-10-25: architecture.md 123 L + GLOSSARY +38 L + ADR-0010..0013, lead disk-verified; 1 factual flag routed to Reviewer) |
+| 3 | Reviewer | done (2026-10-26: **APPROVE** — 0 Blocking, 4 Minor lead-fixed on disk (R2-1..R2-4), 5 Dropped; dispatch #1 was no-op, #2 delivered) |
+| 4 | PM | done (2026-10-26: requirements.md fresh — 175 L / 14,694 B, 13 W-items + HUMAN-GATED H1a/H1b, verify-only W12/W13; lead disk-verified) |
+| 5 | Coding | done (W2–W13 complete, W1 noted QA-owned, W8 recorded-deferred; lead disk-verified 2026-10-26) |
+| 6 | QA | done (2026-10-26: **PASS — 0 Blocking**; F-1 risk-accepted carried — `kind='published'`=7 not 20; m1/m2/m4 post-fix + live W5/W7/W10/W11 interactions remain human G5-gated; W8 stride gate awaits G5's m1; delivered by `qa-cycle2-slim` after 4 no-op/stalled dispatches — no fix-verify rounds consumed; lead disk-verified) |
+| 7 | Security | done (2026-10-26: **PASS — 0 Blocking**, no design-level; SEC-F1 resolved in Cycle 2, SEC-F2/SEC-F3 risk-accepted carried; 2 Minor header inaccuracies lead-fixed (spurious commit hashes; date)) |
+| 8 | DevOps | done (2026-10-26: ops.md 232 L / 14,637 B — deploy-neutral Cloudflare Pages, gate table G5/W8/G7/H1a/H1b with owners+acceptance, 4-step validation+rollback, post-data-landing chain; all script references verified present; lead disk-verified) |
+| 9 | Documentation | done (2026-10-26: docs/MAINTENANCE.md + README.md refreshed for Cycle 2 from ops.md/qa.md — gate table, deploy/rollback, data pipeline, pre-launch list; lead copy-fixed ~13 streamliner debris lines incl. a stray completion note) |
+| 10 | Hindsight | done (2026-10-26: `.agents/hindsight.md` "## Cycle 2 Hindsight" section appended — changes, ADRs, invariant, process lessons, remaining gates; lead copy-fixed mangled WHAT-CHANGED/WHAT-REMAINS blocks) |
+| T | Reporter | done (2026-10-26: one-screen status report delivered in chat via `reporter-cycle2`; 10/10 stages, 0 open Blocking, 5 open gates — lead relayed to James) |
 
 (QA and Security run in parallel after Coding and both must complete
 before rework-loop rules apply.)
@@ -102,11 +102,27 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 - Architect-Reviewer gate: 1 (cap 2)
 - QA gate: 2 (cap 2) — F-1 (rework round 1), F-4 (rework round 2); both
   re-verified, no third round
+  - Cycle 2: 0 fix-verify rounds — `qa-cycle2-slim` delivered PASS on the first
+    substantial delivery (4 prior no-op/stalled dispatches are not round-consuming)
 - Security gate: 0 (PASS first time; the 2026-10-16 stale file was superseded
   by the 2026-10-22 report)
+  - Cycle 2: 0 fix-verify rounds — PASS first time
+- Research recon (Cycle 2): 3 passes — v3 (content-only), v4 (partial, §0 only),
+  v5 (partial, §1.2/§1.3; 27 → 22 residual stale markers; first-turn timeout).
+  Cap of 2 fix-verify rounds EXHAUSTED 2026-10-25 → escalated; RESOLVED 2026-10-25 via Option A
+  (risk-accept — see newest top Note)
 
 ## Open findings
 
+- Research recon (2026-10-25, RISK-ACCEPTED, non-blocking): `.agents/research.md` carries 22 stale
+  anchor/count markers + 3 stale F1/F2 Scotland frames (§2/§4.1/§5.2/§8 region), all superseded by
+  Table A in the Notes above; a STALENESS NOTICE banner atop the file directs every downstream stage
+  to Table A for current values. Carried as documented debt.
+- QA gate (Cycle 2, 2026-10-26): 0 open Blocking. F-1 risk-accepted carried —
+  `kind='published'` = 7 rows (the panel toggle resolves to the published set;
+  the 20 figure is the `curated===true` set, 7 published + 13 approximated;
+  documented debt, not a defect). W8 stride gate DEFERRED by design (awaits G5
+  post-fix m1). Detail: `.agents/qa.md`.
 - QA gate (2026-10-22): 0 open Blocking. F-1 (public-safe wording leak —
   Methodology/HospicePanel) fixed + re-verified in rework round 1; F-4
   (CorrectionsPage read `json.corrections` from a bare-array file — found as
@@ -176,6 +192,163 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Notes
 
+- 2026-10-27 (lead): **Data landing (H1a + H1b) done — both human-gated fetches CLOSED; §5 chain steps 1–6 green; committed; publish remains blocked behind G5/W8/G7 (no Cloudflare deploy, ADR-0009).**
+  Files James placed in `data-raw/` on 2026-10-27: Wales DataMap GeoJSON layers — `gp-practices-wales-main-2026-10.json` (369 main) + `gp-practices-wales-branch-2026-10.json` (170 branch), OGL v3.0, every feature carrying source lat/lon (no geocoding needed for Wales) — and the PRA "All Registered Services" June 2026 export `rqia-regulated-services-2026-06.xlsx` (209,880 B, SHA-256 `3a977f293061fd7f245781e4b11f1751212b7d67852716bb019a7cb4966dfca7`). Exact download URLs pending James's confirmation (noted in the provenance rows; to be pinned when he sends them).
+  Chain (`ops.md` §5, run by the lead): (1) `extract-hospices-ni.mjs` → 6 services `ni-r1`–`ni-r6`, all geocoded from postcodes; `extract-gp-practices-wales.mjs` → 539 practices (`data-raw/gp-practices-wales.json`, ids `wales-1`…`wales-539`). (2) `geocode-postcodes.mjs` fourth pass: 5 new NI hospice postcode units, 0 new practice units, 0 throttled; exit 1 by design on the documented 9-postcode OSM gap (non-blocking; no loop, feed-unavailable rule). (3) `npm run build-data` ×2 byte-identical — new SHA prefixes `f7df12fd` / `65818ace` / `cc096f17` / `dd19e8ae` (catchments / hospices / practices / shops; recorded in `ops.md` §4). (4) `validate-tessellation.mjs` exit 0. (5) `npm run build` + `npm run check:layout` exit 0; largest dist asset 3.14 MiB — under Cloudflare's 25 MiB per-file limit. (6) Provenance rows in `data/README.md` (source + retrieved date + SHA-256), gate tables in `ops.md` §3/§5.1 + `docs/MAINTENANCE.md`, `README.md` current-snapshot section (Wales 539 / NI 6), this ledger, `.agents/hindsight.md`.
+  New totals: **161 hospices** (en 152 / sc 3 / ni 6 / wales 0 — the CIW reply remains the one open documented gap, non-blocking per James 2026-10-24); **11,014 practices** (en 9,260 + sc 911 + ni 304 + wales 539); **11,002 assigned / 12 unplaced** — all 12 sit in the 9 OSM-gap NI practice postcodes (8 units × 1 practice + 1 unit × 2); 138 shops (21 outside their own catchment); postcodes 9,098 of 9,107 in scope resolved. The `kind === 'published'` = 7 invariant is unchanged.
+  Step 7 per `ops.md` §5: commit landed (SHA recorded in the follow-up tick below); **publish deferred** — G5 (mobile pass; its m3 marker baseline of 10,463 predates the landing and is re-verified against 11,002 in James's pass), W8 (stride gate, fed by G5's m1) and G7 (Overpass capacity) all remain open.
+  - Follow-up tick (2026-10-27, post-commit): commit `<sha>` on `origin/main` — filled in by a doc-only commit after the data-landing commit lands — carries `475675a` (Cycle 2 code: logo/manifest + map/list/StartHere) plus this data landing.
+- 2026-10-26 (lead): **Stage 6 QA DONE — `qa-cycle2-slim` (2ba41391) delivered the full report; verdict PASS — 0 Blocking, 1 risk-accepted (F-1 carried: the "20 curated" figure is the `curated===true` set (7 published + 13 approx), the W10 toggle per label filters `kind==='published'` → exactly 7 rows — matches implementation + dist data + CodeQA fact).** `qa-cycle2-final` (5c7e7cc5) also stalled after its skeleton (1,811 B @ 20:49; 4 no-op/stalled dispatches total — none consumed a rework round). Slim-brief dispatch worked: mandatory early skeleton + compacted brief + lead pre-ran all mechanical verifications and handed the session the verified facts to re-check a core subset (build, check:layout, greps, m3 over dist data, W10 7-published over dist data) and cite the lead for the heavy chain (byte-identity + tessellation re-run green @ 20:50). QA-fresh re-checks: zero disagreements with lead facts. Post-fix m1/m2/m4 + live W5/W7/W10/W11 interactions remain human G5-gated (checklist in qa.md); W8 stride gate awaits G5's m1 (>800 ms ⇒ STRIDE_K follow-up). Lead housekeeping: removed leftover `qa-tmp-data.mjs`/`qa-tmp-src.mjs` from repo root + lead scratch files; `npm run build`/`check:layout`/tessellation/byte-identity all re-verified green before the QA dispatch. Next: Stage 8 DevOps.
+- 2026-10-26 (lead): **Stage 6 QA — three consecutive no-op dispatches; final attempt in flight (no rework round consumed).** `qa-cycle2` (ed3f4f17, ~19:24; duplicate 09573402 zero writes) and continuation `qa-cycle2-continue` (3b3a6a18, ~20:05) both produced 30–45 min zero writes to `.agents/qa.md`; `Get-Process node` showed no process started near either dispatch time while the parallel `sec-cycle2` sessions ran fine → pattern suggests the QA brief weight/toolchain, not the dispatch mechanism. Final dispatch `qa-cycle2-final` (5c7e7cc5, ~20:47) uses a compacted brief + mandatory EARLY skeleton write (so progress is observable within minutes) + fill-in-place updates. Expected: skeleton appears within ~5 min if the session is alive. If it no-ops too, escalate to James before further retries.
+- 2026-10-26: **Stage 7 Security DONE — two parallel `sec-cycle2` sessions (50b7ba4a, 834b55ed) both delivered; final on-disk state = 834b55ed's write (12,395 B @ 19:58, supersedes 50b7ba4a's 12,447 B @ 19:38 + lead's two Minor header fixes): VERDICT PASS — 0 Blocking, 0 new risk-accepted, no design-level (nothing routes to Architect).** Both pass-consistent. All 8 areas clean: StartHere postcode surface (input constrained to `[A-Z0-9]{5,7}` before use; exact local Map match; no network/storage), mailto via `encodeURIComponent` (no header injection), logo.svg inert / manifest local-only, divIcon html = colour + integer count only, remaining 2 Tooltips trusted data only, data key sets unchanged from Cycle 1 (no PII beyond name/postcode/lat/lon/kind), no new deps (git diff clean), secrets grep 0 in `src/`. SEC-F1 (ODbL attribution) resolved in Cycle 2; SEC-F2/SEC-F3 unchanged risk-accepted. Lead fixes (Minor, same file): Scope line listed five commit hashes that do not exist in git (replaced with "uncommitted Cycle-2 working tree"); header date 2026-10-22 → 2026-10-26. QA (Stage 6) still running.
+
+- 2026-10-26: **Stage 5 Coding DONE — lead-verified on disk; Stage 6 QA + Stage 7 Security dispatched (parallel).**
+  Original `coding-cycle2` (b04ab781) stalled ~47 min after the W11 code writes (17:39–17:53Z);
+  treated as a no-op, no rework round consumed. Continuation `coding-cycle2-continue` (a23dcd07)
+  completed: W11 verified against disk state, W12/W13 verified-no-write, W8 recorded-deferred
+  (evidence gate: m1 not measurable on headless box, k=1 in effect, stride re-check at G5 human pass),
+  completion statement on disk. Final `.agents/implementation.md` 17,981 B: W1 noted (QA-owned),
+  W2–W7 done, W9–W13 done. Lead verification sweep on the final tree (source max mtime 17:56 < dist 18:29):
+  `npm run build` exit 0 (148 modules, JS 417.85 kB), `npm run check:layout` OK (G6: 3 flex-directions),
+  acceptance greps 11/11 green (forbidden StartHere=0, `<Tooltip`=2, finds=1, null2=0, markercluster=0,
+  flex-direction=3, B1=1, "0 hospices"=1, "not published in bulk"=1, StartHere pill=1, STRIDE_K=0).
+  One Minor (ground-truth line "yarn"→"en" in implementation.md) fixed by the lead on disk. QA runtime items
+  (W5 bucket click, W7 debounce cadence, W10 sort/toggle, W11 postcode flow), the W1 baseline table, and the
+  W8 gate (m1) are routed to QA. `qa-cycle2` and `sec-cycle2` dispatched 2026-10-26 (completion: sent).
+- 2026-10-26: **Stage 4 PM DONE — requirements.md delivered; Stage 5 Coding dispatched.**
+  PM dispatch #1 was unrecorded (treated as failure; disk showed the stale Cycle 1 file);
+  dispatch #2 `pm-cycle2-r2` delivered a fresh work list (175 L / 14,694 B, mtime
+  2026-10-26T13:56Z). Lead disk-verified: 13 W-items (W1 QA-owned baseline, W2–W8 map perf
+  P1/P5/P6/P2/P3/P4 + evidence-gated W8 stride, W9 logo/manifest, W10 list ordering+filter,
+  W11 start-here card, W12/W13 verify-only disclosures) + HUMAN-GATED H1a/H1b excluded from
+  the executable set. Coding sub-session `coding-cycle2` dispatched 2026-10-26
+  (completion: sent); W8 decision deferred to QA's post-fix m1 re-measurement (no code by
+  default, k=1).
+- 2026-10-26: **Reviewer (stage 3) DONE — verdict APPROVE; 4 Minor lead-fixed on disk.**
+  `reviewer-cycle2-r2` wrote a fresh `review.md` (4,611 B, mtime 2026-10-26): 0 Blocking,
+  4 Minor, 5 Dropped. Lead fixed all four (each edit verified on disk):
+  - R2-1: ADR-0012 Consequences — placeholder-email claim → "mailto resolves through
+    `siteConfig` (ADR-0009), which carries the real operator address" (real address set 557e553).
+  - R2-2: "154 non-Wales hospices" → **155** in ADR-0013 + architecture.md §1 (155 rows, 0 Wales).
+  - R2-3: GLOSSARY "LOD bucket marker" — gate misattribution fixed: P2 is bounded/measured; the
+    evidence-gated mechanism is the §2c stride.
+  - R2-4: B2 gate strengthened (ADR-0013 + architecture.md §1): report must show *placed* Wales
+    practices (lat/lon non-null); unplaced rows only from documented geocoding gaps.
+  Dropped R2-5 carries a useful correction for later stages: the G6 invariant is the **exact set
+  of three** `flex-direction` declarations (styles.css L13/25/167, from the 2026-10-24 layout
+  fix) enforced by `scripts/check-map-layout.mjs` — *no new ones may be added*, not "none
+  anywhere". G6 `npm run check:layout` re-run green after the doc fixes. Stage 4 PM dispatched — dispatch #1 unrecorded (treated as failure), #2 `pm-cycle2-r2` verified dispatched 2026-10-26 (sub-session 4b408d2d, completion: sent).
+- 2026-10-26: **Reviewer (stage 3) dispatch #1 = NO-OP round → re-dispatched.** `list_agents`:
+  `reviewer-cycle2` reports `completed`, but disk shows zero writes — `.agents/review.md` is
+  still the stale Cycle 1 file (4,214 B, mtime 2026-10-21T21:33), no fresh file in `.agents/`.
+  Matches the known pitfall "completed with zero tool activity = no-op round". Re-dispatched
+  `reviewer-cycle2-r2` (`qwen-coding`, `completion: sent`) with the same self-contained read-only
+  brief. A no-op run does not consume a rework-loop round (only fix-verify rounds count toward
+  the 2-round cap). Lead will disk-verify a FRESH `review.md` (mtime ~2026-10-26) before Stage 3
+  closes.
+- 2026-10-25: **Architect (stage 2) disk-verified — DONE.** `architect-cycle2` (id `df573f07`)
+  produced all artifacts; lead verified on disk:
+  - `.agents/architecture.md` 123 L / 14,829 B — complete Cycle 2 doc: §1 nation gates (B2 Wales
+    practices, B3 NI hospices, Wales hospices documented pending gap, provenance pattern), §2 perf
+    (fixed baseline metric set, P1–P7 with P1 mandatory, evidence-gated downsampling @800 ms,
+    0-space JSON payload, no payload split), §3 logo (`public/logo.svg` heart+pin geometry,
+    `manifest.webmanifest`, G6-safe), §4 list (name A→Z default, 3 sort options, "Has published
+    service area" toggle), §5 start-here card (top-left, postcode flow, 3 persona sections,
+    neutral not-found wording). Every item has acceptance criteria.
+  - GLOSSARY.md +38 lines: 8 Cycle 2 terms (hide-not-delete, LOD bucket marker, start-here card,
+    published/approx `kind`, branch site, nation filter, PRA, profile-first).
+  - `docs/adr/`: 0010-map-performance-strategy, 0011-default-list-ordering-and-filters,
+    0012-start-here-landing-card, 0013-nation-data-landing-gates — numbered after 0009, one-page.
+  - LEAD FACTUAL FLAG for Reviewer: ADR-0012 consequence claims the "let us know" mailto assumes
+    a *placeholder* operator email ("real address is a later ops task"). Lead verified
+    `src/lib/feedback.ts`: `feedbackMailto` builds from `siteConfig.contactEmail`, and the real
+    email is already set (commit 557e553, ADR-0009 lockstep). Reviewer must confirm + classify.
+  Stage 3 Reviewer → running (dispatched this turn, `completion: sent`).
+- 2026-10-25: **HUMAN DECISION on Research escalation: Option A (risk-accept) — Research DONE, Architect unblocked.**
+  James chose Option A: the 22 residual stale markers in research.md are RISK-ACCEPTED documented
+  debt — superseded, not blocking. Lead added a STALENESS NOTICE banner atop research.md (ledger-level
+  annotation): §0/§1/§1.2/§1.3 are CANONICAL; Table A (v5 note below) supersedes every conflicting
+  statement in the file. The performance FINDING stands (per-render O(10,475 × 155) `hospices.find`
+  n²-class cost — anchors stale, cost real). Research → done; Architect → running (dispatched this
+  turn, `completion: sent`; lead will disk-verify `.agents/architecture.md` before Stage 2 closes).
+- 2026-10-25: **Research recon v5 outcome — PARTIAL FAILURE (round 3) → HUMAN DECISION REQUIRED.**
+  v5 (`research-cycle2-recon-v5`, `completion: sent`) made real partial edits before dying on
+  first-turn `stopReason: timeout`. Disk truth: 27,412 B / 245 lines, mtime 25/10/2026 12:15.
+  v5 FIXED (lead disk-verified): §0 + §1.2/§1.3 entirely — npm chain, scot script lines,
+  8,364/8,373 line, Wales lines, F2-as-landed narrative (L22/45/50/52/72 now correct).
+  v5 LEFT STALE (lead grep-verified + full reads of MapView.tsx (292 L), HospicePanel.tsx (103 L),
+  AppShell.tsx, practices.json head, @ HEAD `475675a`): 19 anchor/count markers — §2 performance
+  anchors (L84/87/93/94/96/97/101/103), §4.1 HospicePanel (L126/154/156/157/183-185/195), §5.2
+  (L219) — PLUS 3 stale Scotland F1/F2 decision frames (L210/218/233; the gate is RESOLVED: F2,
+  landed in `475675a`, correctly stated at L22/45/50/52/72). Also two false claims inside
+  research.md the Architect must NOT trust: (a) "155 × 9,564 ≈ 1.5M ops per re-render" —
+  HospicePanel's `counts` useMemo is O(catchments)=155, not a per-practice scan; (b) AppShell's
+  `<h1>` is "Hospice Catchment Map" (an `<a href="#map">` link), not "HospiceInfo".
+  The two-round rework cap (QWEN.md) is EXHAUSTED: v3 (round 1 — content-only), v4 (round 2 —
+  §0 only), v5 (round 3 — partial, timeout). No v6 may be auto-dispatched.
+  **HUMAN DECISION REQUIRED** — options:
+  - **A (lead-recommended): risk-accept the residual staleness and unblock.** Architect treats
+    research.md §0/§1/§1.2/§1.3 as canonical and this ledger's Table A as the current ground truth;
+    the 22 residual markers stand superseded. Lead adds a one-line staleness banner atop
+    research.md (ledger-level annotation, not stage work). Lowest cost. Note the performance
+    FINDING survives — the per-render O(10,475 × 155) `hospices.find` n²-class cost is real;
+    only its anchors/counts are stale.
+  - **B: human-authorized cap override — one more bounded v6 fix pass** using Table A verbatim.
+    Cost: full first-turn wall-clock timeout risk again (v1/v2/v5 all died there); splitting into
+    two smaller sequential passes mitigates but doubles latency.
+  - **C: James edits the 22 remaining lines directly** from Table A (highest fidelity; human call).
+  - **D: full fresh recon v6** (discards v3–v5 work; most expensive; not recommended).
+  **Table A — current verified values (2026-10-25, HEAD `475675a`; supersedes every stale passage in research.md):**
+  | # | Stale in research.md | Current value |
+  |---|---|---|
+  | 1 | `src/map/MapView.tsx`, `src/datapack/*` | `src/components/MapView.tsx` (292 L); no `src/datapack/` — data flow via `src/lib/useAppData.ts` + `src/lib/types.ts` |
+  | 2 | 9,564 / ~9,552 GP practice markers | 10,475 (10,463 assigned; 12 unassigned on 9 known-gap BT postcodes), `CircleMarker` + per-marker `<Tooltip>` |
+  | 3 | `tessellations-global.json` 83 KB | `public/data/catchments.json` 6,791,072 B (6.79 MB), 155 tessellations — largest asset |
+  | 4 | `hospices.find(h => h.osmsu === practice.osmsu)` | `hospices.find(h => h.id === p.hospiceId` — per practice ≈L213-259; catchment block ≈L180-211; shops ≈L260-277 |
+  | 5 | `practices-global.json` 3.18 MB, `hospices-global.json` | `public/data/practices.json` 3,037,217 B, 10,475 rows / 145,067 lines, 2-space indented, first id `en-1-10564001398`; `hospices.json` 73,680 B |
+  | 6 | `byOsmsu = new Map(...)` | none — join key is `hospiceId` (`src/lib/types.ts`); `osmsu` has 0 codebase hits |
+  | 7 | `src/ui/AppShell.tsx`, `<h1>HospiceInfo</h1>` | `src/components/AppShell.tsx`; `<h1 className="h4 mb-0"><a href="#map">Hospice Catchment Map</a></h1>`; no logo today |
+  | 8 | `src/ui/HospicePanel.tsx` L39-119; filter name/town/osmsu | `src/components/HospicePanel.tsx` (103 L); `counts` useMemo L22-26 = O(catchments)=155; filter = `nation` + `name`/`town` substring only; list UNsorted (raw order) |
+  | 9 | MapView old line anchors (L306-335, L438-483, L485-514, L529-621, L545, L255-527); ZoomControl bottomleft | hospice markers L280-288; `FitToSelection` `catchments.find` L66; `preferCanvas={true}`, `zoomControl={true}` |
+  | 10 | `npm run geocode:postcodes` etc. | `node scripts/geocode-postcodes.mjs` — package.json exposes only `dev`/`build`/`preview`/`build-data`/`check:layout` |
+  | 11 | Scotland F1/F2 framed as open gate (L210/218/233) | RESOLVED F2, landed `475675a` (911 practices, address-derived names curated with James; Gate H1b) |
+  | 12 | (counts) | ~138 shops (`shops.json` 45,209 B); `corrections.json` 3 B (empty array) |
+- 2026-10-25: **Research recon v4 dispatched (fire-and-forget) with full verified anchor map.**
+  v3's on-disk pass (09:33) turned out to be a content-expansion only: file grew
+  20,752 → 27,596 B, same 248 lines, diff stat against the 640-line committed
+  version unchanged — i.e. prose lengthened in place, ZERO anchor fixes applied
+  (verified: full read of all 248 lines + 22 stale-marker hits across
+  `703b4d0` / `*-global.json` / `osmsu` / `src/map|ui|datapack` / `data-raw/scripts`
+  / 9,564 / F1-F2-open / `npm run build:data`-style scripts; only 4 fresh
+  `hospiceId` mentions, all forward-looking prose). File remains fully stale.
+  v4 = `research-cycle2-recon-v4` (sub-session 6b4aa8d8, `completion: sent`) with
+  the complete verified 11-point ground truth handed over (HEAD `475675a`;
+  5-file `public/data/` with exact sizes — `catchments.json` 6.79 MB largest;
+  `src/components/` layout, MapView 292 L / HospicePanel 103 L; `hospiceId` join;
+  counts 10,475/10,463/155/~138/155; Scotland landed via F2 with reword-to-RESOLVED
+  instruction; nation scripts already in `scripts/` — `data-raw/scripts/` absent;
+  package.json npm scripts = dev/build/preview/build-data/check:layout only, so all
+  `npm run <colon>` invocations reword to `node scripts/<name>.mjs`; R8 resolved),
+  plus a stale-line checklist and a definition-of-done marker list (19 strings,
+  zero hits required). Verification protocol unchanged: **Lead will disk-verify
+  v4's reconciliation (mtime/size + zero stale-marker hits + spot-reads of
+  §0/§1.2/§2.1/§4.1/§5.2 + 248±2 lines) before marking Research done.** One
+  bounded fix pass max on failure, then escalate per the rework cap.
+- 2026-10-24: **Cycle 2 Research artifact reconcile pass dispatched.**
+  `.agents/research.md` (248-line Cycle-2 rewrite, uncommitted) was verified
+  STALE against HEAD `475675a`: baseline cites `703b4d0`, `*-global.json`
+  names, `osmsu` join (0 grep hits — real key is `hospiceId`), `src/map/` +
+  `src/ui/` + `src/datapack/` paths (real: `src/components/` + `src/lib/` +
+  `src/pages/`), 9,564 practice counts (real: 10,475 / 10,463 assigned),
+  Scotland F1/F2 open (real: F2 executed, landed `475675a`), tessellation
+  "83 KB" (real: `catchments.json` 6.79 MB — now the LARGEST asset). Two
+  earlier Research sub-sessions died by first-turn timeout with zero on-disk
+  progress (verified content-identical pre/post). Third dispatch
+  `research-cycle2-recon-v3` uses `completion: sent` (fire-and-forget, no
+  first-turn wall-time) with verified anchors handed over in the prompt
+  (join key, component paths + sizes, L184/L218/L265 hotspots, counts,
+  sizes, Scotland landed). Lead will disk-verify the reconciliation before
+  marking Research done.
 - 2026-10-24: **Scottish practices landed — H1 re-scoped.** James downloaded
   the NHS Scotland Spatial Hub `gp_practices-is` layer: 911 features, landed
   as `data-raw/gp-practices-scotland-2026-10.geojson.json` → renamed to the

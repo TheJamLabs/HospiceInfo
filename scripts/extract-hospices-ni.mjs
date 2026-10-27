@@ -25,7 +25,9 @@
 // UNVERIFIED, so the ADR-0002 row-index fallback is used by design).
 
 import fs from 'node:fs';
-import * as XLSX from 'xlsx';
+// Default import: xlsx 0.18.5 attaches readFile dynamically on its CJS
+// exports object, which ESM namespace/named imports do not surface.
+import XLSX from 'xlsx';
 
 const RAW = 'data-raw/rqia-regulated-services-2026-06.xlsx';
 
@@ -42,8 +44,16 @@ if (!fs.existsSync(RAW)) {
 const wb = XLSX.readFile(RAW);
 const sheet = wb.Sheets[wb.SheetNames[0]];
 const grid = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-const header = (grid[0] || []).map((h) => String(h).trim());
-console.log(`RQIA sheet "${wb.SheetNames[0]}" header: ${header.join(' | ')}`);
+// The header is not row 0: the sheet opens with a title row ("Current
+// Register - Open Data") and a blank row (verified 2026-10-27 against the
+// June 2026 export). Scan the first rows for the one carrying "Service Name".
+const hi = grid.findIndex((r) => (r || []).some((h) => String(h).trim().toLowerCase() === 'service name'));
+if (hi < 0) {
+  console.error(`RQIA header row not found — first rows: ${grid.slice(0, 3).map((r) => (r || []).join(' | ')).join(' /// ')}`);
+  process.exit(1);
+}
+const header = (grid[hi] || []).map((h) => String(h).trim());
+console.log(`RQIA sheet "${wb.SheetNames[0]}": data starts row ${hi + 1} | header: ${header.join(' | ')}`);
 
 const ci = (s) => header.filter((h) => h.toLowerCase() === s.toLowerCase())[0];
 const cName =
@@ -57,10 +67,10 @@ if (typeof cName !== 'string') {
 const iPc = header.findIndex((h) => h.toLowerCase() === 'postcode');
 const iName = header.indexOf(cName);
 console.log(`RQIA columns: name="${cName}" (${iName}) | postcode=${iPc >= 0 ? `${header[iPc]} (${iPc})` : 'absent'}`);
-if (grid[1]) console.log(`RQIA sample row: ${[grid[1][iName], iPc >= 0 ? grid[1][iPc] : ''].join(' | ')}`);
+if (grid[hi + 1]) console.log(`RQIA sample row: ${[grid[hi + 1][iName], iPc >= 0 ? grid[hi + 1][iPc] : ''].join(' | ')}`);
 
 const out = [];
-for (const r of grid.slice(1)) {
+for (const r of grid.slice(hi + 1)) {
   const name = String(r[iName] || '').trim();
   if (!name.toLowerCase().includes('hospice')) continue;
   out.push({
