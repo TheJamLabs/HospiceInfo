@@ -42,7 +42,8 @@ In a new terminal from the same folder:
 npm run build    :: tsc + vite → dist/ (static site ready for deploy)
 ```
 
-When the static build is ready and the lead commits after the gates close:
+To test the built app locally (the published site is the `main` build — see
+Deploy):
 
 ```bat
 npm run preview   :: local test of the shipped static file
@@ -95,16 +96,18 @@ SHA-256 in `data/README.md`, re-run the byte-identity and tessellation
 checks, then publish. Once the file is committed, subsequent builds use it
 as-is.
 
-## Deploy (Cloudflare Pages)
+## Deploy (Cloudflare Pages) — git-connected (ADR-0014)
 
-The site is static: `npm run build` produces `dist/`, and a single
-`wrangler` command publishes it.
-
-1. Build: `npm run build` (`tsc` + Vite → `dist/`).
-2. Push: `npx wrangler pages deploy dist --project-name=hospiceinfo`
-   (a one-time `wrangler login` only; run from a machine with network).
-   Hash routing (ADR-0007) means no rewrites, `_routes.json`, or 404 page
-   needed.
+The site is static: `npm run build` produces `dist/`. The Pages project
+`hospiceinfo` is git-connected to `main`: every James-approved push runs the
+build command `npm ci && npm run build` in the Cloudflare build and publishes
+`dist/` (`pages_build_output_dir` in the repo's `wrangler.jsonc`). No local
+`wrangler login` or deploy command is needed — the approved push is the
+publish. `data-raw/` stays committed; it is excluded from the deployment by
+the output directory (only `dist/` ships). Hash routing (ADR-0007) means no
+rewrites, `_routes.json`, or 404 page needed. Branch previews for
+pre-promote checks: push the branch and open its preview URL in the Pages
+dashboard.
 
 **Rollback (deployment):** Cloudflare Pages keeps every prior deployment.  To
 rollback, click "restore" from the Pages dashboard (Pages → project →
@@ -129,16 +132,18 @@ first live deploy.
 H1a's and H1b's files landed on 2026-10-27 and the post-data-landing chain
 has already run (see the data-landing note in `.agents/pipeline.md`). When
 the next pending file lands (the CIW Wales-hospice reply), the lead runs
-the chain in `docs/MAINTENANCE.md` again, then commits + publishes.
+the chain in `docs/MAINTENANCE.md` again, then commits; the James-approved
+push auto-publishes per the Deploy section (ADR-0014).
 
 ### Validation + rollback story
 
-Pre-publish, after gates close (lead — final G6-equivalent):
+Pre-push chain (lead — final G6-equivalent; runs before every push, since the
+push auto-publishes per the Deploy section):
 
 1. `npm run build-data` ×2 → outputs byte-identical (SHA-256 recorded).
 2. `node scripts/validate-tessellation.mjs` → exit 0.
 3. `npm run build` → exit 0; `npm run check:layout` → exit 0 (3 `flex-direction`).
-4. Publish per the procedure above.
+4. James-approved push to `main` — the git-connected build publishes.
 
 **Rollback:**
 
@@ -146,9 +151,10 @@ Pre-publish, after gates close (lead — final G6-equivalent):
   dashboard (no local action needed).
 - **Data:** re-run `build-data` from committed `data-raw/` — a bad data set
   rolls back by re-running the chain, no code rollback needed.
-- **Code:** git — the Cycle 2 tree is uncommitted until the lead commits
-  after the gates close; `git revert <sha>` restores the previous published
-  state. No commit/push by the agent.
+- **Code:** git — the Cycle 2 tree is committed to `origin/main` (2026-10-27,
+  data landing `816b609`); `git revert <sha>` + push restores the previous
+  published state (the push rebuilds and re-publishes, ADR-0014). No
+  agent-initiated pushes; James approves each push.
 
 ## Corrections log
 

@@ -68,7 +68,7 @@
 
 ### ADRs Recorded
 - **ADR-0008** (0-space data JSON + build script as single source of truth): `public/data/*.json` regenerate from `data-raw/` via `scripts/build-data.mjs`; never hand-edit data JSON — land script + data-raw deltas and rebuild.
-- **ADR-0009** (manual publish after human gates): NO auto-deploy; lead must explicitly commit + push after each G5 pass/decision record (gate artifacts, notes).
+- **ADR-0009** (site-config single source). Note: the "manual publish after human gates" convention was never ADR-0009 — it lived in ops.md/README/MAINTENANCE and is superseded 2026-10-27 by **ADR-0014** (git-connected Cloudflare Pages deploy): every James-approved push to `main` runs `npm ci && npm run build` and publishes `dist/` (`pages_build_output_dir` in `wrangler.jsonc`); G5/W8/G7 remain open verification gates and no longer block publication. The first git-connected build failed Pages' 25 MiB per-file limit (no build command → repo root deployed, incl. `data-raw/uk-land.json` at 54.6 MiB); ADR-0014's build settings resolve it.
 - **ADR-0010** (evidence-gated stride investigation): STRIDE_K gate threshold m1>800 ms on 4G; G5 undecided, evidence pending.
 
 ### THE INVARIANT
@@ -97,8 +97,9 @@
 - Then the lead runs the post-data-landing chain (`docs/MAINTENANCE.md`,
   from `.agents/ops.md` §5): extract → geocode → `npm run build-data` ×2
   byte-identity → `validate-tessellation` → `npm run build` +
-  `check:layout` → provenance row → commit + publish (ADR-0009 — manual
-  publish, never automatic).
+  `check:layout` → provenance row → commit; the James-approved push to `main`
+  auto-publishes (git-connected, ADR-0014 — supersedes the manual-publish
+  convention, which was never ADR-0009).
 
 ### RISK-ACCEPTED DEBT carried
 - F-1: 7-vs-20 invariant confusion (documented above)

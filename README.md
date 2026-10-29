@@ -83,9 +83,11 @@ The map is in a pre-launch state. Verification gates remain open:
   June 2026 export)
 
 Pre-launch gates (owners + acceptance) are tracked in the pre-launch gates
-section of [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md). Once all gates are
-green, the lead commits the working tree and publishes per the procedure
-below.
+section of [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md). The Cycle 2 working
+tree is committed to `origin/main` (2026-10-27); the site publishes
+automatically on each approved push via the git-connected Cloudflare Pages
+build (ADR-0014) — the gates are verification gates and no longer block
+publication.
 
 ## Pages
 
@@ -120,13 +122,11 @@ npm run build     # type-check (tsc) + Vite build -> dist/
 npm run preview   # serve the built app
 ```
 
-Deployment to the live site (Cloudflare Pages — full procedure and
-pre-publish gate in `docs/MAINTENANCE.md`):
-
-```
-npm run build
-npx wrangler pages deploy dist --project-name=hospiceinfo
-```
+Deployment to the live site (Cloudflare Pages — full procedure in
+`docs/MAINTENANCE.md`): the Pages project is git-connected to `main`, so a
+James-approved push builds (`npm ci && npm run build`) and publishes `dist/`
+automatically (ADR-0014). Run the pre-push chain in `docs/MAINTENANCE.md`
+before the push; no local `wrangler deploy` is needed.
 
 ## Data pipeline
 

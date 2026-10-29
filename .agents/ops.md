@@ -7,22 +7,31 @@ at the end of this file ("## Cycle 1 playbook (preserved)").
 ## Cycle 2 pre-launch
 
 DevOps (stage 8) done 2026-10-26. The Cycle 2 working tree is
-deploy-neutral for Cloudflare Pages; everything outstanding before public
-publish is the human-gated verification in §3 plus one final green re-run of
-the build chain (§4) after the gates close.
+deploy-neutral for Cloudflare Pages; **deploy mode changed 2026-10-27 to
+git-connected (ADR-0014)** — every push to `main` builds and publishes the
+site, so everything outstanding is the human-gated verification in §3 plus
+the pre-push build-chain re-run in §4.
 
-### 1. Deploy procedure — unchanged
+### 1. Deploy procedure — git-connected (ADR-0014)
 
-Use the Cycle 1 Cloudflare Pages playbook preserved at the end of this file,
-unchanged: `npm run build` → `npx wrangler pages deploy dist --project-name
-=hospiceinfo`; branch preview for pre-promote checks (`--branch-name=test`).
-No new routes, no server, no env vars, no form endpoints — the deploy
-topology is unchanged for Cycle 2.
+The Pages project `hospiceinfo` is git-connected to `main`: every push runs
+the project build command `npm ci && npm run build` and publishes `dist/`
+(`pages_build_output_dir` in the repo's `wrangler.jsonc`). No local `wrangler
+login` or deploy command is needed for a publish — an approved push to `main`
+is the publish. `data-raw/` stays committed (rebuildability, ADR-0006/0008);
+it is excluded from the deployment by the output directory, not from the
+repo. Branch previews for pre-promote checks: push the branch and open its
+preview URL in the Pages dashboard (formerly `npx wrangler pages deploy dist
+--branch-name=test`). No new routes, no server, no env vars, no form
+endpoints — the deploy topology is unchanged for Cycle 2. The Cycle 1
+manual-deploy playbook preserved at the end of this file is superseded for
+deploys (kept for the correction/data-refresh patterns).
 
 ### 2. Cycle 2 delta checklist
 
-**What changed** (uncommitted working tree; the lead commits after the gates
-close):
+**What changed** (committed to `origin/main` 2026-10-27; the pre-landing
+SHA prefixes below are the Cycle 2 snapshot — the post-landing ones are
+recorded in §4/§5.1):
 - NEW `public/logo.svg` + `public/manifest.webmanifest` — Vite copies
   `public/` into `dist/` (lead-verified present in `dist/`).
 - Regenerated `public/data/{catchments,hospices,practices,shops}.json`
@@ -64,21 +73,23 @@ wired for the reply).
 
 ### 4. Validation + rollback story
 
-Pre-publish, after the gates close (lead — final G6-equivalent):
+Pre-push chain (lead — final G6-equivalent; runs before every push, since §1
+auto-publishes on push):
 1. `npm run build-data` ×2 → `public/data/*.json` byte-identical (record
    SHA-256).
 2. `node scripts/validate-tessellation.mjs` → exit 0.
 3. `npm run build` → exit 0; `npm run check:layout` → exit 0 (styles.css keeps
    exactly 3 `flex-direction`).
-4. Publish per §1.
+4. Push to `main` (James-approved) — the git-connected build publishes per §1.
 
 Rollback:
 - **Live site:** Cloudflare Pages keeps every deployment; rollback =
   redeploy the previous release from the Pages dashboard (Deployments →
   restore). Blast radius: the published URL only.
-- **Code:** git. The Cycle 2 working tree is uncommitted — the lead commits it
-  after the human gates close; `git revert <sha>` (or reset) restores the
-  previous published state. No commit/push by the agent.
+- **Code:** git. The Cycle 2 tree is committed to `origin/main` (2026-10-27
+  data landing `816b609`); `git revert <sha>` + push restores the previous
+  published state (the push rebuilds and re-publishes, ADR-0014). No
+  agent-initiated pushes; James approves each push.
 - **Data:** `public/data/*.json` regenerate byte-identically from committed
   `data-raw/` — a bad data set rolls back by re-running the chain, no code
   rollback needed.
@@ -100,12 +111,18 @@ When James's file(s) land, run in order (lead):
 5. `npm run build` + `npm run check:layout` — both exit 0.
 6. Provenance row in `data/README.md` (source URL + as-of date, SHA-256 where
    applicable) + note in `.agents/pipeline.md`.
-7. Commit + publish (lead, once all gates are green).
+7. Commit; the James-approved push to `main` auto-publishes per §1 (ADR-0014) —
+   run the §4 pre-push chain first.
 
 ### 5.1 Data-landing run record (2026-10-27, H1a + H1b)
 
-Steps 1–6 ran green; step 7's commit landed, **publish remains blocked**
-(G5/W8/G7 not green — no Cloudflare deploy):
+Steps 1–6 ran green; step 7's commit landed to `origin/main`. Publish is now
+automatic on push (git-connected, ADR-0014) — the first git-connected build
+failed validation (25 MiB per-file limit: no build command was configured, so
+Pages deployed the repository root, including `data-raw/uk-land.json` at
+54.6 MiB). Fix per ADR-0014: build command `npm ci && npm run build` + output
+dir `dist`. G5/W8/G7 remain open verification gates; they no longer block
+publication:
 1. Extracts: `extract-hospices-ni.mjs` → 6 services (`ni-r1`–`ni-r6`, all
    geocoded from postcodes); `extract-gp-practices-wales.mjs` → 539
    practices (369 main + 170 branch) from the two DataMap GeoJSON layers,
@@ -121,15 +138,20 @@ Steps 1–6 ran green; step 7's commit landed, **publish remains blocked**
 6. Provenance: `data/README.md` rows for both files (source name +
    retrieved date + SHA-256; exact URLs pending James's confirmation) +
    notes in `.agents/pipeline.md` and `.agents/hindsight.md`.
-7. Commit done (SHA recorded in `.agents/pipeline.md`); **publish
-   deferred** until G5 → W8 → G7 close, per ADR-0009.
+7. Commit done (SHA recorded in `.agents/pipeline.md`); publish is automatic
+   on push to `main` (git-connected, ADR-0014) — the blocked-manual-publish
+   convention is superseded (it was never ADR-0009, which on disk is
+   site-config single source). The first git-connected build failed
+   (repo-root deploy, 25 MiB); the ADR-0014 build settings resolve it.
 
 ## Cycle 1 playbook (preserved)
 
 Preserved from the 2026-10-22 ops file (Cycle 1, stage 8). Its pre-publish
 gate table is a 2026-10-22 snapshot and is superseded for pre-launch by the
-Cycle 2 gate table in §3; the deploy, data-refresh, corrections, validation,
-rollback, and risk playbooks below remain valid and unchanged for Cycle 2.
+Cycle 2 gate table in §3; the data-refresh, corrections, validation,
+rollback, and risk playbooks below remain valid and unchanged for Cycle 2,
+while the deploy playbook is superseded by the git-connected procedure in
+§1 (ADR-0014).
 Supersedes the 2026-10-16 ops file (whose deploy assumption — "any static
 host" — predates the Cloudflare Pages decision). User-facing summary:
 `docs/MAINTENANCE.md` (Docs stage refreshes it from this file).
@@ -207,7 +229,8 @@ no SPA rewrites, no `_routes.json`, no 404 page are needed.
 Pending human fetches (exact steps in `data/README.md`): CIW email reply
 (Welsh hospices) — the only one outstanding as of 2026-10-27 (RQIA XLSX and
 the data.wales GP layers landed that day; the NHS Scotland GP file landed
-2026-10-24). On receipt: run the §5 chain, then commit + publish.
+2026-10-24). On receipt: run the §5 chain, then commit; the James-approved
+push to `main` auto-publishes per §1 (ADR-0014).
 
 ### Corrections log (public, post-deploy)
 
@@ -253,6 +276,8 @@ renders the log at `#corrections` (page-local fetch only).
 - `npm audit`: 3 advisories (xlsx devDep high ×2, esbuild dev moderate ×1)
   — unaffected advisory set, dev-only, not in `dist/` (SEC-5).
 - Port 5173 frequently held by a prior session's server; Vite auto-increments.
-- `wrangler` is not pinned in `package.json` when installed ad-hoc — pin it
-  as a devDependency at G1 time so deployment is reproducible.
+- Deploys are reproducible from the committed `package-lock.json` — Cloudflare
+  runs `npm ci` in the git-connected build (ADR-0014); `wrangler` is needed
+  only for project-level operations (e.g. `npx wrangler pages project update`),
+  not for publishing.
 
