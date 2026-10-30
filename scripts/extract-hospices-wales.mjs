@@ -69,7 +69,7 @@ const iPc = header.findIndex((h) => h.toLowerCase() === 'postcode');
 const out = rows.slice(1).map((r) => ({
   name: (r[iName] || '').trim(),
   postcode: iPc >= 0 ? (r[iPc] || '').trim().replace(/\s+/g, ' ').toUpperCase() : '',
-})).filter((e) => e.name).map((e, i) => ({ id: `wales-${i + 1}`, ...e }));
+})).filter((e) => e.name).map((e, i) => ({ id: `wales-r${i + 1}`, ...e }));
 
 fs.writeFileSync('data-raw/hospices-wales.json', JSON.stringify(out));
 console.log(`Wales hospices: ${out.length}`);

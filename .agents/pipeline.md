@@ -1,6 +1,39 @@
 # Pipeline: Make the map public-ready
 
-## Cycle 2 (active, started 2026-10-24): pre-launch completion
+## Cycle 3 (active, started 2026-10-29): name, SEO/crawlability, data gaps, logo
+
+Goal: four James-requested improvements to the live site (James, 2026-10-29):
+1. **Name** — "Hospice Finder UK" across title, app header, manifest and
+   meta/OG strings (slug `hospiceinfo` unchanged).
+2. **SEO/AI-friendliness (full prerendering)** — real paths for the info
+   pages, one static page per hospice (~161 URLs), title/canonical/description
+   + OG/Twitter + JSON-LD on every prerendered page, `sitemap.xml` +
+   `robots.txt`.
+3. **Data gaps (2)** — Wales hospices (0 → real count; CIW re-request is a
+   human gate, alternative register to be researched); 12 unplaced NI
+   practices (9 BT postcodes — no OSM/Nominatim coverage; alternative
+   geocoder).
+4. **Logo** — refine the heart+pin mark (`public/logo.svg`); keep
+   recognisable continuity, no new concept.
+
+Scope spec, acceptance criteria and human-gate definitions:
+`.agents/feature.md`.
+
+Cycle 3 human gates:
+- H3-1: James re-sends/escalates the CIW data request (browser) once Research
+  confirms the exact text + channel.
+- H3-2: OS Places API key (free tier) for the NI BT postcodes, if the chosen
+  geocoding path needs one.
+- H3-3: James's browser fetch of a Wales alternative source (if Research
+  finds one that needs a login/authenticated session).
+
+Done when (Cycle 3): all ten stage artifacts for this cycle exist, no open
+Blocking findings (resolved or risk-accepted), `npm run build` green
+(`tsc -b` + Vite, re-run byte-identical), `node scripts/validate-tessellation.mjs`
+exits 0, the Reporter's one-screen report is delivered in chat, and this
+ledger is current.
+
+## Cycle 2 (closed 2026-10-26): pre-launch completion
 
 Goal: ship-ready state for public launch, per James's five 2026-10-24
 pre-launch items:
@@ -54,7 +87,26 @@ Done when: all ten stage artifacts exist, no open Blocking findings
 (resolved or risk-accepted), the Reporter's one-screen report is delivered
 in chat, and this ledger is current. Scope: `.agents/feature.md`.
 
-## Stage status — Cycle 2 (active)
+## Stage status — Cycle 3 (active)
+
+| # | Stage | Status |
+|---|-------|--------|
+| 0 | Init | done (2026-10-29) |
+| 1 | Research | done (2026-10-29: research.md 475 L — 1 Blocking design gap (hash-redirect guard R1), 7 risks, 10 open questions; recommended: deterministic `scripts/prerender.mjs` in the build chain, HealthCareBusiness JSON-LD, manual NI pinning via override file, one-off committed OG PNG; resumed after compaction; lead disk-verified) |
+| 2 | Architect | done — rework round 1 (F1/F2/F3/F5 lead disk-verified 2026-10-29: ADR-0022 + arch §6 now state "the Coding stage replaces the full contents of `public/logo.svg`" (applied-claim deleted, acceptance intact); F2 — R13/R14 replaced with "research §3.4 legal guard (unnumbered, risk list ends at R13)" in arch §3.4 + §8, §8 risk row now `R10 (research)`; F3 — anchor set `dc261185 e11322ba 2a87a374 5628d8f7` in 3 places, `docs/build-log.md` = explicit Coding deliverable (check 1 + Q5 + done-when), zero `038a1635` in architecture.md; F5 — ADR-0023 surface #3 = `public/manifest.webmanifest`; GLOSSARY applied-claim + uk-land SHAs in other artifacts preserved; re-dispatch sub-session first-turn timed out AFTER edits landed — disk state is ground truth; original 2026-10-29 deliverable lead disk-verified: architecture.md 417 L + GLOSSARY 111 L (6 Cycle 3 terms) + ADR-0015..0023, 7 decisions) |
+| 3 | Reviewer | done — post-fix verification (rework round 1) **PASS** (2026-10-29: review.md 165 L lead disk-verified — verdict line 144 now "PASS (supersedes original FAIL)"; addendum L152–164: F1 RESOLVED (arch §6 L328 + ADR-0022 L18 assign logo application to Coding; acceptance `grep -c "circle" → 1` intact; `public/logo.svg` on disk still old mark = Coding's task), F2/F3/F5 VERIFIED with line citations, F4 stays risk-accepted (DevOps owns `docs/MAINTENANCE.md`), regression sweep clean. Note: reviewer sub-session first-turns timed out repeatedly, the last AFTER its edit landed — disk is ground truth; a verified stage is not re-dispatched. Original: review.md 151 L — Verdict FAIL, 1 Blocking (F1, design-level → Architect) + 4 Risk-accepted (F2–F5); D1–D6 ALL PASS on (a)–(d), D7 PASS except (c) via F1; Q1–Q5 ALL ACCEPT (Q5 carries F3 caveat); R1–R13 / OQ1–10 / H3-1–3 all dispositioned) |
+| 4 | PM | done (2026-10-29: requirements.md 222 L / 11,928 B lead disk-verified — Cycle 3 header, in/out scope, W1–W11 + sequencing; W1 SITE_URL (arch §3.7); W2 NI manual-geo `entries: []` + build-data merge + fail-fast + provenance row (arch §5/ADR-0021); W3 `wales-r${i+1}` id fix; W4 zero-dep `scripts/prerender.mjs` → 171 files, invariant 168 `<loc>`; W5 build chain; W6 hash-redirect IIFE (closes R1); W7 SEO/JSON-LD/OG/canonical head rules + no-endorsement guard; W8 `og-image.png` 1200×630; W9 logo.svg 3-element full replacement (acceptance `grep -c "circle"` → 1); W10 rename (8 surfaces, exempt identifier set); W11 `docs/build-log.md` (seed `dc261185 e11322ba 2a87a374 5628d8f7`, append-only); note: PM sub-session 4th first-turn timed out, write landed on disk — disk is ground truth, verified stage not re-dispatched) |
+| 5 | Coding | done (2026-10-29: implementation.md 135 L Cycle 3 ledger — W1–W11 all DONE with evidence: W4 zero-dep `scripts/prerender.mjs` (171 emitted, invariant 168==161+7), W5 build chain, W6 verbatim hash-redirect IIFE, W7 head/JSON-LD/sitemap/robots/404, W8 og-image.png 1200×630 (zlib, zero-deps, CRC-verified), W9 logo 3-element (circle=1), W10 8-surface rename (brand hits 0), W11 build-log 2 lines (prefixes `65818ace cc096f17 f7df12fd dd19e8ae`); build ×2 byte-identical dist SHA-256 `e8705777…`; tessellation exit 0; 0 Blocking reported; 0 rework rounds — **lead disk-verified 2026-10-29**: build line, IIFE ×1, logo circle=1, build-log 2L/forward, 169 html + 168 `<loc>` + robots Sitemap line, rename grep 0 |
+| 6 | QA | done (2026-10-29: qa.md Cycle 3 report **lead disk-verified** — VERDICT PASS / 0 Blocking; 11 checks all pass; anchor `65818ace cc096f17 f7df12fd dd19e8ae`; 169 html / 171 emitted / 168 `<loc>`; JSON-LD banned-key total 0 across dist; F-QA-1 (aggregate-hash methodology note) + F-QA-2 (NI NBSP source-data fidelity) INFORMATIONAL only; carried F-1/W8/G5/G7 re-confirmed risk-accepted; note: sub-session first-turn timed out on lead side, write landed on disk — ground truth) |
+| 7 | Security | **FAIL** (2026-10-29, lead-disk-verified — 1 Blocking: SEC-3-01, `scripts/prerender.mjs` emitted the boot `<script>` unclosed; all 169 emitted pages open=2/close=1; lead impact correction: "blank page" framing overstated — the defect is invalid HTML structure. SEC-3-02 risk-accepted, SEC-3-03 informational). **Rework round 1 of 2 CLOSED — post-fix verification PASS** (lead disk-verified: security.md rework-round-1 section on disk — SEC-3-01 RESOLVED 169 pages 338/338/0, SEC-3-02 hardening landed, SEC-3-03 unchanged, 0 open Blocking) |
+| 8 | DevOps | done (2026-10-29 — **lead disk-verified**: `.agents/ops.md` 425 L — Cycle 3 §1–5 complete (what-changed, deploy artifact 181 physical files, pre-publish gates C3-1..C3-10 with measured values, post-deploy §4, rollback §5), Cycle 2/1 sections preserved. History: original sub-session write DID land on disk (mtime 2026-10-28T21:33:46) despite lead-side first-turn timeout; the 2026-10-29 re-dispatch `devops-cycle3` (d169b825) was killed mid-verification by death of daemon PID 55148 and wrote nothing (transcript frozen at first request) — no rework consumed. Lead re-measured every ops.md claim on disk: 181 physical / 169 html / robots 75 B / sitemap 168 loc + 0 lastmod / logo circle=1 / **brand hits 0** (an earlier "1 hit in index.html" was a false positive from the lead's buggy inline probe — definitive case-insensitive file scan of index.html + public/ + src/ + dist/ = 0) / build chain `tsc -b && vite build && node scripts/prerender.mjs` matches package.json) |
+| 9 | Documentation | done (2026-10-29 — **lead disk-verified**: `docs/MAINTENANCE.md` 200 L — H1 "Maintenance — Hospice Finder UK", Cycle 3 intro, build-chain line `tsc -b && vite build && node scripts/prerender.mjs → dist/` (169 shells + sitemap + robots, 181 files total), pre-publish gate table C3-1..C3-10 matching ops.md values, git-connected Deploy (ADR-0014), post-deploy curl verification (168 `<loc>` / 75 B robots), rollback story (Pages redeploy / git revert / data re-derivation); `README.md` — H1 "# Hospice Finder UK", build line carries the prerender step. Provenance: sub-session `docs-cycle3` (81dfe1de, qwen-coding-small) first-turn timed out on the lead side but ALL its writes landed on disk (README was updated after the timeout); lead made one cosmetic fix (double-backtick in the MAINTENANCE ops.md pointer). Case-insensitive scan of both files: old-brand phrase "hospice catchment map" hits 0; `node scripts/prerender.mjs` present in both; C3 table complete. No rework consumed) |
+| 10 | Hindsight | done (2026-10-30 — **lead disk-verified**: `.agents/hindsight.md` 187 L — Cycle 3 section "## Cycle 3 Hindsight — Completed 2026-10-30" present (What changed / Key decisions / Process lessons / Remaining human gates G5/G7/W8 / Open findings: None Blocking); prior content (Cycle 1 meta + Cycle 2 + Cycle 2.5) preserved byte-for-byte. Provenance: sub-session `hindsight-cycle3` (qwen-coding-small) first-turn timed out on the lead side; Cycle 3 write landed on disk (140→185 L) — no re-dispatch; lead RQ-1 re-measured all section values on disk (171/169/168 `<loc>`/75 B/ADR-0022/0023/G5/G7/W8/None-Blocking present) and applied 5 surgical factual corrections (NI hospices: data chain not "hard-coded in index.html"; OG image: 3,161 B committed `public/` placeholder (ADR-0018) not "3 MiB generated by prerenderer"; ADR-0019: id-is-URL-slug per ADR file, was garbled `http:1min`; build-log: 98 B + 4 anchors + 181 dist files + double-build `e8705777` added; `JSON-LLD`→`JSON-LD` typo). 0 rework consumed |
+| T | Reporter | done (2026-10-30: one-screen status report delivered in chat via `stage11-reporter` sub-session; 10/10 stages, 0 open Blocking — SEC-3-01 fixed in Security rework round 1 of 2, post-fix verify PASS; gates G5/G7/W8 carried open — lead relayed to James) |
+
+**Close (Cycle 3):** 2026-10-30 — all 10 stage artifacts complete; 0 open Blocking findings (SEC-3-01 resolved, post-fix verification PASS; I-1/F-1/F-2 risk-accepted); `npm run build` green with byte-identical re-run; `validate-tessellation` exit 0; Reporter one-screen report delivered in chat; ledger current — Done-when satisfied. G5/G7/W8 remain open per ADR-0014; they do not block publication.
+
+## Stage status — Cycle 2 (closed)
 
 | # | Stage | Status |
 |---|-------|--------|
@@ -87,7 +139,7 @@ before rework-loop rules apply.)
 | 4 | PM | done (37 items, 6 areas, in `.agents/pm.md`; lead-verified on disk 2026-10-21) |
 | 5 | Coding | done (37/37 on disk — 1.2 landed 2026-10-23: mask fetched + build crash fixed via deterministic in-memory DP simplification (`scripts/land-mask.mjs`); build ×2 byte-identical, validator exit 0, QA §A1 coastal spot-check 0 violations — see Notes) |
 | 6 | QA | done (PASS w/ rework; 2 Blocking found — F-1 + F-4 — both fixed, rework rounds 1–2, re-verified; A1 full clip gate DEFERRED to human land fetch; see `.agents/qa.md`) |
-| 7 | Security | done (PASS, 0 Blocking; sub-session died (timeout) but artifact valid on disk, 2026-10-22, re-verified by lead; SEC-F1 ODbL mis-attribution → Docs stage must-fix-before-public) |
+| 7 | Security | done (Cycle 3 report 2026-10-29, lead-disk-verified — **FAIL: 1 Blocking (SEC-3-01)** boot `<script>` unclosed in all 169 dist pages; lead verified 169/169 open/close mismatch on disk. Lead impact correction: report's "blank page" framing overstated — `src`-based module scripts ignore inline raw text, so pages render; the real defect is invalid HTML structure (swallowed `</body></html>`), which fixes are required for the cycle's SEO deliverable. SEC-3-02 RISK-ACCEPTED design-level hardening; SEC-3-03 informational. Prior-cycle SEC-F1/2/3 re-confirmed carried. **Rework: Security gate round 1 of 2 — CLOSED 2026-10-29, post-fix verification PASS** (WF-1 + WF-2 in `scripts/prerender.mjs`; 169 pages 338/338/0; security.md rework-round-1 section lead-disk-verified; 0 open Blocking) |
 | 8 | DevOps | done (`.agents/ops.md` rewritten 2026-10-22: Cloudflare Pages deploy playbook, pre-publish gate G1–G6, rollback via Pages deployments; SEC-F1 fix assigned to Docs as G3) |
 | 9 | Documentation | done (lead inline; G3 = SEC-F1 ODbL fix applied; MAINTENANCE/README currentised; `tsc -b` + `vite build` green; fringe greps clean — detail in Notes) |
 | 10 | Hindsight | done (lead takeover 2026-10-22: sub-sessions reported dead (timeout) but #1's ingests landed on disk — RQ-1 verified; 8 correction docs in the bank, 5 pages corrected; update/delete tools absent on this machine, page-level rewrites held for human — detail in `.agents/hindsight.md`) |
@@ -99,14 +151,23 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Rework round counts
 
-- Architect-Reviewer gate: 1 (cap 2)
+- Architect-Reviewer gate: 1 (cap 2) — Cycle 1 (2026-10-21); Cycle 3: round 1 of 2
+  in flight (F1 design-level, 2026-10-29)
+- Coding gate (Cycle 3): 0 fix-verify rounds — W1–W11 single delivery; QA gate PASS
+  on first delivery; lead disk-verified 2026-10-29
 - QA gate: 2 (cap 2) — F-1 (rework round 1), F-4 (rework round 2); both
   re-verified, no third round
   - Cycle 2: 0 fix-verify rounds — `qa-cycle2-slim` delivered PASS on the first
     substantial delivery (4 prior no-op/stalled dispatches are not round-consuming)
+  - Cycle 3: 0 fix-verify rounds — `qa-cycle3` first-delivery PASS (11 checks);
+    sub-session first-turn timed out on the lead side, write landed on disk
 - Security gate: 0 (PASS first time; the 2026-10-16 stale file was superseded
   by the 2026-10-22 report)
   - Cycle 2: 0 fix-verify rounds — PASS first time
+  - Cycle 3: round 1 of 2 — CLOSED 2026-10-29 (SEC-3-01 code-level FAIL;
+    WF-1 + WF-2 landed in `scripts/prerender.mjs`; full 5-pt suite green;
+    post-fix verification PASS, lead-disk-verified; lead corrected
+    report's "blank page" impact to "invalid HTML structure" — see row 7)
 - Research recon (Cycle 2): 3 passes — v3 (content-only), v4 (partial, §0 only),
   v5 (partial, §1.2/§1.3; 27 → 22 residual stale markers; first-turn timeout).
   Cap of 2 fix-verify rounds EXHAUSTED 2026-10-25 → escalated; RESOLVED 2026-10-25 via Option A
@@ -114,6 +175,17 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Open findings
 
+- Security gate (Cycle 3, 2026-10-29): **0 open Blocking** — SEC-3-01 RESOLVED:
+  code fix DONE + lead-disk-verified (`scripts/prerender.mjs` WF-1 closed the
+  boot `<script>`; WF-2 id charset assert folded in; all 169 dist pages
+  open=2/close=2 — 338/338/0). Post-fix verification PASS (rework round 1 of
+  2; security.md rework-round-1 section lead-disk-verified). SEC-3-02
+  RISK-ACCEPTED (hardening landed — id charset assert in fail-fast loop).
+  SEC-3-03 informational. Detail: security.md (Cycle 3 + rework-round-1).
+- Coding gate (Cycle 3, 2026-10-29): 0 open Blocking — W1–W11 delivered; 0 brand hits;
+  lead disk-verified 2026-10-29. Detail: implementation.md.
+- QA gate (Cycle 3, 2026-10-29): 0 open Blocking — F-QA-1/F-QA-2 informational only;
+  F-1/W8/G5/G7 re-confirmed risk-accepted. Detail: qa.md.
 - Research recon (2026-10-25, RISK-ACCEPTED, non-blocking): `.agents/research.md` carries 22 stale
   anchor/count markers + 3 stale F1/F2 Scotland frames (§2/§4.1/§5.2/§8 region), all superseded by
   Table A in the Notes above; a STALENESS NOTICE banner atop the file directs every downstream stage

@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && node scripts/prerender.mjs",
     "preview": "vite preview",
     "build-data": "node scripts/build-data.mjs",
     "check:layout": "node scripts/check-map-layout.mjs"

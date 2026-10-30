@@ -1,11 +1,12 @@
-# Maintenance — UK-wide hospice catchment map
+# Maintenance — Hospice Finder UK
 
-Operator-facing guide for running, building, deploying, and validating the
-UK-wide hospice catchment map. Provenance detail per file:
+Operator-facing guide for running, building, deploying, and validating
+Hospice Finder UK. Provenance detail per file:
 [`data/README.md`](data/README.md). Design rationales: [`docs/adr/`](docs/adr/).
 Vocabulary: [`GLOSSARY.md`](GLOSSARY.md).
 
-Cycle 2 (2026-10-26).
+Cycle 3 (2026-10-29) — deterministic static prerendering, SEO surface
+(`sitemap.xml` + `robots.txt`) and hash-redirect guard.
 
 ## What you'll see
 
@@ -39,7 +40,8 @@ npm run dev      :: dev server → http://localhost:5173
 In a new terminal from the same folder:
 
 ```bat
-npm run build    :: tsc + vite → dist/ (static site ready for deploy)
+npm run build    :: tsc -b && vite build && node scripts/prerender.mjs → dist/
+                  :: emits 169 static shells + sitemap.xml + robots.txt (181 files total)
 ```
 
 To test the built app locally (the published site is the `main` build — see
@@ -70,6 +72,83 @@ outbound connections beyond OSM tiles and the user's own mail client.
 The extract scripts exit 0 on success and log the register header;
 Nominatim backs off on 429/503, so a fresh run is safe to leave unattended.
 
+## Pre-publish gates
+
+The pre-launch gates table tracks the final checks before publish. Each gate
+has an owner and acceptance criteria; all gates must be green before the
+first live deploy. See [.agents/ops.md](.agents/ops.md) for the full Cycle 3 gate table.
+
+| Gate | Item | Owner | Acceptance |
+|---|---|---|---|
+| C3-1 | Build chain | `npm run build` | exit 0; log ends `emitted 171 files (161 hospice pages)` |
+| C3-2 | Emitted file counts | Node walk of `dist/` | 169 `.html` (1 index + 6 info + 161 hospice + 404), 181 physical files total (171 emitted + 10 Vite outputs) |
+| C3-3 | Boot-script balance | 338 `<script` / 338 `</script>` | 338 / 338, 0 mismatching (2/2 per page) |
+| C3-4 | Sitemap | `dist/sitemap.xml` | 168 `<loc>` entries (161 hospice pages + 7 others), 0 `<lastmod>` |
+| C3-5 | `robots.txt` | `dist/robots.txt` | exactly 75 bytes, LF endings, one trailing LF |
+| C3-6 | Byte-identical double-build | Double SHA-256 of `dist/` tree | base: `170036dafcd4…53819`; emitted: `9916acb6…` |
+| C3-7 | Brand rename | `dist/index.html` | 0 hits for "catchment map", 100% for "Hospice Finder UK" |
+| C3-8 | Logo circle | Validate HTML | `<circle` = 1 (SVG) |
+| C3-9 | Data anchors | All sitemap `<loc>` entries | `f7df12fd/65818ace/cc096f17/dd19e8ae` |
+| C3-10 | Layout check | `npm run check:layout` | exit 0 (styles.css keeps exactly 3 `flex-direction`) |
+
+### Rollback
+
+- **Live site:** Cloudflare Pages keeps every release; rollback = redeploy the
+  previous release from the Pages dashboard (Deployments → restore). The Cycle 3
+  prerender changes are build-time only — a prior deployment predates the
+  prerender step, so a redeploy fully reverts the published content (the 169
+  pre-rendered shells, `sitemap.xml`, `robots.txt`) to the prior build. No
+  backend, no migration and no data-file change means no extra steps beyond the
+  single dashboard action.
+- **Code/git:** `git revert <sha>` + a James-approved push rebuilds and
+  republishes the previous state (ADR-0014).
+- **Data:** `public/data/*.json` regenerate byte-identically from committed
+  `data-raw/` — a bad data set rolls back by re-running the chain, no code
+  rollback needed; the prerendered page set re-derives from the restored data
+  on the next build.
+
+## Deploy (Hospice Finder UK) — git-connected (ADR-0014)
+
+The site is static: `npm run build` produces `dist/`. The Pages project
+`hospiceinfo` is git-connected to `main`: every James-approved push runs the
+build command `npm ci && npm run build` and publishes `dist/` (`pages_build_output_dir`
+in the repo's `wrangler.jsonc`). No local `wrangler login` or deploy command is
+needed — the approved push triggers a rebuild of 181 files and publishes them
+automatically. `data-raw/` stays committed; it is excluded from the deployment
+by the output directory (only `dist/` ships). Branch previews for
+pre-promote checks: push the branch and open its preview URL in the Pages dashboard.
+
+**Post-deploy verification**
+
+Run these against the production URL (`https://hospiceinfo.pages.dev`) once the
+publish completes:
+
+1. `curl -s -I https://hospiceinfo.pages.dev/` → `200`; headline contains
+   "Hospice Finder UK".
+2. Sample hospice page (id without ampersand):
+   `curl -s https://hospiceinfo.pages.dev/hospice/en-1-120960209.html` → 200;
+   body contains:
+   - balanced `</script>` closing;
+   - `<link rel="canonical" href="...">`;
+   - `application/ld+json` block with a `HealthCareBusiness` node;
+   - title includes the hospice name and "Hospice Finder UK".
+3. `curl -s https://hospiceinfo.pages.dev/sitemap.xml` → 200; count of
+   `<loc>` entries is **168**.
+4. `curl -s https://hospiceinfo.pages.dev/robots.txt` → 200; the 75-byte body
+   matches gate C3-5.
+
+**Rollback**
+
+- **Live site:** Cloudflare Pages keeps every prior release; restore the
+  previous deployment from the Dashboard (Pages → project → Deployments).
+- **Code:** `git revert <sha>` + James-approved push rebuilds and republishes
+  the prior state (ADR-0014).
+- **Data:** `public/data/*.json` are regenerated byte-identically from
+  `data-raw/` — a bad data set rolls back by re-running the data chain, no
+  code rollback needed; the prerendered page set re-derives from the restored
+  data on the next build.
+
+
 ## Land file — `data-raw/uk-land.json` (ADR-0006)
 
 The tessellation is clipped to the committed OSM land file
@@ -95,66 +174,6 @@ Re-fetching (e.g. the carried G7 re-check) is a rebuild event: re-pin the
 SHA-256 in `data/README.md`, re-run the byte-identity and tessellation
 checks, then publish. Once the file is committed, subsequent builds use it
 as-is.
-
-## Deploy (Cloudflare Pages) — git-connected (ADR-0014)
-
-The site is static: `npm run build` produces `dist/`. The Pages project
-`hospiceinfo` is git-connected to `main`: every James-approved push runs the
-build command `npm ci && npm run build` in the Cloudflare build and publishes
-`dist/` (`pages_build_output_dir` in the repo's `wrangler.jsonc`). No local
-`wrangler login` or deploy command is needed — the approved push is the
-publish. `data-raw/` stays committed; it is excluded from the deployment by
-the output directory (only `dist/` ships). Hash routing (ADR-0007) means no
-rewrites, `_routes.json`, or 404 page needed. Branch previews for
-pre-promote checks: push the branch and open its preview URL in the Pages
-dashboard.
-
-**Rollback (deployment):** Cloudflare Pages keeps every prior deployment.  To
-rollback, click "restore" from the Pages dashboard (Pages → project →
-Deployments). No local action is needed. `dist/` is rebuilt from source at
-every deploy, so a bad data change is undone by re-running the "Updating the
-data" chain.
-
-## Pre-launch gates
-
-The pre-launch gates table tracks the final checks before publish. Each gate
-has an owner and acceptance criteria; all gates must be green before the
-first live deploy.
-
-| Gate | Item | Owner | Acceptance |
-|---|---|---|---|
-| G5 | Chrome mobile pass, Slow 4G + 4× CPU: post-fix m1/m2/m4 vs baselines 1677 / 435 / 1391 ms (m3 already verified: 186 buckets at zoom < 11, 10,463 markers at zoom ≥ 11 — baseline measured at the 2026-10-26 snapshot; the 2026-10-27 data landing brings placed practices to 11,002, so re-verify m3 against the new count); live checks W5 (bucket click flies to zoom 11), W7 (~200 ms debounce cadence), W10 (sort A→Z / Z→A / practices desc + "Has published service area" toggle → exactly 7 rows), W11 (postcode search: BD14 6NF found → selects hospice; unmatched → neutral not-found + working mailto). Full checklist: `.agents/qa.md` §G5 (8 rows). | James (human) | All 8 checklist rows pass; post-fix m1/m2/m4 values recorded. |
-| W8 | ADR-0010 stride gate, decided after G5: if post-fix m1 > 800 ms ⇒ add the `STRIDE_K` follow-up (named constant + bounded render-time filter in `MapView.tsx`); otherwise record "gate not triggered (m1 = X ms)". | lead (code) — decision data from James's G5 m1 | Outcome recorded in the implementation record. If tripped: `grep -n "STRIDE_K" src/components/MapView.tsx` shows the constant; `npm run build` + `npm run check:layout` exit 0. |
-| G7 | Overpass mirror capacity: `node scripts/fetch-uk-land.mjs` on a networked machine (malformed-point guard in script; kumi resolution when available). Any re-fetch triggers a rebuild. G2 remains confirmed. | James (human) | Re-fetch green; build chain green; SHA re-pinned — OR "capacity blocked" non-blocking note. |
-| H1a | Wales GP practices: browser-fetch DataMap layers `geonode:gpmainsites_ogl` + `geonode:gpbranchsites_ogl` (candidate portal `data.gov.wales`, record exact URL + as-of date) → `data-raw/gp-practices-wales-{main,branch}-2026-10.{csv,geojson}`. Lead runs §5 chain. — **DONE 2026-10-27.** | James (fetch) → lead (chain) | 539 practices (369 main + 170 branch), all with source lat/lon (no geocoding needed); §5 chain green; provenance rows + ledger note recorded. |
-| H1b | NI hospices: browser-fetch Public Regulation Authority (Public Register Services' successor) XLSX ("All Registered Services"; record exact URL + as-of date) → `data-raw/rqia-regulated-services-2026-06.xlsx`. Lead runs §5 chain. — **DONE 2026-10-27.** | James (fetch) → lead (chain) | 6 services (ids `ni-r1`–`ni-r6`), all geocoded from postcodes; §5 chain green; provenance rows + ledger note recorded. |
-
-H1a's and H1b's files landed on 2026-10-27 and the post-data-landing chain
-has already run (see the data-landing note in `.agents/pipeline.md`). When
-the next pending file lands (the CIW Wales-hospice reply), the lead runs
-the chain in `docs/MAINTENANCE.md` again, then commits; the James-approved
-push auto-publishes per the Deploy section (ADR-0014).
-
-### Validation + rollback story
-
-Pre-push chain (lead — final G6-equivalent; runs before every push, since the
-push auto-publishes per the Deploy section):
-
-1. `npm run build-data` ×2 → outputs byte-identical (SHA-256 recorded).
-2. `node scripts/validate-tessellation.mjs` → exit 0.
-3. `npm run build` → exit 0; `npm run check:layout` → exit 0 (3 `flex-direction`).
-4. James-approved push to `main` — the git-connected build publishes.
-
-**Rollback:**
-
-- **Live site:** restore the previous deployment from the Cloudflare Pages
-  dashboard (no local action needed).
-- **Data:** re-run `build-data` from committed `data-raw/` — a bad data set
-  rolls back by re-running the chain, no code rollback needed.
-- **Code:** git — the Cycle 2 tree is committed to `origin/main` (2026-10-27,
-  data landing `816b609`); `git revert <sha>` + push restores the previous
-  published state (the push rebuilds and re-publishes, ADR-0014). No
-  agent-initiated pushes; James approves each push.
 
 ## Corrections log
 

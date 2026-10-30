@@ -1,136 +1,121 @@
-# Stage 7 — Security review (Cycle 2)
+# Stage 7 — Security review (Cycle 3)
 
-- **Stage:** 7 of 10 (Security engineer), parallel with QA (6)
-- **Date:** 2026-10-26
-- **Cycle:** 2 — supersedes the 2026-10-22 Cycle 1 report at this path (PASS / 0 Blocking; SEC-F1 ODbL attribution resolved in Cycle 2; SEC-F2/SEC-F3 carried forward, design-level, informational). Carried risk-accepted findings re-checked below.
-- **Scope:** static SPA (React 18, react-leaflet 4, Vite 5, TS strict, Bootstrap 5.3 ESM) on Cloudflare Pages. Base `475675a` + uncommitted Cycle-2 working tree. Cycle 2 changes under review: StartHere diagnostic flow incl. exact local postcode lookup (W4), shared per-colour divIcons (P6), grid-bucket LOD markers (P2), HospicePanel search/sort/toggle (W7/W8/W9), Methodology/About content (W7/W8), 0-space data re-serialization (P5/W1), logo/manifest assets, footer copy.
-- **Method:** read-only on-disk verification (RQ-1 — every claim cites a file:line, a grep run, or a command executed this pass). No source modified, no `git add`/`commit`, no installs.
-- **Trust model (unchanged, re-verified):** no backend, no auth, no cookies, no telemetry. Trust boundary = "static assets + public JSON" served over HTTPS; the only runtime egress is OSM tiles; the only outward user action is a user-initiated `mailto:`.
+- **Stage:** 7 of 10 (Security engineer)
+- **Date:** 2026-10-29
+- **Cycle:** 3 — supersedes the 2026-10-26 Cycle 2 report at this path (PASS / 0 Blocking; SEC-F1 resolved; SEC-F2/SEC-F3 carried). Carried findings re-checked in §Carried items.
+- **Scope:** static SPA (React 18, react-leaflet 4, Vite 5, TS strict, Bootstrap 5.3 ESM) on Cloudflare Pages (`https://hospiceinfo.pages.dev`). Cycle 3 change under review: deterministic static prerender (ADR-0015) — `scripts/prerender.mjs` emits 171 files into `dist/` (169 shell pages: index + 6 info + 161 hospice + 404; plus sitemap.xml, robots.txt), hash-redirect guard (ADR-0016) in `src/main.tsx`, single `package.json` build-script line.
+- **Method:** read-only on-disk verification (RQ-1 — every claim cites a file:line, a grep, or a command executed this pass). No source modified, no `git add`/`commit`, no installs.
+- **Trust model (unchanged, re-verified):** no backend, no auth, no cookies, no telemetry. Trust boundary = "static assets + public JSON" served over HTTPS; only runtime egress is OSM tiles (pre-existing, no key); only outward user action is a user-initiated `mailto:`.
 
 ## Verdict
 
-**VERDICT: PASS — 0 Blocking findings.** No new findings. SEC-F1 (ODbL attribution) is resolved by the Cycle-2 Licences/footer work (verified in §7). No design-level finding requires Architect rework.
-
-## Per-area conclusions (8 areas)
-
-### 1. StartHere postcode flow
-
-- Entry is constrained before any use: `input pattern="[A-Z0-9 ]{5,7}" maxLength={7}`, `onChange` uppercases and strips non-alphanumerics (`src/components/StartHere.tsx:42`); submitted value passes `normalisePostcode` (`StartHere.tsx:15-18`) → invariant charset `[A-Z0-9]{5,7}`.
-- Matching is **exact local** against the practice set: memoised `Map` over `practices` (`StartHere.tsx:25-31`); the found-state renders `{practice.name} · {practice.postcode}` and `{hospice.name} · {hospice.town}` as plain JSX text nodes (`StartHere.tsx:144-150`) — React-escaped, no `dangerouslySetInnerHTML`.
-- **No geocoder, no network, no storage, no analytics**: grep `fetch|localStorage|sessionStorage|geolocation|XMLHttpRequest|WebSocket` in `StartHere.tsx` → 0 matches. The date field is display-only, never parsed or transmitted (`StartHere.tsx:48`).
-- The typed postcode flows only to (a) the local map lookup, (b) the mailto body via `encodeURIComponent` (§2), (c) React text — never into a URL, an attribute bypass, or egress.
-
-**Clean.** A hostile input is reduced to `[A-Z0-9]{5,7}` before downstream use; every sink is React-escaped. (ADR-0012's zero-network concern is upheld in code.)
-
-### 2. mailto via `feedbackMailto`
-
-- `src/lib/feedback.ts:26-35`: subject and body each pass through `encodeURIComponent`; body lines are joined then encoded as one unit. Inputs are `point.postcode` (normalized, §1), `point.name`, `point.id` — all from local JSON or the normalized postcode.
-- `siteConfig.contactEmail = 'hello@thejamlabs.com'` is a static operator constant (`src/lib/siteConfig.ts:19`), no credentials.
-- `encodeURIComponent` neutralises `?`, `&`, `%`, and newlines in subject/body; with the `[A-Z0-9]` postcode charset below it, additional query-parameter injection is impossible.
-
-**Clean — no mailto/header-injection vector.** (CY-1 SEC-F1 confirmation; no regression.)
-
-### 3. New static assets (`public/logo.svg`, `public/manifest.webmanifest`, `index.html`)
-
-- `logo.svg`: `<path>`/`<circle>` primitives only, fills `#1d4ed8`/`#ffffff`; **no** `<script>`, no animation, no external refs, no remote images.
-- `manifest.webmanifest`: `start_url: "./"`, icons reference only local `/logo.svg`; no `id`/`scope` off-origin, no service-worker fields.
-- `index.html`: the diff adds exactly two `<link>`s — `rel="icon" type="image/svg+xml" href="/logo.svg"` and `rel="manifest" href="/manifest.webmanifest"` — no `crossorigin`/`integrity`/`referrerpolicy` attributes; all scripts/links remain local. No new CSP mechanism (none exists in this repo; static hosting).
-
-**Clean.** Local-only references, inert SVG, benign PWA metadata.
-
-### 4. Map layers / divIcon HTML surface
-
-- `hospiceIcons` (`src/components/MapView.tsx:45-55`): `html: '<span class="hospice-marker" style="background:${h.color}"></span>'` — interpolates **only** the deterministic hex colour from local JSON. `hashToColor` (`scripts/build-data.mjs:29-41`) emits `#` + six hex digits (`toString(16).padStart(2,'0')`) — the string cannot carry markup.
-- `shopIcons` (`MapView.tsx:60-70`): same pattern, `c` is the shop's hex colour. No names/URLs interpolated.
-- `bucketIcons` (P2, `MapView.tsx:14-38`): `html` interpolates **only** `b.count` — an integer from an in-memory `Array.length`; CSS is inline static. Bucket badges are numeric-only.
-- Practice `CircleMarker`s (W4) are self-closing with `id`/`fillColor`/`fillOpacity` props only; the Cycle-1 risk of per-practice tooltip content is **removed** (no `<Tooltip>` inside the practice-marker loop). Catchment/shop `<Tooltip>`s remain with React-escaped label content, unchanged from Cycle 1.
-- Grep `dangerouslySetInnerHTML|innerHTML` in `src/` → 0 matches; the divIcon `html` field is the only raw-HTML sink, and all values reaching it are operator-controlled colours/numbers.
-
-**Clean.** No new injection surface from P2/P6/W4.
-
-### 5. Search / sort / toggle (HospicePanel)
-
-- `src/components/HospicePanel.tsx`: filter = `nation` + `includes(q)` + `!publishedOnly || h.kind === 'published'` (W8); sort = `localeCompare` on name with `id.localeCompare` tie-break, count-sort by `counts.get(id)` delta (W9); 200 ms trailing debounce via a string-free `setTimeout` callback.
-- Grep `eval(|new Function(` in `src/` → 0 matches.
-
-**Clean.** Pure in-memory array transforms; no dynamic-code surface.
-
-### 6. Data exposure re-check (0-space re-serialization, P5/W1)
-
-| File | n | Keys (identical to Cycle 1) |
-|---|---|---|
-| `hospices.json` | 155 | id, name, town, postcode, lat, lon, color, kind, source, website, cqcUrl, curated, nation |
-| `practices.json` | 10,475 | id, name, address, postcode, lat, lon, nation, hospiceId |
-| `catchments.json` | 155 | hospiceId, name, nation, kind, curated, practiceCount, polygons |
-| `shops.json` | 138 | id, name, address, postcode, lat, lon, hospiceId, outsideCatchment, source |
-
-- `git show 475675a:public/data/{hospices,practices,shops}.json` first records are **value-identical** to the working-tree first records; only `, `/`: ` ` separators and the trailing newline differ. The re-serialization changed **no keys, no values, no PII**.
-- No care-team/contact PII: key sets contain no phone/email/contact fields; `@` scan across all four files → 22 total hits, all business-name decoration (e.g. `ACCORD@Home`, `The Clinic @51`) — zero email addresses; no phone-number fields exist.
-- Escape invariant holds: `x=` digit-separator escaping survives in `practices.json`/`hospices.json` (verified this pass); no trailing whitespace; `JSON.parse` succeeds on all four files at expected counts.
-- The `district` field (W12) is emitted for **0** of 10,475 practices — the code path exists, no data flows through it; benign.
-
-**Clean.** The public data surface is exactly the Cycle-1 surface.
-
-### 7. No-new-surface audit (grep `src/`)
-
-| Pattern | Count | Location |
-|---|---|---|
-| `fetch(` | 2 | `src/lib/useAppData.ts:4` (same-origin `/data/*.json`, paths literal at the four `App.tsx:19-22` call sites), `src/pages/CorrectionsPage.tsx:26` (same-origin `/data/corrections.json`) |
-| `XMLHttpRequest` / `WebSocket` | 0 | — |
-| `localStorage` / `sessionStorage` | 0 | — |
-| `dangerouslySetInnerHTML` / `innerHTML` | 0 | — |
-| `eval(` / `new Function` / `document.write` | 0 | — |
-
-No user input reaches any fetch URL; no new runtime dependencies in `package.json` (diff vs base: none added).
-
-**Clean.** No new network, storage, or code-execution surface.
-
-### 8. Hosting / secrets / trust boundary
-
-- Grep `API_KEY|token|secret|Bearer|password` in `src/` → 0 matches. In `public/` → 1 compound hit, both benign substring false-positives inside `practices.json` practice names (`Stokenchurch`, `Secret Aesthetics Ltd`).
-- The only external origin is `https://tile.openstreetmap.org/{z}/{x}/{y}.png` (`MapView.tsx`, pre-existing, no key, no user input in URL).
-- Static hosting posture: no auth, no cookies, no backend, no server-rendering. Cycle 2 adds nothing that moves the boundary.
-- CY-1 SEC-F1 (ODbL attribution) **resolved**: footer (`siteConfig.ts:20-26`) now carries "Map tiles © OpenStreetMap contributors, © OpenStreetMap Foundation — ODbL v1.0. Full data attribution and licensing: see the Licences page." — verified against the current file.
-
-**Clean. Trust boundary unchanged: "static assets + public JSON".**
+**VERDICT: FAIL — 1 Blocking finding (SEC-3-01).** Every prerendered HTML page (169/169, including the deployed `dist/index.html`) has an unclosed boot `<script>` element, so `</body></html>` is swallowed as script raw-text, the module script throws a SyntaxError on the literal `<` token, React never mounts, and every page renders blank. 1 risk-accepted (SEC-3-02, design-level), 1 informational (SEC-3-03).
 
 ## Findings
 
-| id | area | description | severity | status |
-|---|---|---|---|---|
-| — | — | No new Cycle-2 findings | — | — |
+| id | severity | area | description |
+|---|---|---|---|
+| SEC-3-01 | BLOCKING | `scripts/prerender.mjs` / dist | Boot tag extracted as opening tag only (`prerender.mjs:61` regex, `:64` `bootScript = bootTag[0]`); `buildPage` (`:198-201`) emits it followed by `</body>`/`</html>` with **no** `</script>`. All 169 dist pages have `<script` opens = 2, `</script>` closes = 1. Unclosed module-script raw-text swallows `</body></html>` → module SyntaxError → blank page site-wide. |
+| SEC-3-02 | RISK-ACCEPTED (design-level) | `scripts/prerender.mjs` | Hospice `h.id` is interpolated into the emitted file path (`:235`) and into canonical/OG/JSON-LD URLs (`:161`, `:179`, `:185`) with no character-set assertion (`:41-43` type-checks `id`/`name` only). Safe today: all 161 emitted ids verified `[A-Za-z0-9-]` from dist file names (`en-1-120960209`, `ni-r1`, `sc-CS2014323454`, `en-H5R4P`, `en-R0B0U`, …). Carried inside SEC-F3's build-time curation boundary; hardening recommended (§Open items 2). |
+| SEC-3-03 | INFORMATIONAL | `package.json` | Single-line build-script change (`dc07faf..2523390`): `"build": "tsc -b && vite build"` → `"build": "tsc -b && vite build && node scripts/prerender.mjs"`. No dependencies added; lock file untouched/absent; ADR-0008 upheld. |
 
-Blocking: **0**. New risk-accepted: **0**.
+Blocking: **1**. Risk-accepted: **1** (design-level, never blocks). Informational: **1**.
 
-## Carried-forward risk-accepted set — re-check
+## Per-area conclusions (7 areas)
 
-| prior id | finding | Cycle-2 status |
-|---|---|---|
-| SEC-F2 | Static-site trust posture (design-level, informational) | **Unchanged — risk-accepted.** Re-verified: no storage/auth/backend added (§7, §8). |
-| SEC-F3 | Human-curation supply chain = build-time trust boundary (design-level) | **Unchanged — risk-accepted.** `scripts/add-correction.mjs`/`validate-corrections.mjs` untouched by Cycle 2; `CorrectionsPage.tsx` now correctly reads the bare-array format (the Cycle-1 non-security observation, `json.corrections` mismatch, is fixed and commented) — the page's one local fetch is same-origin (§7). |
-| SEC-1…SEC-5, SEC-7…SEC-9 (Cycle 1 table) | Retired OGL phone-number artefact; register-extract projection; practice-name personal names; dev-only npm advisories; human-fetch supply chain; Nominatim/Overpass netiquette | **Unchanged — risk-accepted.** None are touched by Cycle-2 diffs; data re-serialization does not reintroduce any retired field (key sets verified §6). |
-| SEC-F1 | ODbL/attribution on Licences page + footer + README | **Resolved** in Cycle 2 — footer now attributes OSM contributors + ODbL and points to the Licences page (`siteConfig.ts:20-26`); no rework needed. |
+### 1. `scripts/prerender.mjs`
+
+- **(a) Path traversal id → `hospice/<id>.html`.** `write('dist/hospice/' + h.id + '.html', …)` at `:235`; input validated only by `typeof h.id === 'string'` in the fail-fast loop `:41-43`. No `..`/separator filter. **Empirically benign today** (161 ids all `[A-Za-z0-9-]`, verified from dist file names) → **SEC-3-02** (risk-accepted, design-level; inside SEC-F3).
+- **(b) HTML escaping `& < > " '` in title/meta/og — code and dist.** `esc()` `:68-74` and `xesc()` `:77-83` escape all five (`& ← &amp;`, `' ← &#39;`/`&apos;`); applied to every dynamic meta value `:176-188` (`title`, `description`, `og:title`, `og:description`, `twitter:*`, canonical/og:url). Dist spot-check `dist/hospice/en-1-120960209.html:6,7,13,14,19,20`: real-world `&` in "LOROS The Leicestershire & Rutland Hospice" renders as `&amp;`. **Clean.**
+- **(c) `</script>` breakout in JSON-LD.** (i) Code: `jsonld()` `:155-158` is the single `JSON.stringify`; embedded at `:189`. `JSON.stringify` does **not** escape `/`, so a `</script>` in any data string would classically break out — the code-level risk exists. (ii) Dist: internal tag-count scan of all 169 files (verification row 2) shows exactly one `</script>` per file — the legitimate JSON-LD terminator. No breakout in any emitted page. The open≠close imbalance is explained entirely by SEC-3-01, not by injected closers. **Clean dist-wide; code-level residual noted under SEC-3-02's boundary.**
+- **(d) XML escaping in sitemap.xml.** 168 `<loc>` values = 1 root + 6 info + 161 hospice; each `xesc`-ed (`:247`); node scan found 0 raw `<`, `>`, `&` in loc values, 0 `lastmod` (spec: no lastmod). Build-time invariant `:259-262`: FATAL unless `loc count === hospices.length + 7` — holds (168 = 161 + 7). **Clean.**
+- **(e) Determinism, robots, sitemap spec.** Dist-wide scan for timestamp/Date/lastmod/randomness markers → 0 (verification row 5); `write()` `:205-208` normalises CRLF→LF + exactly one trailing newline. `dist/robots.txt` verified verbatim against spec: `User-agent: *` / `Allow: /` / blank / `Sitemap: https://hospiceinfo.pages.dev/sitemap.xml` (matches `:252-255`). **Clean.**
+
+### 2. `src/main.tsx` hash-redirect guard (ADR-0016)
+
+IIFE `src/main.tsx:10-17`: early-returns if `location.hash` already set; `path` = `location.pathname` stripped of edge slashes; bare `hospice` → `null`; `hospice/…` prefix stripped; then `window.location.replace('#/' + route)` (`:16`). The redirect target is **always `#`-prefixed** — a same-origin fragment — and no other URL is constructed (no `http`, no `window.open`, no `href` assignment anywhere in the file, verified by full read). **Clean.**
+
+### 3. Dependency trust
+
+- `git diff --stat package.json package-lock.json` (this pass) → `package.json | 2 +-` only; no lock file in repo. The one changed line is the build script (SEC-3-03) — dev-script wiring, not a dependency. **ADR-0008 upheld.**
+- `scripts/prerender.mjs` imports: `node:fs`, `node:path`, `node:url` only (`:19-21`). Zero npm dependencies. **Clean.**
+
+### 4. Static assets (`public/`)
+
+Grep for `http`/network references: `public/logo.svg` → 1 hit, `xmlns="http://www.w3.org/2000/svg"` (line 1) — a namespace identifier, not a network reference. `public/manifest.webmanifest` → 0 (icons local `/logo.svg`, `start_url:"./"`). `public/og-image.png` → 0 (no URL strings in binary). No `<script>`, animation, remote image, or off-origin ref in any asset. **Clean.**
+
+### 5. robots.txt / sitemap.xml surface
+
+Both re-verified from dist (rows 4–5, 9): 168 locs, all prefixed `https://hospiceinfo.pages.dev/`; no dev/internal/test paths, no `http://`, no `localhost`, no non-published routes (404 deliberately excluded). robots.txt allows `/` and points to the single site sitemap. **Clean.**
+
+### 6. Trust boundary — re-confirm carried items; new design findings
+
+No change to the boundary: still "static assets + public JSON" over HTTPS; prerendering adds build-time file emission only, no runtime capability; OSM-tile egress and user-initiated `mailto:` unchanged (re-verified by area 3/4 and row 10: no new `fetch`/storage/network code in `src/`). SEC-F2 (static-site posture) and SEC-F3 (human-curation supply chain = build-time trust) re-confirmed unchanged. One **new DESIGN-LEVEL** finding this cycle: **SEC-3-02** (id character-set not asserted before path/URL interpolation). It sits strictly inside SEC-F3's boundary, is empirically safe today, and does **not** require Architect rework — recorded as risk-accepted with a hardening recommendation.
+
+### 7. Client data flow
+
+Grep `src/` for `dangerouslySetInnerHTML|innerHTML|eval(|new Function|document.write|XMLHttpRequest|WebSocket` → **0 matches** (row 10). The only `fetch` calls remain the two same-origin `/data/*.json` reads carried from Cycle 2; no user input reaches any of them. No storage (`localStorage`/`sessionStorage`) present. **Clean.**
 
 ## Design-level findings
 
-**None.** No trust-boundary, authentication, data-flow, or storage-model change introduced by Cycle 2. Nothing routes back to the Architect.
+- **SEC-3-02** (risk-accepted, **DESIGN-LEVEL**): `h.id` flows from curate-controlled `public/data/hospices.json` into filesystem paths and public URLs with no charset assertion. Exploitable only if the curation pipeline (inside SEC-F3's trust boundary) is compromised to emit ids containing `/`, `..`, or markup. All 161 current ids verified `[A-Za-z0-9-]`. Recommendation: assert `/^[A-Za-z0-9-]+$/` per id in the `:41-43` fail-fast loop (one line, no design change). No route back to the Architect required.
 
-## Verification log (2026-10-22, Cycle 2, read-only)
+No other trust-boundary, authentication, data-flow, or storage-model change: nothing requires Architect rework beyond the above.
+
+## Carried items
+
+| prior id | finding | Cycle-3 status |
+|---|---|---|
+| SEC-F1 | ODbL/attribution (Licences page, footer, README) | **Still resolved** — footer attribution untouched by Cycle-3 diff (delta limited to `scripts/prerender.mjs`, `src/main.tsx`, `package.json`); no regression. |
+| SEC-F2 | Static-site trust posture (design-level) | **Unchanged — risk-accepted.** Zero network/storage/auth added by Cycle-3 deltas (§6, row 10). |
+| SEC-F3 | Human-curation supply chain = build-time trust boundary (design-level) | **Unchanged — risk-accepted.** New SEC-3-02 is carried **inside** this boundary; curation scripts untouched. |
+| SEC-1…SEC-5, SEC-7…SEC-9 (Cycles 1–2) | OGL artefact retired; register projection; practice-name personal names; dev-only advisories; human-fetch chain; Nominatim/Overpass netiquette | **Unchanged — risk-accepted.** The Cycle-3 diff touches none of those surfaces. |
+
+## Open items
+
+1. **SEC-3-01 (Blocking) — coding fix pass, rework round 1 of 2.** In `buildPage` (`prerender.mjs:198-201`), ensure the boot tag is closed before `</body>`: if `bootScript` does not end with `/>`, emit `</script>` immediately after it (preferred: extend the `:61` regex to capture the tag through its `>` and explicitly emit the matching close). Then re-run `node scripts/prerender.mjs` and re-scan all 169 dist pages: `<script` opens must equal `</script>` closes (= 2 each); spot-render one page to confirm React mounts.
+2. **SEC-3-02 (non-blocking hardening).** Add the `/^[A-Za-z0-9-]+$/` id assertion to the `:41-43` fail-fast loop; re-run build to confirm no change to emitted output.
+3. **SEC-3-03 (informational).** Recorded only; no action.
+
+## Verification log (2026-10-29, Cycle 3, read-only)
 
 | # | command/inspection | key output |
 |---|---|---|
-| 1 | grep `unassigned\|no catchment\|data gap\|localStorage\|sessionStorage\|fetch(\|navigator\.geolocation` in `StartHere.tsx` | 0 matches |
-| 2 | grep `fetch(\|XMLHttpRequest\|WebSocket\|sendBeacon\|importScripts\|navigator.` in `src/` | 2 hits: `useAppData.ts:4`, `CorrectionsPage.tsx:26` (both same-origin local JSON) |
-| 3 | grep `dangerouslySetInnerHTML\|innerHTML\|eval(\|new Function\|document.write` in `src/` | 0 matches |
-| 4 | read `StartHere.tsx` | §1: pattern/maxLength/normalise postcodes; local `Map` match; JSX-text found-state; `feedbackMailto` reuse |
-| 5 | read `src/lib/feedback.ts`, `src/lib/siteConfig.ts` | §2: `encodeURIComponent` subject+body; static operator contact |
-| 6 | read `index.html`, `public/manifest.webmanifest`, `public/logo.svg` | §3: two local `<link>`s; local-only manifest; inert SVG |
-| 7 | read `src/components/MapView.tsx` | §4: divIcon `html` = hex colour / integer count only; practice-Tooltip removed |
-| 8 | read `src/components/HospicePanel.tsx` | §5: pure in-memory filter/sort/debounce |
-| 9 | `git show 475675a:public/data/*.json` first records vs working tree | value-identical; whitespace-only diff (§6) |
-| 10 | `node` key-set dump of all four data files | 155 / 10,475 / 155 / 138; key sets identical to Cycle 1 |
-| 11 | `node` `@`/escape/trailing-ws scan over the four files | 22 `@` all business-name decoration; `x=` escapes intact; no trailing ws |
-| 12 | grep `API_KEY\|token\|secret\|Bearer\|password` in `src/` and `public/` | 0 in `src/`; 2 benign name substrings in `practices.json` |
-| 13 | read `src/lib/siteConfig.ts`, `package.json` | no secrets; no new dependencies |
+| 1 | read `scripts/prerender.mjs` in full (265 lines) | boot regex opening-tag-only `:61`; `bootScript = bootTag[0]` `:64`; `buildPage` emits `bootScript` + `</body>` + `</html>`, no `</script>` `:198-201`; `esc`/`xesc` `:68-83`; single `JSON.stringify` `:155-158` embedded `:189`; `write` LF normalisation `:205-208`; id→path `:235`; sitemap `:243-250`; robots `:252-255`; AC2 invariant `:259-262` |
+| 2 | node scan: count `<script` vs `</script>` in every `dist/**/*.html` | html files scanned: 169; **MISMATCHES: 169** — every file open=2, close=1 (the one close = JSON-LD terminator; missing close = boot script → SEC-3-01) |
+| 3 | read `dist/hospice/en-1-120960209.html` (28 lines) | title/meta/og carry `&amp;` (real-world `&`); JSON-LD has raw JSON `&` (valid JSON, not XML); file ends `<script type="module" crossorigin src="/assets/index-mKHWy8cd.js">` / `</body>` / `</html>` — unclosed boot script, visual proof of SEC-3-01 |
+| 4 | node scan: extract all `<loc>` values from `dist/sitemap.xml`; filter for raw `<` `>` `&` | 168 locs; 0 raw specials; 0 `lastmod` |
+| 5 | dist-wide scan for determinism markers (`Date`, `lastmod`, ISO-timestamp pattern) | 0 hits |
+| 6 | read `dist/robots.txt` | `User-agent: *` / `Allow: /` / blank / `Sitemap: https://hospiceinfo.pages.dev/sitemap.xml` — spec-verbatim |
+| 7 | read `src/main.tsx` in full | IIFE `:10-17`; `window.location.replace('#/' + route)` `:16` — always `#`-prefixed; no other URL constructed |
+| 8 | `git diff --stat package.json package-lock.json` | `package.json \| 2 +-` (1 insertion, 1 deletion; build-script line only); no lock file in repo |
+| 9 | grep `http` in `public/logo.svg`, `public/manifest.webmanifest`, `public/og-image.png` | logo.svg: 1 hit = `xmlns="http://www.w3.org/2000/svg"` (benign); manifest: 0; png: 0 |
+| 10 | grep `dangerouslySetInnerHTML\|innerHTML\|eval(\|new Function\|document.write\|XMLHttpRequest\|WebSocket` in `src/` | 0 matches |
 
-Every conclusion is pinned to a row of this log. All 8 areas verified; no incomplete section; no TODOs.
+Every conclusion is pinned to a row of this log. All 7 areas verified; no incomplete section; no TODOs.
+
+## Post-fix verification — rework round 1 (2026-10-29)
+
+- Independently re-verified on disk (fix-pass claims in implementation.md NOT trusted; all checks re-run):
+  - **SEC-3-01: RESOLVED** — build exit 0; 169 HTML files; `<script` opens = 338, `</script>` closes = 338; 0 mismatched files; sample page tail exact (closed boot script + `</body>` + `</html>` + single trailing LF); dist re-hash identical before/after prerender re-run; `prerender.mjs:64` quoted below.
+  - **SEC-3-02: RESOLVED (hardening landed)** — the recommended per-id charset assertion is present in the fail-fast loop (quoted below); all 161 ids comply, emitted output unchanged (0 hash differences).
+  - **SEC-3-03: unchanged** — informational, no action required.
+- **GATE VERDICT (rework round 1 of 2): PASS** — the single Blocking finding (SEC-3-01) is resolved on disk; 0 new findings; 0 open Blocking findings. Note on impact wording: as corrected by the lead in the fix pass, the defect was invalid HTML structure (unclosed boot `<script>` swallowing `</body></html>` as script raw text), not a "blank page" — the boot tag is a `<script src>` module and the browser executes the fetched resource while ignoring inline raw text. The original verdict line's "blank page site-wide" framing is superseded.
+
+### Verification log (post-fix, rework round 1, 2026-10-29)
+
+| # | check | command / evidence | result |
+|---|---|---|---|
+| 1 | Claimed edits present in source | `read_file scripts/prerender.mjs` (full, 266 lines) | line 64: `const bootScript = bootTag[0] + '</script>';` ✓; fail-fast loop (lines 47-50) now contains `if (!/^[A-Za-z0-9-]+$/.test(h.id)) fail('hospice id has characters outside [A-Za-z0-9-]: ' + h.id);` ✓. Rest of file matches the Cycle-3 report structure (esc/xesc, buildPage, LF-normalising write, emit set, sitemap/robots, AC2 invariant) — no other behavioural changes observed. |
+| 2 | Build | `npm run build` | exit 0; `✓ 148 modules transformed`; `dist/assets/index-mKHWy8cd.js` + `index-DXBOPrrL.css`; `[prerender] emitted 171 files (161 hospice pages)` |
+| 3 | Script tag balance, all dist HTML | `node .qwen/tmp/sec-r1-tags.cjs` (throwaway) | `html files: 169 / total opens: 338 / total closes: 338 / mismatches: 0`, exit 0 — every file exactly 2 opens / 2 closes |
+| 4 | Sample page tail | `dist/hospice/en-1-120960209.html` byte check | `crlf=no`; `singleTrailingNL=true`; last 4 lines exactly: `  <script type="module" crossorigin src="/assets/index-mKHWy8cd.js"></script>` / `</body>` / `</html>` / ``(empty) |
+| 5 | Determinism | hash all `dist/**` (sha256 keyed by relative path, single aggregate digest), then `node scripts/prerender.mjs`, hash again | `files=181` both runs; aggregate `293328338b000a9b7db32e9454bf39bcb38d2dc19b4c20d5df8a9a344ffd9a79` identical before/after (0 differences). (Digest differs from the `12f7742a…` recorded in implementation.md only because this verification used its own keying/concat scheme; the spec'd requirement is before/after identity of this pass's digest — satisfied.) |
+| 6 | Invariants | `dist/sitemap.xml`, `dist/robots.txt` byte checks | sitemap: exactly 168 `<loc>`, no `lastmod`, single trailing newline; robots: 75 bytes, verbatim `User-agent: *` / `Allow: /` / blank / `Sitemap: https://hospiceinfo.pages.dev/sitemap.xml` |
+| 7 | Fix-pass ledger statement | `read_file .agents/implementation.md` (Cycle-3 fix-pass section tail) | ends with `**FIX-PASS COMPLETE: WF-1 + WF-2 landed and validated**` (followed by a provenance note from the lead) ✓ |
+
+### Post-fix residual risk
+
+- SEC-3-02's underlying exposure (id → path/URL interpolation) is now fail-fast asserted at build time (`[A-Za-z0-9-]`); the design-level concern remains carried inside SEC-F3's curation boundary — status moves from "hardening recommended" to "hardening landed", risk level unchanged (low, inside SEC-F3).
+- SEC-3-01's JSON-LD `</script>` breakout note (verification row 3 of the original pass, area 1(c)) remains a code-level residual within the same SEC-F3 boundary; no emitted page is affected (tag balance 338/338 proves no breakout in the current dist). No action required.
+- No trust-boundary, authentication, storage, or telemetry change introduced by the fix. Carried items (SEC-F1…F3, Cycles 1-2 findings) unchanged.

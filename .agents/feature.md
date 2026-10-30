@@ -1,70 +1,86 @@
-# Feature: Make the map public-ready
+# Feature: Cycle 3 — name, SEO/crawlability, data gaps, logo
 
-Take the UK-wide hospice catchment map into public release: coastline-clipped
-catchments, per-point hospice tooltips, public-safe UI, a data feedback and
-corrections mechanism, About/legal pages (UK regulatory compliance), and a
-verified mobile experience. Hosting target: Cloudflare Pages.
+Renaming the live UK hospice catchment map to **Hospice Finder UK**, adding
+full static prerendering for crawlability/SEO/AI-friendliness (real paths,
+per-hospice pages, meta/OG/JSON-LD, sitemap/robots), filling the two remaining
+UK data gaps (Wales hospices, 12 unplaced NI practices), and refining the
+heart+pin logo mark.
 
-## Confirmed scope (grill session, 2026-10-21)
+## Agreed scope (James, 2026-10-29)
 
-### Acceptance criteria
+1. **Name** — "Hospice Finder UK": replace the site name in the
+   `index.html` title, the app header (`src/components/AppShell.tsx`),
+   `public/manifest.webmanifest` (name/short_name), and meta/OG strings. The
+   Cloudflare Pages slug/hostname (`hospiceinfo`) does not change.
+2. **SEO/AI-friendliness (full prerendering)**:
+   - Info pages that are hash routes today (`#about` → `/about`,
+     `#corrections` → `/corrections`, `#feedback` → `/feedback`,
+     `#privacy` → `/privacy`, `#licences` → `/licences`,
+     `#accessibility` → `/accessibility`) become real paths, served as
+     prerendered HTML.
+   - One static page per hospice (~161 URLs, e.g. `/hospice/<id>`) with the
+     hospice name, town, nation, data-derived description, catchment summary,
+     and source/provider links.
+   - Every prerendered page carries: title, canonical, meta description,
+     Open Graph + Twitter cards, JSON-LD (Organization on the root; an
+     appropriate schema type per hospice — Research decides the best fit).
+   - `sitemap.xml` (all prerendered URLs) and `robots.txt` in `dist/`.
+   - The interactive map remains the root page (`/`), client-rendered; hash
+     state inside the map is interaction, not content. Unknown paths fall back
+     sensibly (Research/Architect decide: 404 vs root redirect).
+3. **Data gaps (2, code-side work only; human fetches are gates)**:
+   - **Wales hospices (0 today).** Re-send/escalate the Care Inspectorate
+     Wales data request (HUMAN GATE, James's browser, text in
+     `data/README.md`) and/or source Wales hospices from an alternative
+     public register so the count is real. Landing follows the documented
+     chain (`extract → merge → geocode → build-data → validate-tessellation →
+     build`) with provenance in `data/README.md`. No fabricated rows: if the
+     human gate does not clear in this cycle, the cycle records the prepared
+     fetch spec + reply-landing script as the completion state for this item.
+   - **NI practices (12 unplaced; 9 BT postcodes with no OSM/Nominatim
+     coverage).** Place them via an alternative geocoder (OS Places free-tier
+     — key is a HUMAN GATE — or documented manual pinning), keeping the single
+     nearest-hospice assignment rule invariant. Update `postcode-geo.csv`
+     provenance and `data/README.md`.
+4. **Logo** — refine the existing heart+pin mark in `public/logo.svg`
+   (cleaner heart shape and pin silhouette, keep blue `#1d4ed8`), regenerate
+   the favicon/OG assets it feeds, and keep recognisable continuity. No new
+   mark concept.
 
-1. **Coastline** — practice-derived Voronoi catchments are clipped to the UK
-   land/coastline polygon (OSM `natural=coastline`, same ODbL family as the
-   existing OSM data). No catchment cell extends into the sea. The data build
-   and tessellation validation are updated for the clipped output and the
-   rebuild remains byte-identical on re-run.
-2. **Tooltips** — hovering/tapping a charity-shop or GP-practice marker shows
-   the name of the hospice it is assigned to. Existing catchment-polygon
-   interaction is preserved.
-3. **Public-safe UI** — no on-screen indicator, count, or list entry
-   highlights internal data issues: shops outside their own catchment,
-   unassigned practices, degenerate cells, etc. These flags remain in the
-   build/data for internal curation only.
-4. **Feedback + corrections** — every interactive marker carries a
-   "Disagree with this data?" affordance opening a mailto to the public
-   contact address with the point/hospice identified. A feedback page explains
-   what can be challenged and how to do it. A public **Corrections log** page
-   (empty initial state, with a note that entries are added when corrections
-   are applied). A documented internal curation workflow (script(s) in
-   `scripts/` + docs) for applying amendments to the underlying data and
-   re-running the pipeline, with the applied correction recorded in a
-   corrections data file that feeds the public log page.
-5. **About + legal** — an About page covering: what the site is and what it's
-   for, who runs it (named individual — placeholder name until the operator
-   provides their exact name), how the data is built (method summary), and
-   where the data comes from (CQC, Care Inspectorate Wales, RQIA, data.wales,
-   OSM, the geocoder). Legal pages compliant with UK law: Privacy Policy
-   (UK GDPR + Data Protection Act 2018 — no cookies, no analytics/tracking,
-   the only personal data is feedback sent by email), Licences & Attribution
-   (ODbL attribution for OSM-derived data and CQC-derived data), Accessibility
-   Statement (target WCAG 2.1 AA). Navigation links all new pages.
-6. **Mobile** — the site works well on mobile: side panel/controls adapt
-   (overlay/sheet behaviour on small screens), markers are tappable, zoom
-   controls work, no horizontal scroll, text readable. Verified by building
-   and checking in a mobile-emulated browser.
+## Acceptance criteria
 
-### Out of scope
+- **AC1 (Name)**: "Hospice Finder UK" appears in the built `dist/` page
+  title, app header markup, and manifest; no stale "Hospice Catchment Map"
+  branding strings in `dist/` (docs/comments may retain historical mentions).
+- **AC2 (SEO)**: `npm run build` emits static HTML for every info path and
+  every `/hospice/<id>` URL (count matches `hospices.json`); `sitemap.xml`
+  and `robots.txt` are in `dist/` and cover the same URL set; prerendered
+  pages contain canonical + OG + JSON-LD; verified against the built `dist/`
+  without a running server.
+- **AC3 (Data)**: Wales hospices land via the documented chain with provenance
+  (count > 0), or the cycle records the human-gate + prepared landing script
+  with the exact pending state; the 12 NI practices are placed (or each is
+  documented with the specific failed attempt); `node scripts/validate-tessellation.mjs`
+  exits 0; a re-run build is byte-identical.
+- **AC4 (Logo)**: refined `public/logo.svg` renders legibly at 16px/32px
+  (favicon) and scales to the OG image size; wired into `index.html` and
+  `manifest.webmanifest`; no orphaned legacy assets.
 
-- No backend, form service, analytics, telemetry, or authentication.
-- Applying any actual data corrections (mechanism and workflow only).
-- Closing the existing Wales/NI register gaps (remain documented as before).
-- Changing hospice/GP data sources or the catchment method for existing data.
-- Changes to the pipeline contract (QWEN.md) or agent definitions.
+## Out of scope
 
-### Key decisions (with rationale)
+- Changing the Cloudflare domain/slug.
+- Shop re-scrape of the 3 unreachable curated hospital websites (deferred).
+- Pre-launch verification gates G5/W8/G7 (human, tracked in
+  `docs/MAINTENANCE.md`).
+- Any change to the catchment assignment rule (nearest-hospice haversine —
+  an ADR invariant).
+- Mobile performance work (Cycle 2; W8 awaits G5's m1).
 
-- **OSM coastline for clipping** (grill session) — consistent with the
-  existing ODbL OSM-derived data; no new licence; `polygon-clipping` is
-  already a devDependency.
-- **Email + public corrections log** (user choice) — mailto requires no
-  backend and keeps the UK GDPR surface minimal; the published corrections
-  log gives visitors accountability for what was challenged and fixed.
-- **Named individual operator, placeholder for now** (user choice) — legal
-  pages and all mailto links use placeholders (clearly marked) that the
-  operator swaps in before publishing.
-- **Cloudflare Pages hosting** (user choice) — static deploy; the privacy
-  policy states hosting by Cloudflare (multi-region edge including UK).
-- **Public-safe means hide, not delete** (grill session) — issue flags stay
-  in the data build so curation validation is unchanged; the UI simply
-  stops rendering them.
+## Human gates (Cycle 3)
+
+- **H3-1**: James re-sends/escalates the CIW data request (browser) once
+  Research confirms the exact text + channel.
+- **H3-2**: OS Places API key (free tier) for the NI BT postcodes, if the
+  chosen geocoding path needs one.
+- **H3-3**: James's browser fetch of a Wales alternative source, if Research
+  identifies one that needs a login/authenticated session.

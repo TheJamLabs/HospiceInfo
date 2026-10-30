@@ -1,4 +1,4 @@
-# Vocabulary — UK-wide Hospice Catchment Map
+# GLOSSARY - Hospice Finder UK
 
 This glossary defines domain vocabulary used across the codebase, data
 provenance, and documentation. New terms are formatted in *italics*.
@@ -99,3 +99,12 @@ provenance, and documentation. New terms are formatted in *italics*.
   *before* any fix; every fix is measured against that baseline, and
   downsampling is off by default, triggered only by the recorded metric. See
   ADR-0010.
+
+## Cycle 3 terms (prerendering, SEO, identity, data gaps)
+
+- **static prerendering**: emitting one crawlable HTML file per routable URL (per-page head + empty #root + boot script) as a post-build step, so crawlers read real document titles, meta, and JSON-LD without executing JS.
+- **site URL**: the single canonical SITE_URL (https://hospiceinfo.pages.dev), sourced in data-raw/site-config.json (ADR-0009 pattern) and used by canonical links, Open Graph, and sitemap entries.
+- **canonical URL**: the link rel=canonical value on each page - the exact served .html URL (home: /) - so search engines consolidate one identity per page.
+- **Open Graph image**: public/og-image.png (1200x630), referenced by og:image on every emitted page for social-link previews.
+- **hash-redirect guard**: the snippet in src/main.tsx that, on a real-path load with an empty hash, replaces the URL with the matching #/route so the hash router lands on the intended page (ADR-0016; closes R1).
+- **manual pin**: an operator-supplied latitude/longitude for a postcode the geocoder cannot resolve, stored in data-raw/manual-geo-ni.json and merged into the build geo map (ADR-0021).

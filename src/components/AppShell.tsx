@@ -30,7 +30,7 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
               <div>
                 <h1 className="h4 mb-0">
                   <a href="#map" className="text-decoration-none">
-                    Hospice Catchment Map
+                    Hospice Finder UK
                   </a>
                 </h1>
               <div className="text-muted small">UK — catchments approximated from GP practice locations</div>

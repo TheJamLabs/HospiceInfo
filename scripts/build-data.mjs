@@ -81,6 +81,28 @@ for (const line of geoRows) {
   const [pc, lat, lon] = line.split(',');
   if (lat && lon) geo.set(pc, { lat: Number(lat), lon: Number(lon) });
 }
+// ADR-0021: operator manual geo for the 9 unresolvable BT unit postcodes.
+// Committed file, provenance in data/README.md; manual entries win over geocoder.
+let manualGeo;
+try {
+  manualGeo = JSON.parse(fs.readFileSync('data-raw/manual-geo-ni.json', 'utf8'));
+} catch (err) {
+  console.error(`manual-geo-ni.json: ${err.message} — aborting build (ADR-0021 fail-fast)`);
+  process.exit(1);
+}
+const manualEntries = manualGeo.entries;
+for (let i = 0; i < manualEntries.length; i++) {
+  const e = manualEntries[i];
+  if (i > 0 && e.postcode <= manualEntries[i - 1].postcode) {
+    console.error(`manual-geo-ni.json: entries not sorted code-unit ascending by postcode ("${manualEntries[i - 1].postcode}" >= "${e.postcode}") — aborting (ADR-0021 fail-fast)`);
+    process.exit(1);
+  }
+  if (!(e.lat > 49 && e.lat < 60 && e.lon > -12 && e.lon < 3)) {
+    console.error(`manual-geo-ni.json: ${e.postcode} coordinates out of UK range (lat ${e.lat}, lon ${e.lon}) — aborting (ADR-0021 fail-fast)`);
+    process.exit(1);
+  }
+}
+for (const e of manualGeo.entries) { geo.set(e.postcode, { lat: e.lat, lon: e.lon }); }
 const geoOf = (postcode) => geo.get((postcode || '').toUpperCase()) ?? null;
 
 // ADR-0006: land mask for the coastline clip. The raw OSM file is human-

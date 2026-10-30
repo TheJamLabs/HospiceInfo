@@ -1,4 +1,4 @@
-# Hospice Catchment Map — United Kingdom
+# Hospice Finder UK
 
 An interactive map of UK hospices — 161 in the committed data snapshot
 (England 152, Scotland 3, Wales 0, Northern Ireland 6) — with the GP
@@ -118,8 +118,9 @@ tiles are fetched at runtime.
 Production build:
 
 ```
-npm run build     # type-check (tsc) + Vite build -> dist/
-npm run preview   # serve the built app
+npm run build  # type-check (tsc) + Vite build + prerender → dist/
+                # emits 169 static shells + sitemap.xml + robots.txt (181 total)
+npm run preview  # serve the built app
 ```
 
 Deployment to the live site (Cloudflare Pages — full procedure in
