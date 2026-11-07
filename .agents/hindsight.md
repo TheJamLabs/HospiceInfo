@@ -185,7 +185,7 @@ None Blocking. Listed risk-accepted (carried-forward or resolved) items:
 - 12 unassigned practices (9 OSM-gap postcodes; covered by geocoder gap).
 - G5 / G7 / W8: explicitly noted above as human gates.
 
-## Cycle 4 Hindsight — Completed 2026-10-30 (BEACON rebrand/release; uncommitted)
+## Cycle 4 Hindsight — Completed 2026-10-30 (BEACON rebrand/release; published as `bbe4bde` 2026-10-30)
 
 ### What changed (7 delivered items, all disk-verified RQ-1)
 
@@ -259,20 +259,24 @@ authoritative; verify by glob before citing.)
 
 ### Closure state — READ BEFORE ANY PUBLISH DECISION
 
-- **0 commits made.** All C4 work is **uncommitted on HEAD `c6da9d3`**
-  (lead disk-verified 2026-10-30: `git status --short` + `git log -n 3`;
-  ledger "0 commits made" rows: Stage 8 DevOps L176, Stage 9 Docs L177).
-- **Open human gate (James's)**: items 8–9 — visual contrast + theme
-  persistence verified ONLY at code level (no browser on host). Double
-  build, token greps and dist invariants all pass; human browser pass
-  still outstanding before any push.
+- **C4 PUBLISHED (2026-10-30).** Ship commit `bbe4bde` ("Ship Cycle 4:
+  BEACON rebrand - hospices-only first load, auto/light/dark theme,
+  GP+shop de-emphasis, published-area UI removed (ADRs 0024-0030)", 51
+  files, +3487/-790) on `origin/main` after James's "Commit + push now"
+  gate decision; git-connected Pages build auto-published (ADR-0014).
+  Rollback = `git revert bbe4bde` + push (push = publish).
+- **Post-publish human verification (James's items 8–9)**: visual contrast
+  light+dark @ 1024/1280/1440/375 + theme persistence across reloads —
+  moved from pre-push gate to post-publish verification by James's commit
+  + push decision (code-level verification had already passed: double
+  build, token greps, dist invariants).
 - G5 / G7 / W8: carried from Cycle 3, unchanged this cycle.
 - `.agents/design/` reconciliation: **7 SVGs = 6 concept pairs
   (haven/beacon/keep × light/dark) + 1 type-palette specimen** — the
   "6" (security) and "7" (pipeline) counts are both correct at their
   scopes; not a defect.
-- Never write "published" for C4 until commit + James-approved push
-  (push = publish, ADR-0014).
+- The "no published before push" rule is now satisfiable: C4 is committed,
+  James-approved, and pushed (2026-10-30) — "published" is accurate.
 
 ### Bank state & ingest plan (no MCP tools in the Stage-10 subagent —
 the vllm-linux bank could not be searched or ingested from it; lead
@@ -298,9 +302,9 @@ performed the ingest post-stage)
 - **dist gate set** (re-run after any build): 184 files / 168 `<loc>` /
   169 shells / 169 boot snippets / 507+507 scripts / `check:layout` exit
   0 / double-build SHA-256.
-- **C4 is uncommitted** — treat any "C4 shipped" assumption as false until
-  the ledger says committed; glob ignores gitignored `dist/`, verify dist
-  by direct path reads.
+- **C4 is published** (ship commit `bbe4bde`, 2026-10-30) — verify "C4
+  shipped" claims against git log / the ledger; glob ignores gitignored
+  `dist/`, verify dist by direct path reads.
 - ADR titles: trust `docs/adr/` filenames (the pipeline brief misnamed 4
   of the 7).
 - `kind` is provenance-only now (ADR-0012): never re-add published-area
