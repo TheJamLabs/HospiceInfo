@@ -1,3 +1,243 @@
+# Architecture — Cycle 4 (2026-10-30)
+
+## 0. Scope, reads, writable set, standing invariants
+
+**Scope.** Cycle 4 (`.agents/feature.md`, agreed with owner James 2026-10-30): 7 items + AC1–AC7.
+1. First load: shops **and** GP layers **off** (new `showGps` flag in `src/App.tsx`).
+2. Layer precedence: shops take precedence over GPs — layer-control order, search ranking, marker styling (GPs smaller + muted; GP data retained).
+3. Footer overlap root-caused and fixed; "back to map" affordance on every info page.
+4. Theme: 3-state Auto/Light/Dark — header control, `data-bs-theme` on `<html>`, localStorage persistence, no-flash boot, dark Leaflet treatment.
+5. Remove every UI trace of "published service area" (panel switch, selection-card badges, list "approx" badges, MapView tooltip line); provenance KEPT (Methodology modal, About/Legal prose); data layer + `kind` field untouched (AC5).
+6. (Folded into 2/4/7: precedence UX, theme UX, tokenised surfaces.)
+7. Rebrand handoff to the Designer (Stage 2B): CSS custom-property token plan. The visual identity itself is **not decided here** — gate H4-1 (James picks 1 of 2–3 concepts) starts the rebrand work item; items 1–6 proceed now.
+
+**Reads (verified on disk this pass).** `feature.md`; `research.md` Cycle-4 block (lines 1–196; 197+ is Cycle 3, ignored); `GLOSSARY.md`; ADR-0015/0022/0023; grounding: `src/App.tsx`, `src/components/{AppShell,HospicePanel,MapView}.tsx`, `src/lib/{types,siteConfig}.ts`, `src/styles.css`, `src/main.tsx`, `index.html`, `scripts/prerender.mjs`.
+
+**Writable (exactly these; nothing else).**
+- `.agents/architecture.md` — this section prepended above the existing `# Architecture — Cycle 3 (2026-10-29)`; Cycle 3 preserved byte-for-byte (surgical insert before the first line from on-disk content — not a whole-file rewrite from memory).
+- `GLOSSARY.md` — append `## Cycle 4 terms` (all existing entries untouched).
+- `docs/adr/0024-…md` … `0028-…md` — new ADRs (23 exist, 0001–0023).
+- No `src/`, no `scripts/`, no other docs. No new npm deps (ADR-0008).
+
+**Standing invariants (carried from Cycles 2–3; violations are design bugs):**
+- ADR-0008: no new npm dependencies. Anything a chosen concept adds (fonts, raster assets) is self-hosted under `src/`/`public/`; no CDNs.
+- ADR-0003/0015: `npm run build` (`tsc -b && vite build && node scripts/prerender.mjs`) is deterministic and byte-identical; `dist/` stays 171 files; no environment-derived bytes. The new theme boot snippet is **static text** (no dates, ids, or interpolation) → AC7 holds (see §4.4).
+- ADR-0012: hide-not-delete — unplaced/unassigned shops and practices are never rendered (map, search, legend, counts).
+- ADR-0011: catchment derivation, tessellation, and Start-here geometry untouched by Cycle 4 (AC2 — `validate-tessellation.mjs` exit 0 structurally preserved).
+- ADR-0002/0009: data schema and provenance untouched (AC5 — `kind` field stays in `types.ts` and the JSON).
+- Hash router (ADR-0007) and hash-redirect guard (ADR-0016) untouched; all new navigation uses plain `#` links.
+
+## 1. Item 1 — first-load layer state: both OFF (ADR-0025)
+
+**State model.**
+- `src/App.tsx`: `const [showShops, setShowShops] = useState(false);` — flipped from the current `useState(true)`.
+- New: `const [showGps, setShowGps] = useState(false);` — name follows the feature text. **In-memory only, not persisted**: layer choice is a per-session map-clutter setting; the theme is the only preference persisted (single localStorage key, §4).
+- `MapView.tsx`: one new prop `showGps: boolean`. The placement-only `visiblePractices` gate (L251–254: null lat/lon filter) is extended exactly the way `visibleShops` works (L265): when `showGps` is false, the rendered GP list is empty. Result: no GP bucket divIcons, no GP CircleMarkers, no GP popups.
+- **Catchment polygons are NOT layer-gated** (`MapView.tsx` L~325–355 renders from `catchments` independently of layer state). OQ1 settled: the item text is about *markers*; gating the tessellation by a GP toggle would hide the product's core content on first load. Tessellation stays visible with both layers off.
+- Hide-not-delete (ADR-0012) unchanged: all data is still fetched; the switches gate rendering only.
+
+**Header controls** (App.tsx `headerExtras`, L92–108): two switches + the existing Source & Method button, in the item-2 order (§2.1): switch "Charity shops" → switch "GP practices" → button. Both are `form-check form-switch` structured like the existing one; the GP switch uses a new `id="gpsToggle"`, the shop switch keeps its existing id/label.
+
+**Acceptance (AC1):** fresh load (empty `localStorage`): no shop markers, no GP markers/buckets, both switches read off, catchment polygons visible; toggling each switch draws its layer; a refresh resets to both-off (by design — in-memory only).
+
+## 2. Items 2 & 6 — layer precedence: control order, search, markers (ADR-0026)
+
+### 2.1 Control order (fixed, all surfaces)
+**Charity shops → GP practices → Source & Method.** The class-order shops-before-GPs is the single source of truth: wherever both classes coexist (header, search sections, marker size/colour hierarchy), shops come first. The ordering is realised in the header switch order (W1), the panel search tiers (W2) and the marker hierarchy; the persistent map legend was retired in Cycle 2 — the reordering creates no new legend (Review F1, 2026-10-30).
+
+### 2.2 Search — OQ2 settled (scope + exact ranking rule)
+Today the HospicePanel search is hospice-only (`hospices.filter` by name/town, 200 ms debounce, L67–71). "Shops take precedence over GPs in search ranking" is only meaningful if both types can appear in results → **decision: when the query is non-empty, the search also matches shops and GP practices.** Exact rule:
+- **Empty query:** list = hospices exactly as today (zero UI change on the default view).
+- **Non-empty query:** list renders **three labelled sections in this exact order: Shops → Hospices → GP practices** (research §2 option (a); honours the locked shops-over-GPs rule; hospices stay middle because "find me a hospice" is the primary intent and the lock only orders shops vs GPs).
+- **Matching:** case-insensitive substring of the trimmed, lowercased query against — shops: `name` or `postcode`; GP practices: `name` or `postcode`; hospices: `name` or `town` (unchanged). No fuzzy scoring, no tokenisation.
+- **Exact total order** (this is the scoring — total order, not numeric scores): (1) section order, fixed; (2) name A→Z via `localeCompare`; (3) id/postcode tiebreak. Deterministic.
+- **Nation filter applies to all sections:** shops via their owning hospice (`shop.hospiceId → hospice.nation`), GPs via their own `nation` field, hospices as today.
+- **Hide-not-delete:** unassigned GPs (`hospiceId === null`) never surface in search (same treatment as the map).
+- **Row actions:** hospice rows select as today; a shop row selects its owning hospice; a GP row selects its assigned hospice — all through the existing `onSelect` path (pan + highlight). No new selection-state type.
+- **Rows:** thin section headers with per-section counts (e.g. `Shops (3)`); shop/GP rows show name + postcode; hospice rows keep the colour dot + practice-count badge; no published/approx badges anywhere (item 5). The header "N of M hospices / K practices" count line stays hospice-scoped; section labels carry the other counts. The 200 ms debounce, the draft-sync `useEffect`s, and the sort select are unchanged (the sort select orders the hospice section; nation buttons filter all sections).
+
+### 2.3 Marker hierarchy — OQ6 settled (exact numbers)
+Precedence is encoded in size + saturation: hospice diamonds are the sharpest marks; shops second; GPs smaller and muted.
+- **Hospice markers: unchanged** (16px divIcon, 12px `.hospice-marker` diamond).
+- **Shop markers: unchanged** (10px).
+- **GP bucket divIcons:** 28px → **20px**; fill `#1d4ed8` → `var(--hf-gp-fill)`; count text stays white on the slate fill.
+- **GP CircleMarkers:** radius 5 → **4** (selected 7 → **6**); white 1px outline unchanged; base `fillOpacity` 0.85 → **0.55** (the "muted" part); dim fill (0.12) and dimmed-nation (0.15) states unchanged; fill colour stays the owning hospice's colour (semantic continuity with its catchment at lower intensity).
+- LOD constants (GRID 0.5°, ZOOM_LOD 11) unchanged; bucket/circle interaction (popups, legend highlight, selection ring) unchanged in behaviour.
+- **AC2 preserved:** Start-here and `validate-tessellation.mjs` operate on data/geometry, independent of render state → exit 0 is structurally guaranteed; QA still runs it (protocol §11).
+
+## 3. Item 3 — footer fix + back-to-home
+
+### 3.1 Footer (root cause confirmed, research §3)
+The AppShell footer is Bootstrap utilities only (`app-footer d-flex flex-wrap align-items-center justify-content-between gap-2 container-fluid px-3`); **no `.app-footer` rule exists anywhere in `src/styles.css`** (verified: zero hits). The ~140-char `SITE_FOOTER_TEXT` (`src/lib/siteConfig.ts`) plus the six-link footer `<nav>` overflow one line at ≥1024px widths; `justify-content-between` spreads the pair and the single-line flex resolution fights the long text → overlap/crowding.
+
+**Fix — new rules in `src/styles.css`; footer markup is unchanged (the child selectors `<small>` and `<nav>` already exist on disk):**
+```css
+.app-footer small { flex: 1 1 auto; min-width: 0; }
+.app-footer nav { flex: 0 0 auto; }
+@media (max-width: 1100px) {
+  .app-footer small { flex-basis: 100%; }
+}
+```
+At ≥1024px the text flexes and the nav stays beside/above it with no overlap; below 1100px the text takes a full row and the nav wraps beneath (mobile behaviour preserved). The 1100px cutoff sits just below the typical ≥1024px desktop class so windows at desktop widths get the one-line fix; QA verifies at 1024/1280/1440 + 375.
+
+### 3.2 Back-to-home — decision: inline "← Back to map" link (research §4 option (a))
+On **every info page**, directly above its `<h1>`:
+```tsx
+<a className="back-to-map" href="#map">← Back to map</a>
+```
+Plus one CSS rule in `styles.css` (`display:inline-block; margin-bottom:.5rem; hover underline; Bootstrap link colour via token, §7`).
+
+**Surface inventory (7 routes; 5 files — the "map" route needs none; the 6 info routes spread over 5 files because LegalPage.tsx hosts two routes):** `#about` → AboutPage.tsx, `#feedback` → FeedbackPage.tsx, `#corrections` → CorrectionsPage.tsx, `#privacy` + `#licences` → LegalPage.tsx (one link per exported page, two edits), `#accessibility` → AccessibilityPage.tsx.
+
+**Why (a) over the alternatives:** (b) breadcrumb — would require `AppShell` to know the current route (it takes no route prop today; plumbing `useRoute` into the shell is a structural change for a weaker affordance); (c) logo-link only — the header logo already links `#map`, and the owner's ask is an explicit back affordance on content pages where the reading task is done. An inline `href="#map"` link is zero routing risk (plain hash link — ADR-0007 intact, ADR-0016 guard untouched), survives future shell refactors, and matches the feature text's example wording. Wording fixed: `← Back to map` (arrow glyph + text, never icon-only — a11y).
+
+## 4. Item 4 — theme: Auto / Light / Dark (ADR-0024, ADR-0027)
+
+### 4.1 State model
+- Modes: `auto` | `light` | `dark`. **The user's explicit choice is the only persisted value**: `localStorage` key **`hfuk-theme`** (verified free — the app stores nothing today) holds `'light'` or `'dark'`; **absent = `auto`** (deleting the key is the natural reset, and `localStorage.clear()` returns to auto).
+- Effective theme: `choice === 'dark' ? 'dark' : choice === 'light' ? 'light' : (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')`.
+- Applied as **`document.documentElement.dataset.bsTheme = 'light' | 'dark'`** on `<html>` (Bootstrap 5.3.3 native theming). Today's baseline is zero theming: 0 hits in `src/` for `data-bs-theme` / `prefers-color-scheme` / `matchMedia` / `localStorage` (research §0).
+- The `matchMedia('(prefers-color-scheme: dark)')` listener registers **only while mode is `auto`** and is removed when the user leaves auto → OS-level flips are live in auto, inert in light/dark.
+- **The mode is NOT mirrored into React state in `App.tsx`.** The control lives in `AppShell` (all pages) and reads/writes the key directly through the module helper below. Rationale — the R1 safety decision: if the mode lived as React state in `App.tsx`, the prerendered info/hospice shells (empty `#root`) would execute theme `useEffect`s on mount and sporadically re-set `data-bs-theme` at mount time, racing the boot attribute. With no mode in React state, **nothing in the app writes `data-bs-theme` after boot — the boot snippet is the sole writer**, and prerendered shells can never fight it.
+- **Header control:** 3-button `btn-group` in the AppShell header (group before the site-nav links; `aria-label="Colour theme"`; the active mode's button carries `active` + `aria-pressed="true"`), labels **Auto / Light / Dark**, `btn-outline-secondary btn-sm` at wide widths; full-width row below the title at ≤768px (the existing 768px media query already re-keys header controls).
+- **New module `src/lib/theme.ts`** (the only place the key name and `data-bs-theme` are named in JS): `getStoredMode()`, `setStoredMode(m)`, `effectiveTheme(mode)`, `setBsTheme(theme)`, and attach/detach for the auto matchMedia subscription. The boot snippet cannot import ES modules — it is the static inline twin of this module's logic (below).
+
+### 4.2 Boot behaviour
+- **Before React mounts:** the inline head snippet (§4.3) runs during `<head>` parsing → sets `data-bs-theme` from key + OS preference → **no first-paint flash** (the classic flash comes from React setting the attribute after first paint; here the first paint already has the right value).
+- **React mount:** no theme `useEffect` exists (§4.1) → zero DOM writes at mount.
+- **User clicks a mode button:** `setStoredMode(m)` + `setBsTheme(effectiveTheme(m))` + re-register/detach the auto listener.
+- Reduced motion: a single attribute flip, no animated colour transition — no a11y cost.
+- `hfuk-theme` is the app's **only** localStorage key; the layer switches stay session-only (OQ4).
+
+### 4.3 The boot snippet — text, two locations, identity rule
+The snippet (final text, verbatim — Coding must not rephrase it):
+```html
+<script>
+  (function () {
+    var m = 'auto';
+    try { var s = localStorage.getItem('hfuk-theme'); if (s === 'light' || s === 'dark') { m = s; } } catch (e) {}
+    var d = m === 'dark' || (m === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    document.documentElement.setAttribute('data-bs-theme', d ? 'dark' : 'light');
+  })();
+</script>
+```
+It goes in **exactly two places**:
+1. `index.html`, after the charset/viewport meta lines and before the CSS `<link>`s / module script.
+2. `scripts/prerender.mjs` `buildPage()` (L~171–204), as one `out.push(...)` entry in the fixed `<head>` push list, at the same position (after viewport, before the stylesheet links). `buildPage()` rebuilds **every** `<head>` from that fixed push list and carries no arbitrary inline head scripts, so this is the only clean insertion point.
+
+**How the two stay identical (decision):** the snippet is **static text** — no `Date`, no ids, no interpolation — so the two copies are expected to be byte-equal by construction. All three plausible mechanisms were considered:
+- **Shared constant pulled into both files:** `index.html` is a plain Vite entry with no build-time import mechanism, and the dev server would need the build script's string → rejected (couples dev to build).
+- **Regression check (chosen as part of the mechanism):** a scriptable exact string comparison between the two snippets, run in the QA protocol (§9.4) every cycle → any drift fails the gate.
+- **Documented duplication (chosen as the mechanism itself):** the snippet is deliberately duplicated as a frozen string in both files, with a comment in `prerender.mjs` (`// ADR-0024: static theme-boot snippet — byte-identical to index.html; QA checks equality`) and the identity check above.
+**Decision: documented duplication + regression byte-equality check** — cheaper than build-time coupling, and the check turns drift into a hard QA failure (R8).
+
+### 4.4 Why AC7 is unaffected
+The snippet adds a **fixed byte sequence** to every generated `<head>` and to `index.html` identically; it introduces no runtime-derived bytes (no timestamp; `matchMedia`/`localStorage` only *choose* between two fixed attribute strings). The 171-file count, the 168-`<loc>` sitemap invariant, LF + one trailing newline, and the byte-identity property all survive. AC7 (`npm run build` twice → byte-identical `dist/`) holds **explicitly by construction**; QA verifies with the existing two-build diff (§9.2).
+
+### 4.5 Dark theme for the map (ADR-0027)
+- **Controls and popups:** new rules in `src/styles.css`, scoped `[data-bs-theme="dark"] .leaflet-control-zoom, …` — Leaflet's own classes (`.leaflet-control-zoom`, `.leaflet-control-attribution`, `.leaflet-popup-content-wrapper`, `.leaflet-popup-tip`, `.leaflet-container` background). These override specific properties only; **`leaflet/dist/leaflet.css` is never edited** (pinned npm dep, byte-identity discipline) and the app's `[data-bs-theme=…]`-scoped selectors win the cascade on those properties.
+- **Tiles:** `https://tile.openstreetmap.org/{z}/{x}/{y}.png` stays in **both** themes — no dark tile provider is committed (no new dep, no new attribution surface, ODbL provenance text unchanged in both themes). A dark tile provider (e.g. CARTO dark, a runtime-only `TileLayer` `url` swap) is recorded as **risk-accepted debt**: if James wants dark tiles after launch, it is a one-line `TileLayer` change behind a follow-up decision — no architecture change.
+- **App-owned map chrome** (divIcon colours, legend card, sheet-fab, popup lines) inherits the dark set automatically via the §6 tokens.
+- **Legibility requirement (locked):** map colours and controls remain legible in both themes — QA pixel/contrast pass in light and dark (risk R6).
+
+## 5. Item 5 — remove UI traces of "published service area"; provenance kept (AC5)
+
+Final DELETE + KEEP lists (research §6, settled on disk this pass):
+
+**DELETE (UI surface only — 3 files, no data changes):**
+1. `src/App.tsx` L146–154 — the selection-card badge ternary `selected.kind === 'published' ? <badge "published service area"> : <badge "approximated">` is removed. **KEEP the `{selected.source}` line** (provenance = where the data came from, not the service-area status).
+2. `src/components/HospicePanel.tsx` — `publishedOnly` state (L59), its clause in the filter (`(!publishedOnly || h.kind === 'published')`, L71), the `id="publishedToggle"` switch (label "Has published service area", L~127–133), and the per-row `approx` badge (L~157–160).
+3. `src/components/MapView.tsx` L106 — the popup line `hospice.kind === 'published' ? 'Published service area' : 'Approximated catchment'`.
+
+**KEEP (provenance — untouched):**
+- `src/lib/types.ts` — `kind: 'published' | 'approx'` on `Hospice` (L11) and `Catchment` (L34) **field untouched** (AC5).
+- `MethodologyModal.tsx` (L40, L94–96, L118–119) and `AboutPage.tsx` (L16/24/36) and `LegalPage.tsx` (L70–71) prose about approximated catchments.
+- `AppShell.tsx` L36 header tagline "UK — catchments approximated from GP practice locations" (OQ3 settled: it is a data-scope statement, not a UI badge — keep).
+- `StartHerePage.tsx` APPROXIMATION_LINE prose.
+- All `data/` JSON, `data-raw/`, `prerender.json`, derive/validate scripts.
+
+**AC5 guard:** `kind` stays in `types.ts` and the JSON; QA greps `src/` for `kind` and asserts the only remaining references are the `types.ts` declarations — no component reads it for UI after this change. This is a **surgical set**: each removal is one hunk; the adjacent `{source}` line and the three prose sites must survive (risk R10 below).
+
+## 6. Item 7 — rebrand: design-tokens plan + Designer handoff (ADR-0028)
+
+### 6.1 The token plan (what Coding implements now; what the Designer changes later)
+**Mechanism: CSS custom properties** (`--hf-*`) declared at `:root` (light set, the current visual defaults) and overridden under `[data-bs-theme="dark"]` (dark set). `--hf-*` values are the single source of truth for all app colour, and Bootstrap's `--bs-*` custom properties are pointed at them so Bootstrap components rebrand for free. No CSS-in-JS, no BEM rewrite, no new build step; selectors everywhere keep their names.
+
+**Token list (initial values = today's hard-coded hexes, scanned from `src/styles.css`, `src/components/MapView.tsx`, `public/`):**
+
+| Token | Light (initial) | Used by |
+|-------|-----------------|---------|
+| `--hf-primary` | `#1d4ed8` | `.sheet-fab`, `.skip-link`, `.app-header` accent, divIcon hospice fill, `manifest.webmanifest` `theme_color` |
+| `--hf-primary-ink` | `#ffffff` | text on `--hf-primary` |
+| `--hf-surface` | `#ffffff` | `.app-header` background, page background |
+| `--hf-surface-muted` | `#f8f9fa` (Bootstrap `bg-light`) | panel backgrounds |
+| `--hf-border` | `#dee2e6` | header/footer borders, card borders |
+| `--hf-text` | `#212529` | body text |
+| `--hf-text-muted` | `#6c757d` | tagline, footer text, `.text-muted` |
+| `--hf-gp-fill` | `#64748b` | GP bucket divIcon fill |
+| `--hf-legend-bg` | `rgba(255,255,255,0.95)` | `.legend-card` |
+| `--hf-row-active` | `#eef4fb` | `.panel-item-active` |
+
+Dark set (initial guesses, refined when the Designer's concept lands): `--hf-surface: #121212`, `--hf-surface-muted: #1e1e1e`, `--hf-border: #2d2d2d`, `--hf-text: #e5e5e5`, `--hf-text-muted: #9e9e9e`, `--hf-gp-fill: #7d8ba0`, `--hf-legend-bg: rgba(18,18,18,0.92)`; `--hf-primary` stays `#1d4ed8`-ish until the concept decides.
+
+**Wiring (concrete):**
+- `styles.css`: replace the ~10 hard-coded hexes (`.app-header`, `.skip-link`, `.sheet-fab`, `.legend-card`, `.panel-item-active`, `.app-footer`) with `var(--hf-…)`; add the `:root` block + `[data-bs-theme="dark"]` block; add `:root { --bs-body-bg: var(--hf-surface); --bs-body-color: var(--hf-text); --bs-border-color: var(--hf-border); }` so Bootstrap components follow.
+- `MapView.tsx` divIcons: replace the `#1d4ed8` / `#ffffff` / `#64748b` literals with `var(--hf-primary)` / `var(--hf-primary-ink)` / `var(--hf-gp-fill)` (divIcon `html` is inline-styled — CSS vars resolve at render, no extra stylesheet needed).
+- `public/manifest.webmanifest`: `theme_color` is a **static** file value (not runtime-resolvable) — it takes the light-set `--hf-primary` value (`#1d4ed8`); note this in the ADR.
+- `public/logo.svg` + `public/og-image.png`: generated from the ADR-0022 heart-on-disc mark; restyle-only (palette/typography), no geometry change — per ADR-0028, the mark *concept* is FIXED; the chosen concept re-colours it via the tokens.
+
+### 6.2 What the Designer is handed (gate H4-1)
+**FIXED (non-negotiable):** the ADR-0022 heart-on-disc mark *concept* (geometry); the information architecture (header nav order, footer, panel layout); no new npm deps; no data/tessellation changes; the 171-file prerender invariant; the `var(--hf-…)` token mechanism.
+**OPEN (the Designer's concept decides):** palette (light + dark sets), typography, header/logo treatment, marker colour/saturation refinement, spacing.
+**Deliverable:** 2–3 concepts, each with a palette (light + dark), typography spec, and a header + logo mock; rendered against the real IA. James picks one at gate H4-1; the chosen concept then lands **via the tokens only** — no re-architecture, no token-plan change; Coding swaps values in the two `:root` / `[data-bs-theme="dark"]` blocks and regenerates the two static assets.
+
+### 6.3 Rebrand surface inventory (all files the chosen concept may touch)
+`public/logo.svg`, `public/og-image.png`, `public/manifest.webmanifest` (static `theme_color`), `index.html` (favicon + title), `src/styles.css` (all hexes → tokens, `:root` + dark blocks), `src/components/MapView.tsx` (divIcon hexes → token vars), `GLOSSARY.md` (design-tokens entry). Nothing else; `src/main.tsx`, `prerender.mjs`, data files, and the hash-router code are untouched by the rebrand.
+
+## 7. Open-question disposition (research OQ1–OQ8; all settled)
+
+| OQ | Question | **Decision** | Rationale |
+|----|----------|--------------|-----------|
+| OQ1 | Are catchment polygons layer-gated by the GP toggle? | **No — polygons always render.** §1: the item text is about markers; gating the tessellation would hide core content on first load. | First-load map must show the product's value (catchments) with zero toggles on. |
+| OQ2 | Search scope + exact ranking when query is non-empty? | **3 sections Shops → Hospices → GP practices;** case-insensitive substring; total order = section, then name `localeCompare`, then id/postcode. §2.2. | Locked "shops over GPs" order + keep hospice search primary; deterministic, no numeric scoring to tune. |
+| OQ3 | Keep the header tagline "UK — catchments approximated from GP practice locations"? | **Keep.** §5 KEEP list. | It is a data-scope/provenance statement, not a UI badge; item 5 targets badges/toggles only. |
+| OQ4 | Persist the layer switches? | **No — in-memory `useState` only.** Theme is the sole persisted key (`hfuk-theme`). | Per-session clutter setting; fewer persistence surfaces, fewer flash sources. |
+| OQ5 | Where do the header theme control and GP switch live? | **AppShell (theme, all pages) + App.tsx `headerExtras` (GP switch, map page only).** §1, §4.1. | Theme is a site preference → shell; GP is a map-layer control → map page. |
+| OQ6 | Exact GP marker size/colour numbers? | **Bucket 20px `var(--hf-gp-fill)` (#64748b slate); CircleMarker radius 4/6, base `fillOpacity` 0.55.** §2.3. | Smaller + muted = visible subordination; exact numbers remove Coding-side judgment. |
+| OQ7 | Dark tile provider? | **No — OSM light tiles in both themes.** Dark provider recorded as risk-accepted debt (one-line `TileLayer` swap later). §4.5. | No new dep, no new attribution/CSP surface, provenance text unchanged. |
+| OQ8 | Back-to-home affordance? | **Inline `← Back to map` link above `<h1>` on all 6 info routes (5 files).** §3.2. | Option (a): zero routing risk, explicit, matches feature wording. |
+
+## 8. Risks (risk-accepted; none block the pipeline)
+
+- **R6 — Dark Leaflet overrides may leave a legibility gap.** `[data-bs-theme="dark"]` CSS overrides for `.leaflet-control-*` / `.leaflet-popup-*` are a best-effort cascade win; some Leaflet-internal classes may still look light-on-dark. *Accepted:* QA runs a pixel/contrast pass in both themes; any residual gap is a fix-pass UI tweak, not an architecture change.
+- **R2 — Footer mobile regression.** The new `.app-footer` rules change wrap behaviour around 1024–1100px. *Accepted:* QA verifies at 1024/1280/1440/375; the `@media (max-width:1100px)` fallback guarantees the text never overlaps the nav.
+- **R10 — Surgical deletes adjacent to keep-prose.** Three KEEP sites sit next to DELETE sites (the `{source}` line, the three provenance prose blocks). *Accepted:* one concern per hunk (each DELETE is a standalone diff); QA re-reads the keep-sites after the change (AC5 grep guard).
+- **R1 (theme race) — mitigated by design, carried as residual risk.** No mode in React state; boot snippet is sole writer (§4.1). Residual: `localStorage` disabled → `matchMedia` only, no crash (`try/catch` in snippet).
+- **R3 — Prerender head-list ordering.** Inserting the snippet at the wrong position in `buildPage()`'s push list changes byte order. *Mitigated:* position is specified (after viewport, before stylesheet links) and the two-build byte-diff (AC7) catches any drift.
+- **R5 — Token over-coverage.** A missed hard-coded hex defeats the dark theme. *Mitigated:* the token table is exhaustive for the scanned hex set; QA visually diffs light/dark screenshots.
+- **R8 — Boot snippet duplication drift.** The two copies (`index.html`, `prerender.mjs`) could diverge. *Mitigated:* QA byte-equality check on the two snippets, re-run every cycle (§4.3).
+- **R9 — divIcon token resolution.** `var(--hf-…)` is resolved from CSS at render time; if CSS vars are unavailable the marker falls back to `currentColor`. *Accepted:* markers are non-critical UI; a fallback is a stylistic miss, not a data failure.
+
+## 9. Verification protocol (for Coding + QA)
+1. `tsc -b` clean; `vite build` clean.
+2. `npm run build` → 171 files; **byte-identity: run the build twice, diff `dist/` — zero diffs** (AC7).
+3. `node scripts/validate-tessellation.mjs` → exit 0 (AC2).
+4. Boot snippet byte-equality: extract the snippet text from `index.html` and `scripts/prerender.mjs`, exact string compare (R8).
+5. Sitemap invariant `sitemapLocCount === 161 + 7` (168 `<loc>`) unchanged.
+6. Screenshot/contrast pass: light + dark, 1024/1280/1440/375 (R2, R5, R6).
+7. AC5 grep guard: `kind` in `src/` only in `types.ts`.
+
+## 10. Glossary
+`## Cycle 4 terms` appended to `GLOSSARY.md`: **theme-boot snippet**, **Auto/Light/Dark theme**, **design tokens**, **muted GP layer**, **first-load layer defaults**, **hfuk-theme**. (Never remove existing terms.)
+
+## 11. Carried forward
+- Boot snippet duplication (R8) → QA perpetual check.
+- Dark tile provider → risk-accepted debt, one-line swap when James asks.
+- `manifest.webmanifest` static `theme_color` → light-value only, documented.
+- ADR-0022 mark restyle → gated on H4-1 concept pick.
+
+---
+
 # Architecture — Cycle 3 (2026-10-29)
 
 **Scope:** Stage 2 (Architect), Cycle 3. **Reads:** `.agents/feature.md`, `.agents/research.md` (§2–§8, A1–A8 drafts, §7.3 vocabulary), `.agents/pipeline.md`, plus read-only on-disk verification (data counts, `package.json`, `scripts/build-data.mjs`, `scripts/extract-hospices-wales.mjs`, `src/main.tsx`, `src/App.tsx`, `src/lib/siteConfig.ts`, `data-raw/site-config.json`, `index.html`, `src/components/AppShell.tsx`, `public/manifest.webmanifest`, `public/logo.svg`, `data/README.md`, existing `docs/adr/` 0001–0014, `GLOSSARY.md`).

@@ -3,11 +3,12 @@
 
 import { siteConfig } from '../lib/siteConfig';
 
-const LAST_UPDATED = '22 October 2026';
+const LAST_UPDATED = '30 October 2026';
 
 export function PrivacyPage() {
   return (
     <div className="container my-3" style={{ maxWidth: 720 }}>
+      <a className="back-to-map" href="#map">← Back to map</a>
       <h1 className="h3">Privacy policy</h1>
       <p className="text-muted small">Last updated: {LAST_UPDATED}</p>
       <p>
@@ -43,6 +44,7 @@ export function PrivacyPage() {
 export function LicencesPage() {
   return (
     <div className="container my-3" style={{ maxWidth: 760 }}>
+      <a className="back-to-map" href="#map">← Back to map</a>
       <h1 className="h3">Licences and data sources</h1>
       <p className="text-muted small">Last updated: {LAST_UPDATED}</p>
       <h2 className="h5">OpenStreetMap</h2>
@@ -72,6 +74,29 @@ export function LicencesPage() {
         above (method on the <a href="#about">About</a> page). Charity shop
         details are maintained by the hospices themselves. Listing a hospice or
         shop on this map does not imply any endorsement.
+      </p>
+      <h2 className="h5">Typography</h2>
+      <p>
+        The site&apos;s type is self-hosted from public/fonts under the SIL
+        Open Font License 1.1 (no CDN): Archivo, weight 700 (Archivo-700.woff2,
+        14,508 bytes), for headings, and Public Sans, weights 400 and 600
+        (PublicSans-400.woff2, 14,632 bytes; PublicSans-600.woff2, 14,592
+        bytes), for the rest of the interface. Three @font-face rules with
+        font-display: swap at the top of src/styles.css load them, each with a
+        system font fallback stack so text stays legible if a font file fails
+        to load.
+      </p>
+      <p>
+        Attribution: Archivo, Copyright 2020 The Archivo Project Authors,
+        Licensed under the SIL Open Font License 1.1; Public Sans, Copyright
+        2019 The Public Sans Project Authors, Licensed under the SIL Open Font
+        License 1.1.
+      </p>
+      <p>
+        The &quot;Has published service area&quot; filter was removed from the
+        interface this release; the kind-based provenance (published service
+        areas versus approximated catchments) is retained in the data and
+        described on the <a href="#about">About</a> page.
       </p>
       <h2 className="h5">Software</h2>
       <p className="mb-0">

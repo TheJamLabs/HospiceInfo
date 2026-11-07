@@ -10,6 +10,7 @@ const GENERAL_MAILTO = `mailto:${siteConfig.contactEmail}?subject=${encodeURICom
 export default function FeedbackPage() {
   return (
     <div className="container my-3" style={{ maxWidth: 720 }}>
+      <a className="back-to-map" href="#map">← Back to map</a>
       <h1 className="h3">Feedback</h1>
       <p>
         Found something wrong with the map? The best route is to use the{' '}

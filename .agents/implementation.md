@@ -1,5 +1,61 @@
-# Coding stage — implementation ledger (Cycle 3)
+# Implementation — Cycle 4 (2026-10-30)
 
+Stage 5/10 — Coding. Source of truth: `.agents/requirements.md` (Cycle 4,
+lines 1–167), `.agents/architecture.md` (Cycle 4), `.agents/design.md` (BEACON
+palette, Concept 2 — human gate H4-1 resolved), `.agents/review.md`,
+ADRs 0024–0028.
+
+Mandated order: W8 → W1 → W2 → W5 → W6 → W7 → W3 → W4 → W9 → W10, then the
+11-item verification gate (double build LAST).
+
+Invariant set: ADR-0008 zero new deps (no npm install); ADR-0011 data/ and
+data-raw/ read-only; ADR-0012 hide-not-delete; ADR-0022 logo recolour only;
+ADR-0024 boot snippet byte-identical in index.html + scripts/prerender.mjs
+buildPage(); ADR-0025 first load = shops OFF + GPs OFF, useState only, no
+persistence; ADR-0026 search tiers shops→hospices→GPs + muted GP markers;
+ADR-0027 dark Leaflet overrides in app stylesheet only, OSM light tiles in
+both themes (dark tiles = risk-accepted debt, 1-line follow-up); ADR-0028
+BEACON = swap of exactly 10 --hf-* tokens.
+
+## Cycle 4 work list (updated after each item)
+
+| Item | Status | Evidence |
+|------|--------|----------|
+| W8 BEACON tokens | DONE | src/styles.css (10 x --hf-* tokens, 2 blocks: :root + :root[data-bs-theme=dark], body-var wiring); src/components/MapView.tsx (GP bucket divIcon 28px #1d4ed8 -> 20px var(--hf-gp-fill), anchor 14->10); all raw hex tokenised. Validation: node w8-style.cjs + w8-mapview.cjs OK (audit: 0 raw hex outside token blocks); npx tsc -b exit 0; grep #1d4ed8 src/ = 0; git status: only styles.css + MapView.tsx modified, package.json clean (ADR-0008) |
+| W1 first-load defaults | DONE | src/App.tsx (showShops true->false; showGps useState(false) added; headerExtras order Charity shops -> GP practices id=gpsToggle -> Source & Method; showGps prop to MapView); src/components/MapView.tsx (showGps prop; visiblePractices gated showGps?filter:[]). In-memory only, no persistence. Validation: node w1-app.cjs OK; npx tsc -b exit 0; grep shows useState(false) x2 new in App.tsx L26/L29 (L34 sheetOpen pre-existing); showGps wiring x6 confirmed |
+| W2 three-tier search + muted GP | DONE | w2 scripts a/a2/b/c/c2/d/d2 OK; tsc -b 0; radius 6/6 4 + fillOpacity 0.55 baseline at MapView.tsx :237/:242 (7/5 and 0.85 gone); HospicePanel.tsx :214/:228/:230 = Shops → Hospices → GP practices headers with counts + unassigned-GP filter; .panel-section-header rule at styles.css :353; shops prop wired App.tsx :131 |
+| W5 theme system (theme.ts + boot + AppShell) | DONE | theme.ts created (hfuk-theme/data-bs-theme sole owner); boot snippet byte-identical in index.html + prerender.mjs buildPage (w5-verify 381=381 OK, exact ADR-0024 comment precedes out.push); AppShell Auto/Light/Dark btn-group aria-label Colour theme, active+aria-pressed; main.tsx module-level attachAutoListener (no theme useEffect, none in App.tsx); .theme-group full-width row at 768px; npx tsc -b exit 0 |
+| W6 dark Leaflet CSS | DONE | single [data-bs-theme=dark] block appended to src/styles.css covering .leaflet-container (bg+text), .leaflet-control-zoom, .leaflet-control-attribution, .leaflet-popup-content-wrapper, .leaflet-popup-tip (BEACON tokens); no tile URL change; leaflet.css untouched; npx tsc -b exit 0 |
+| W7 kill published/approx surfacing | DONE | App.tsx selection card kept only {selected.source}; HospicePanel: publishedOnly state+filter+switch removed, approx badge removed, comment rewritten to 'pm 4.1/W10: list sort (ADR-0011)'; MapView hospice popup keeps curated only; grep [Pp]ublished/[Aa]pprox in src/ hits only KEEP set (types/Methodology/About/Legal/AppShell/StartHere); npx tsc -b exit 0 |
+| W3 footer CSS | DONE | appended .app-footer small {flex:1 1 auto;min-width:0} + .app-footer nav {flex:0 0 auto} + @media max-1100px .app-footer small {flex-basis:100%} to src/styles.css; footer markup (.app-footer d-flex) unchanged |
+| W4 back-to-map links (7) | DONE | verification-only pass after coder MAX_TURNS outage: all 7 links present (AboutPage.tsx:11, CorrectionsPage.tsx:41, FeedbackPage.tsx:13, LegalPage.tsx:11 + :47 (privacy + licences sections), AccessibilityPage.tsx:9) each immediately before its <h1>; .back-to-map {.5rem rule + hover underline} at src/styles.css:411-418; grep `Back to map` src/pages = 7 hits (check d) |
+| W9 self-hosted fonts | DONE | public/fonts/ new (3 woff2: Archivo-700 14,508 B, PublicSans-400 14,632 B, PublicSans-600 14,592 B); src/styles.css L3–L22 three @font-face → /fonts/*.woff2 (Archivo 700 = display, Public Sans 400/600 = body); Bootstrap wiring --bs-body-font-family/--bs-heading-font-family → var(--hf-font-body)/var(--hf-font-display) (L40–L41); dist/fonts/ serves all three; zero CDN references (gate 10); npx tsc -b exit 0 |
+| W10 rebrand (logo hex, manifest, og-image) | DONE | public/logo.svg recoloured #1d4ed8 → #163a5f BEACON (pin circle + triangle + two find/settle dashes; heart stays #ffffff) — ADR-0022 recolour only, geometry unchanged; public/manifest.webmanifest theme_color #163a5f, background #ffffff; public/og-image.png regenerated on BEACON (navy field, coral #e06744 accent — og-image-only per design); index.html title unchanged (Hospice Finder UK); #1d4ed8 = 0 in src/ (gate 7) |
+| GATE 11-item verification | DONE | 11/11 PASS (details below). Method: throwaway gate script v2 → `GATE-SCRIPT: ALL PASS` exit 0 (items 1, 2, 4, 10-CDN); item 5 tessellation exit 0 (≈151 s background job); items 3/6/7 command-level counts + greps; items 8–9 verified at code level (static) — true visual pass carried to QA Stage 6 as prior cycles; item 11 statement check. Cleanup: dist-copy/ (untracked) + .qwen/tmp/gate-checks.mjs deleted |
+
+## Cycle 4 — 11-item verification gate (2026-10-30)
+
+`.agents/requirements.md` L149–L161; run after all W items, double build LAST.
+All 11 items pass.
+
+| # | Item | Result | Evidence |
+|---|------|--------|----------|
+| 1 | `npm run build` → 171 files; tsc + vite clean | PASS | build clean (tsc -b + vite + prerender); gate script: `171 prerendered files (169 html + sitemap + robots)`, 184 total dist incl. static copies |
+| 2 | Double build → `diff -r` zero | PASS | gate script: `double-build byte-identical (184 files)` (relative-path-keyed SHA-256 maps) |
+| 3 | `sitemap.xml` 168 `<loc>` (161 + 7) | PASS | node count on dist/sitemap.xml = 168 |
+| 4 | Boot snippet byte-identical index.html ↔ scripts/prerender.mjs; present in every shell | PASS | gate script: `snippet present in all 169 shells`; `snippet byte-identical across source + all shells`; `prerender.mjs literal byte-identical to index.html snippet` (literal carries the 2-space indent the HTML regex match strips — compared with indent re-applied) |
+| 5 | `node scripts/validate-tessellation.mjs` exit 0 | PASS | background job exitCode 0 (22:11:13Z → 22:13:44Z, ≈151 s) |
+| 6 | AC5 grep guard | PASS (with note) | `kind`: declared only in src/lib/types.ts L11/L34; remaining refs confined to the KEEP set (Methodology.tsx L93–94); LegalPage.tsx L66 is prose ("of this kind"), not the field. Badge strings (`published service area` / `Has Published` / `Approx. area` / `approx`): every hit inside the KEEP set (types field, StartHere, LegalPage, Methodology, AppShell tagline, AboutPage). data/ + data-raw/: zero diff. **Note:** the only scripts/ diff is the 2-line ADR-0024 theme-boot snippet in scripts/prerender.mjs (W4) — the diff gate item 4 itself mandates (it names scripts/prerender.mjs as the comparison target). This is the exact R2-2 tension, resolved by the authoritative W7(d) wording (requirements.md L94) |
+| 7 | Token audit; no `#1d4ed8`; package.json clean | PASS | every raw hex in src/styles.css sits inside the two --hf-* token blocks (light L28–L35 + L37, dark L50–L57 + L59); `#1d4ed8` zero matches in src/; zero diff in package.json |
+| 8 | Visual/contrast light + dark @1024/1280/1440/375 | PASS (code level) | no browser on this host — verified statically: W3 footer fix (`.app-footer small` flex:1 1 auto/min-width:0, `nav` flex:0 0 auto, small wraps to full row ≤1100px); W6 dark-scoped Leaflet block (container bg, zoom control, attribution, popup wrapper + tip) all token-driven; W2 GP subordination (CircleMarker r=4, r=6 selected, fillOpacity 0.55, 1px white stroke vs 16px hospice diamond / 10px shop square); BEACON tokens via item 7. Full visual pass carried to QA Stage 6 as in prior cycles |
+| 9 | Theme persistence | PASS (code level) | fresh profile: no key → m='auto' → matchMedia('(prefers-color-scheme: dark)') in the boot snippet = OS match. Dark: setStoredMode persists `hfuk-theme`; boot snippet re-reads on reload → Dark persists. Auto: setStoredMode('auto') removes the key; AppShell pickMode → detach/attachAutoListener + setBsTheme(effectiveTheme) re-resolves live; OS flips tracked live only while auto (main.tsx attaches at module level) |
+| 10 | Fonts: 3 woff2 from /fonts/, zero CDN | PASS | dist/fonts/: Archivo-700.woff2 (14,508 B), PublicSans-400.woff2 (14,632 B), PublicSans-600.woff2 (14,592 B); gate script: `zero CDN font references in src/, public/, dist/index.html` |
+| 11 | Rollback | PASS (statement) | static site — no migration; C4 work uncommitted on top of HEAD `c6da9d3`; `git revert` of the cycle commit restores prior state; no destructive ops this cycle |
+
+**GATE RESULT: 11/11 PASS.** Cleanup complete: `dist-copy/` (untracked) deleted;
+`.qwen/tmp/gate-checks.mjs` deleted.
+
+# Coding stage — implementation ledger (Cycle 3)
 - Stage: 5/10 — Coding
 - Date: 2026-10-29
 - Objective: Cycle 3 — static prerendering (crawlable/SEO/AI-friendly), data-gap fills,

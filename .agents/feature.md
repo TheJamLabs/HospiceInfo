@@ -1,86 +1,101 @@
-# Feature: Cycle 3 — name, SEO/crawlability, data gaps, logo
+# Feature: Cycle 4 — map-first defaults, layer UX, theming, rebrand
 
-Renaming the live UK hospice catchment map to **Hospice Finder UK**, adding
-full static prerendering for crawlability/SEO/AI-friendliness (real paths,
-per-hospice pages, meta/OG/JSON-LD, sitemap/robots), filling the two remaining
-UK data gaps (Wales hospices, 12 unplaced NI practices), and refining the
-heart+pin logo mark.
+A focused UI/UX cycle on the public-ready Hospice Finder UK map: the map
+loads hospices-only by default with shops and GP surgeries as opt-in
+layers (shops taking precedence over GPs), every page gets a clear way
+back home, the About-page footer overlap is fixed, light/dark theming is
+added with system follow-through and user override, all "published
+service area" UI traces are removed (provenance stays in the data layer
+and Methodology/About), and the whole site is rebranded past the vanilla
+Bootstrap look using a Designer-proposed visual concept picked by James.
 
-## Agreed scope (James, 2026-10-29)
+## Agreed scope (James, 2026-10-30)
 
-1. **Name** — "Hospice Finder UK": replace the site name in the
-   `index.html` title, the app header (`src/components/AppShell.tsx`),
-   `public/manifest.webmanifest` (name/short_name), and meta/OG strings. The
-   Cloudflare Pages slug/hostname (`hospiceinfo`) does not change.
-2. **SEO/AI-friendliness (full prerendering)**:
-   - Info pages that are hash routes today (`#about` → `/about`,
-     `#corrections` → `/corrections`, `#feedback` → `/feedback`,
-     `#privacy` → `/privacy`, `#licences` → `/licences`,
-     `#accessibility` → `/accessibility`) become real paths, served as
-     prerendered HTML.
-   - One static page per hospice (~161 URLs, e.g. `/hospice/<id>`) with the
-     hospice name, town, nation, data-derived description, catchment summary,
-     and source/provider links.
-   - Every prerendered page carries: title, canonical, meta description,
-     Open Graph + Twitter cards, JSON-LD (Organization on the root; an
-     appropriate schema type per hospice — Research decides the best fit).
-   - `sitemap.xml` (all prerendered URLs) and `robots.txt` in `dist/`.
-   - The interactive map remains the root page (`/`), client-rendered; hash
-     state inside the map is interaction, not content. Unknown paths fall back
-     sensibly (Research/Architect decide: 404 vs root redirect).
-3. **Data gaps (2, code-side work only; human fetches are gates)**:
-   - **Wales hospices (0 today).** Re-send/escalate the Care Inspectorate
-     Wales data request (HUMAN GATE, James's browser, text in
-     `data/README.md`) and/or source Wales hospices from an alternative
-     public register so the count is real. Landing follows the documented
-     chain (`extract → merge → geocode → build-data → validate-tessellation →
-     build`) with provenance in `data/README.md`. No fabricated rows: if the
-     human gate does not clear in this cycle, the cycle records the prepared
-     fetch spec + reply-landing script as the completion state for this item.
-   - **NI practices (12 unplaced; 9 BT postcodes with no OSM/Nominatim
-     coverage).** Place them via an alternative geocoder (OS Places free-tier
-     — key is a HUMAN GATE — or documented manual pinning), keeping the single
-     nearest-hospice assignment rule invariant. Update `postcode-geo.csv`
-     provenance and `data/README.md`.
-4. **Logo** — refine the existing heart+pin mark in `public/logo.svg`
-   (cleaner heart shape and pin silhouette, keep blue `#1d4ed8`), regenerate
-   the favicon/OG assets it feeds, and keep recognisable continuity. No new
-   mark concept.
+1. **Hospices-only first load** — on page load, GP surgeries and charity
+   shops are hidden; only hospices render. Each auxiliary layer is
+   toggleable from a layer control in the header (`src/App.tsx`). The
+   `showShops` default flips true → false; a GP-practice toggle is added
+   (practices currently always render).
+2. **Shops take precedence over GPs** — both layers stay OFF at first
+   load. In the layer controls, the shops switch is listed before the GP
+   switch. Search results rank shops above GP practices. GP markers are
+   smaller and more muted than hospice and shop markers. GP data stays —
+   the Start-here flow and catchment tessellation keep using it.
+3. **Footer layout fix** — the About page (desktop) has overlapping
+   footer text; the footer (`src/components/AppShell.tsx`,
+   `app-footer d-flex flex-wrap align-items-center justify-content-between
+   gap-2`) must never collide on any viewport.
+4. **Back to home** — every info page (About, Feedback, Corrections,
+   Privacy, Licences, Accessibility) offers an obvious way back to the
+   map, e.g. a "← Back to map" affordance in the page header (the header
+   logo links to `#map` already; the return must also be explicit on each
+   page).
+5. **Light/dark mode** — a 3-state Auto/Light/Dark control in the header.
+   Auto follows `prefers-color-scheme`; an explicit Light/Dark choice
+   overrides the system and is persisted across visits (localStorage).
+   Applies to the whole SPA including Bootstrap 5.3.3 surfaces and Leaflet
+   controls, with no unthemed flash on load.
+6. **Remove "Has published service area" — all UI traces** — delete the
+   hospice-panel filter switch (`src/components/HospicePanel.tsx`), the
+   "published service area"/"approximated" badge on the selection card
+   (`src/App.tsx`), the "approx" badges in the list, and the
+   "Published service area / Approximated catchment" line in the MapView
+   tooltip (`src/components/MapView.tsx`). Provenance is NOT removed from
+   the data layer (`kind` field stays), the Methodology modal, or the
+   About/Legal prose.
+7. **Rebrand (not vanilla)** — the Designer stage (2B) proposes 2–3
+   visual concepts — palette, typography, header/logo direction (built on
+   the Cycle 3 heart+pin mark, ADR-0022) — with a mock per concept. James
+   picks one (H4-1). Coding then applies the chosen concept across header,
+   footer, map chrome, cards, info pages, and the logo/favicons where the
+   concept changes them. The result must not look like stock Bootstrap.
 
 ## Acceptance criteria
 
-- **AC1 (Name)**: "Hospice Finder UK" appears in the built `dist/` page
-  title, app header markup, and manifest; no stale "Hospice Catchment Map"
-  branding strings in `dist/` (docs/comments may retain historical mentions).
-- **AC2 (SEO)**: `npm run build` emits static HTML for every info path and
-  every `/hospice/<id>` URL (count matches `hospices.json`); `sitemap.xml`
-  and `robots.txt` are in `dist/` and cover the same URL set; prerendered
-  pages contain canonical + OG + JSON-LD; verified against the built `dist/`
-  without a running server.
-- **AC3 (Data)**: Wales hospices land via the documented chain with provenance
-  (count > 0), or the cycle records the human-gate + prepared landing script
-  with the exact pending state; the 12 NI practices are placed (or each is
-  documented with the specific failed attempt); `node scripts/validate-tessellation.mjs`
-  exits 0; a re-run build is byte-identical.
-- **AC4 (Logo)**: refined `public/logo.svg` renders legibly at 16px/32px
-  (favicon) and scales to the OG image size; wired into `index.html` and
-  `manifest.webmanifest`; no orphaned legacy assets.
+- **AC1 (first load)**: initial render shows hospice markers only; shop
+  and GP-practice markers are not rendered until their layer switch is
+  turned on; both switches default OFF.
+- **AC2 (precedence)**: in the layer controls, shops are listed before
+  GPs; a search matching both returns shops first; GP markers are
+  smaller/muted relative to hospice and shop markers; the Start-here flow
+  and `validate-tessellation` are unchanged (practices still feed
+  catchments).
+- **AC3 (footer + home)**: no footer text/link overlap on the About page
+  (or any page sharing the footer) at desktop (≥1024px) and mobile
+  widths; every info page has a visible back-to-map control that returns
+  to the root map.
+- **AC4 (theme)**: on Auto, the site matches the OS light/dark setting;
+  an explicit Light/Dark choice overrides the system and survives a full
+  page reload (persisted); Leaflet controls, Bootstrap components, and
+  all info pages render legibly in both themes; no unthemed white flash.
+- **AC5 (published-service-area removal)**: zero "published service
+  area" / "approximated" / "approx" UI strings in `src/` outside the
+  provenance prose the decision keeps (Methodology modal, About/Legal
+  pages, data layer `kind`); the panel filter switch is gone;
+  `hospices.json` and the `kind` field untouched; build + tessellation
+  green.
+- **AC6 (rebrand)**: `.agents/design.md` proposes 2–3 concepts; James's
+  chosen concept is applied across every page; the chosen palette and
+  typography are visible in the map chrome, cards, header, footer, and
+  info pages; `public/logo.svg` and any re-derived favicon/OG assets stay
+  consistent with the chosen concept; no half-applied theme.
+- **AC7 (regression)**: `npm run build` (`tsc -b && vite build &&
+  node scripts/prerender.mjs`) exits 0 and is byte-identical on re-run;
+  169 HTML shells / 168 `<loc>` invariant; `node
+  scripts/validate-tessellation.mjs` exits 0; 0 new Blocking findings
+  from QA/Security.
 
 ## Out of scope
 
-- Changing the Cloudflare domain/slug.
-- Shop re-scrape of the 3 unreachable curated hospital websites (deferred).
-- Pre-launch verification gates G5/W8/G7 (human, tracked in
-  `docs/MAINTENANCE.md`).
-- Any change to the catchment assignment rule (nearest-hospice haversine —
-  an ADR invariant).
-- Mobile performance work (Cycle 2; W8 awaits G5's m1).
+- Any change to the catchment assignment rule (nearest-hospice haversine
+  — an ADR invariant) or the data layer (`kind` field, provenance).
+- Fetching new data; pre-launch verification gates G5/G7/W8 remain open
+  (human, tracked in `docs/MAINTENANCE.md`).
+- Cloudflare slug/hostname changes.
+- Non-UI performance work.
 
-## Human gates (Cycle 3)
+## Human gates (Cycle 4)
 
-- **H3-1**: James re-sends/escalates the CIW data request (browser) once
-  Research confirms the exact text + channel.
-- **H3-2**: OS Places API key (free tier) for the NI BT postcodes, if the
-  chosen geocoding path needs one.
-- **H3-3**: James's browser fetch of a Wales alternative source, if Research
-  identifies one that needs a login/authenticated session.
+- **H4-1**: James picks one of the Designer's 2–3 visual concepts
+  (Stage 2B). The rebrand work item does not start until the pick is in;
+  all other work items proceed.

@@ -23,7 +23,10 @@ export default function App() {
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
-  const [showShops, setShowShops] = useState(true);
+  const [showShops, setShowShops] = useState(false);
+  // ADR-0025: first load shows only catchments — shops and GPs start
+  // OFF and are per-session (in-memory only, never persisted).
+  const [showGps, setShowGps] = useState(false);
   const [nation, setNation] = useState<'all' | 'en' | 'sc' | 'wales' | 'ni'>('all');
   // pm 4.5/4.6: mobile bottom sheet — hidden by CSS off-canvas below 768px,
   // opened by the FAB (which reads as aria-expanded), closed by the FAB,
@@ -98,6 +101,16 @@ export default function App() {
             />
             <span className="form-check-label small ms-1">Charity shops</span>
           </label>
+          <label className="form-check form-switch m-0" title="Toggle GP practice markers on the map">
+            <input
+              className="form-check-input"
+              id="gpsToggle"
+              type="checkbox"
+              checked={showGps}
+              onChange={(e) => setShowGps(e.target.checked)}
+            />
+            <span className="form-check-label small ms-1">GP practices</span>
+          </label>
           <button
             className="btn btn-outline-secondary btn-sm"
             type="button"
@@ -115,6 +128,7 @@ export default function App() {
             hospices={hospices!}
             catchments={catchments!}
             practices={practices!}
+            shops={shops!}
             selectedId={selectedId}
             onSelect={select}
             query={query}
@@ -142,16 +156,7 @@ export default function App() {
                 ✕ clear
               </button>
             </div>
-            {selected.kind === 'published' ? (
-              <div className="small mt-1">
-                <span className="badge bg-success-subtle text-success-emphasis">published service area</span>{' '}
-                {selected.source}
-              </div>
-            ) : (
-              <div className="small mt-1">
-                <span className="badge bg-warning-subtle text-warning-emphasis">approximated</span>{' '} {selected.source}
-              </div>
-            )}
+            <div className="small mt-1">{selected.source}</div>
             {selectedShops.length > 0 ? (
               <div className="small mt-1">
                 {selectedShops.length} charity shop{selectedShops.length === 1 ? '' : 's'}
@@ -195,6 +200,7 @@ export default function App() {
           catchments={catchments!}
           shops={shops!}
           showShops={showShops}
+          showGps={showGps}
           selectedId={selectedId}
           onSelect={select}
           nation={nation}

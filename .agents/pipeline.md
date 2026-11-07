@@ -1,6 +1,47 @@
 # Pipeline: Make the map public-ready
 
-## Cycle 3 (active, started 2026-10-29): name, SEO/crawlability, data gaps, logo
+## Cycle 4 (active, started 2026-10-30): map-first defaults, layer UX, theming, rebrand
+
+Goal: a polished, branded, map-first public experience: the map loads
+hospices-only by default with shops and GP surgeries as opt-in layers
+(shops taking precedence over GPs), every page has a clear way back
+home, the About-page footer overlap is fixed, light/dark theming is
+added (Auto/Light/Dark, system follow-through, user override), all
+"published service area" UI traces are removed (provenance stays in the
+data layer and Methodology/About), and the site is rebranded past the
+vanilla Bootstrap look using a Designer-proposed visual concept picked
+by James (HUMAN GATE H4-1).
+
+1. **Hospices-only first load** — GP surgeries and charity shops hidden
+   on page load; hospices only; both toggled via layer controls.
+2. **Shops take precedence over GPs** — both layers OFF at first load;
+   shops listed before GPs in the layer controls; search ranks shops
+   above GPs; GP markers smaller/muted; GP data retained for the
+   Start-here flow and catchments.
+3. **Footer overlap fix** — About page (desktop) footer layout overlaps
+   text; fix it.
+4. **Way back to home** — info pages (About etc.) have no way back to
+   the home page; add an explicit return-to-map affordance.
+5. **Light/dark mode** — Auto/Light/Dark header control; Auto follows
+   the system `prefers-color-scheme`; user choice overrides and is
+   persisted.
+6. **Remove "Has published service area" — all UI traces** — panel
+   filter switch, "published service area"/"approximated" selection-card
+   badges, "approx" list badges, MapView tooltip line. Provenance stays
+   in Methodology, About, and the data layer (`kind` field untouched).
+7. **Rebrand** — Designer stage (2B) proposes 2–3 visual concepts;
+   James picks one (H4-1); the site is rebranded so it no longer looks
+   like a vanilla template.
+
+Human gates: H4-1 — James picks the brand concept from the Designer's
+2–3 options (Stage 2B). No data-fetch gates in Cycle 4.
+
+Done when (Cycle 4): all ten stage artifacts (+ Designer 2B) exist, no
+open Blocking findings (resolved or risk-accepted), the Reporter's
+one-screen report is delivered in chat, and this ledger is current.
+Scope: `.agents/feature.md`.
+
+## Cycle 3 (closed 2026-10-30, started 2026-10-29): name, SEO/crawlability, data gaps, logo
 
 Goal: four James-requested improvements to the live site (James, 2026-10-29):
 1. **Name** — "Hospice Finder UK" across title, app header, manifest and
@@ -87,7 +128,7 @@ Done when: all ten stage artifacts exist, no open Blocking findings
 (resolved or risk-accepted), the Reporter's one-screen report is delivered
 in chat, and this ledger is current. Scope: `.agents/feature.md`.
 
-## Stage status — Cycle 3 (active)
+## Stage status — Cycle 3 (closed)
 
 | # | Stage | Status |
 |---|-------|--------|
@@ -105,6 +146,37 @@ in chat, and this ledger is current. Scope: `.agents/feature.md`.
 | T | Reporter | done (2026-10-30: one-screen status report delivered in chat via `stage11-reporter` sub-session; 10/10 stages, 0 open Blocking — SEC-3-01 fixed in Security rework round 1 of 2, post-fix verify PASS; gates G5/G7/W8 carried open — lead relayed to James) |
 
 **Close (Cycle 3):** 2026-10-30 — all 10 stage artifacts complete; 0 open Blocking findings (SEC-3-01 resolved, post-fix verification PASS; I-1/F-1/F-2 risk-accepted); `npm run build` green with byte-identical re-run; `validate-tessellation` exit 0; Reporter one-screen report delivered in chat; ledger current — Done-when satisfied. G5/G7/W8 remain open per ADR-0014; they do not block publication.
+
+## HUMAN DECISION REQUIRED — Cycle 4, Stage 4 (Reviewer) — reached 2026-10-30 — **RESOLVED 2026-10-30: option 1 (lead patches + lead disk-verifies); Stage 4 closed**
+
+The 2-round fix–verify cap (QWEN.md) is exhausted: re-verify round 2/2 is **FAIL** with 2 blocking findings, both **text-only** in `.agents/requirements.md` (no code, data, or sequencing impact). All other work-list content is verified (W7 step 1, W7 step 3, W5 step 3, gate #6 pattern traceability — all PASS). A third reviewer round is not permitted by the cap; the lead has not closed the gate unilaterally.
+
+**Findings (reviewer + lead disk-verified 2026-10-30):**
+- **R2-1 (Blocking)** — W7 step 2 (requirements.md L91) carries two off-disk cites: the `publishedOnly` filter branch is at `HospicePanel.tsx` **L71** (step says L73; the variable is `list`, not `visible`); the form-switch block is at **L123–135** (step says L127–139; label at L133 correct).
+- **R2-2 (Blocking)** — gate #6 (d) (L94) "`kind` only in types.ts + docs/provenance" is unsatisfiable: after W7 1–3, `kind` remains in `Methodology.tsx` L93–94 (KEEP-set file) and `LegalPage.tsx` L64 (English prose). The gate would fail even after faithful execution of every step.
+
+**Options (James picks; lead executes the chosen path):**
+1. **Lead applies the two one-line patches + lead disk-verifies (recommended).** L91: cite the branch L71 of the `list` filter and the form-switch block L123–135; L94: "`kind` field declared only in `src/lib/types.ts` (L11, L34); remaining `kind` references confined to the KEEP set (Methodology.tsx L93–94); LegalPage.tsx L64 is prose, not the field." Lead then greps disk (same anchors as the reviewer) and closes Stage 4 with **no third reviewer round**. Risk: negligible — textual corrections of lines both parties already disk-verified this session.
+2. **Same two patches + one fresh reviewer round.** Formally exceeds the 2-round cap; defensible only because the residual scope is two one-line cites.
+3. **Close Stage 4 risk-accepted as-is.** Record the cites as known-wrong in the ledger; instruct the Coding agent to locate W7 step-2 targets by their quoted strings (not fixed line numbers) and to treat gate #6 (d) as "types.ts + Methodology.tsx + LegalPage prose". Risk: Coding may misapply the patch silently.
+
+## Stage status — Cycle 4 (active)
+
+| # | Stage | Status |
+|---|-------|--------|
+| 0 | Init | done (2026-10-30) |
+| 1 | Research | done (2026-10-30: `.agents/research.md` 671 L — new Cycle 4 section lines 1–196 (pure addition, 196/0 diff, Cycle 3 preserved from line 197) with §0–§7 per item, Risks R1–R10 (top: R1 theme boot snippet must be identical in `index.html` AND `buildPage()` prerender.mjs:171-204), Open Questions OQ1–OQ8, H4-1 confirmed, glossary candidates; **BLOCKING: none**; **lead disk-verified 2026-10-30**: header/structure via grep, `git diff --numstat` = 196/0, zero-theming baseline claim spot-checked) |
+| 2 | Architect | done (2026-10-30: `.agents/architecture.md` 657 L — new Cycle 4 section lines 1–240 (pure addition, 240/0 diff, Cycle 3 preserved byte-for-byte from line 241), per-item spec + standing invariants; GLOSSARY.md 111→119 L (+8/0, `## Cycle 4 terms` at L111: theme-boot snippet, Auto/Light/Dark theme, hfuk-theme, first-load layer defaults, muted GP layer, design tokens); **ADR-0024..0028** (theme 3-state + dual-location no-flash snippet; both-OFF layer state; search ranking shops→hospices→GPs + muted GP markers; dark Leaflet CSS-override only; CSS `--hf-*` token plan + designer handoff). OQ1–OQ8 all settled; risks R1–R10 risk-accepted (none block). **Lead disk-verified 2026-10-30**: `git diff --numstat` 240/0 + 8/0, headers by grep (Cycle 4 L1 / Cycle 3 L241), GLOSSARY append confirmed, glob of docs/adr/ confirms 0024–0028 slugs) |
+| 2B | Designer | done (2026-10-30: `.agents/design.md` 125 L — 3 concepts (HAVEN / BEACON / KEEP), each with a complete 10-token light+dark `--hf-*` palette (no token unassigned), self-hosted OFL woff2 type (no npm deps, ADR-0008), recolour-only ADR-0022 mark, data-driven nation colours declared NOT tokenised; 7 SVG mocks in `.agents/design/` (hand-authored 1200×750 — imagegen service down, documented in design.md); comparison table + implementation note (token-swap only per ADR-0028). **Lead disk-verified 2026-10-30**: git status — only new items are `.agents/design.md` + `.agents/design/`; 6 sections by grep (L11/42/73/104/110/120); all 7 SVGs resolve by glob). **HUMAN GATE H4-1 RESOLVED 2026-10-30 — James picked BEACON** (cool civic: white/near-black navy, Archivo 700 + Public Sans, coral #e06744 OG-only accent). Rebrand work item unblocked at PM; items 1–6 proceed |
+| 3 | PM | done (2026-10-30: `.agents/requirements.md` 470 L, +162/−0 pure addition, lead disk-verified (RQ-1); Cycle 4 section = W1–W10 + sequencing + ambiguities A1–A4 + 11-item verification gate; Cycle 3 preserved byte-for-byte at L163+. NOTE: PM subagent reported completion without writing the artifact (hit the ACP write_file output ceiling; revival round was a 0-tool-use no-op) — the lead assembled the PM's in-chat work list onto disk via delta-splice edits, transcribed verbatim; BEACON palette per design.md (H4-1 resolved); verification gate ties to AC2/AC5/AC7) |
+| 4 | Reviewer | **Conditional FAIL** (2026-10-30: `.agents/review.md` — Cycle 4 section 55/0 pure addition, lead disk-verified; 18/18 R-OQ dispositioned. **Blocking: F1** (W2 step 10 reorders a legend retired in Cycle 2 — check (d) unexecutable) / **F2** (gate #6 cites `src/data/types.ts`; real file `src/lib/types.ts`). Firming (risk-accepted as documented corrections, folded into the patch): F3 (real UI trace = `h.kind==='approx'` → "approx" badge, `st.approximateServiceArea` 0 matches), F4 (StartHere, not StartHerePage), F5 (W8 step 5 "hospice bucket" misnomer — `#1d4ed8` is the GP bucket at MapView.tsx:196; `#64748b` does not exist), F6 (no pre-existing `[data-bs-theme]` block in styles.css → net-new), F8 (index.html has no CSS link — anchor is module script L14). Design-level flag: stale legend spec line in architecture.md §2.** Rework round 1/2: PM W2/W7 patch + arch.md:46 spec fix applied by lead 2026-10-30 (requirements.md E1–E7/E9/E11: legend step dropped, gate (d) re-anchored to W1 header order, gate #6 `src/lib/types.ts` + "approx" + StartHere, W7 step 2 real badge trace, W7 step 4 KEEP path, W8 step 5 GP-bucket final state, W8 step 2 net-new, W5 step 3 `index.html:14` anchor). **Re-review 2026-10-30: CONDITIONAL PASS** — F1–F8 all RESOLVED (lead disk-verified), new findings: **N1 BLOCKING** (W7 step 3 cited a non-existent `publish` const + "Has published service area" popup line; live trace = inline ternary MapView.tsx:106 → gate #6 unsatisfiable) + N2–N5 risk-accepted (ml-auto span → `<>…</>` fragment L157–162; L57 comment rewrite; index.html:14→16; App.tsx L146→L145 + no publish const). **Rework round 2/2 (final):** PM patch applied by lead 2026-10-30 (requirements.md W7 steps 1–3 rewritten verbatim-citable, W5 step 3 → `index.html:16`). **Final re-verify 2026-10-30: FAIL** — R2-1 (W7 step 2: filter branch is L71 not L73; variable `list` not `visible`; form-switch L123–135 not L127–139) + R2-2 (gate #6 (d): "`kind` only in types.ts" unsatisfiable — Methodology.tsx L93–94 + LegalPage.tsx L64 prose). Both text-only; lead + reviewer disk-verified. **2-round cap reached → HUMAN DECISION REQUIRED** (see section below). **RESOLVED 2026-10-30 — James chose option 1**: lead applied the two one-line patches (W7 step 2: `list` filter L71 + form-switch L123–135; gate #6 (d): `kind` reworded to types.ts L11/L34 + KEEP-set Methodology L93–94 + LegalPage L64 prose) and lead disk-verified both anchors (HospicePanel.tsx L71/L123–135; `kind` sweep = 9 matches exactly accounted) — **no third reviewer round (cap honored). Stage 4: PASS, closed 2026-10-30** |
+| 5 | Coding | done (2026-10-30: W1–W10 all DONE — `.agents/implementation.md` ledger updated per item after each step (sequencing per requirements.md W8 → W1 → W2 → W5 → W6 → W7 → W3 → W4 → W9 → W10); ADR-0024..0030 accepted. **11-item verification gate: 11/11 PASS** (full table in implementation.md "Cycle 4 — 11-item verification gate"): gate script v2 ALL PASS exit 0 (item 1 build 171 files + tsc/vite clean; item 2 double build byte-identical 184 files; item 4 boot snippet byte-identical index.html ↔ prerender.mjs + present in all 169 shells; item 10 3 woff2 + zero CDN); item 5 tessellation exit 0 (≈151 s); item 3 sitemap 168 `<loc>`; item 6 `kind`/badge grep PASS **with note** (the only scripts/ diff is the 2-line ADR-0024 theme-boot snippet in prerender.mjs — the diff gate item 4 itself mandates; the R2-2 tension resolved by the authoritative W7(d) wording, requirements.md L94 — risk-accepted note, non-blocking); item 7 BEACON token audit + `#1d4ed8` = 0 in src/ + package.json clean; items 8–9 verified at code level (no browser on this host: W3 footer flex fix, W6 dark-scoped Leaflet block, W2 GP subordination r=4/6 fillOpacity 0.55; theme.ts/boot-snippet persistence proven) — true visual + theme-persistence passes carry to Stage 6 QA as in prior cycles; item 11 rollback = `git revert` of the cycle commit (static site, no migration, no destructive ops). Cleanup done: untracked `dist-copy/` + `.qwen/tmp/gate-checks.mjs` deleted. **Lead disk-verified 2026-10-30** (gate script exit 0, ledger rows + gate table on disk). 0 rework rounds. **Stage transition: Stage 6 QA is next (Stage 7 Security runs parallel with it once QA launches)** — C4 work stays uncommitted on HEAD `c6da9d3` until the gates clear (git-connected Pages: a push auto-publishes) |
+| 6 | QA | done (2026-10-30: `qa-engineer` subagent (67 tool uses) — **PASS, 0 Blocking**. `.agents/qa.md` (97 L, superseded Cycle 3): 11/11 gates PASS with evidence (build 171 files; check:layout OK; tessellation exit 0 ≈163 s, same 3 empty cells as C3; double-build byte-identical 184 files; `#1d4ed8` = 0, CDN = 0, 3 woff2; sitemap 168 `<loc>`; 169 shells carry boot snippet; boot snippet byte-identical index.html ↔ prerender.mjs twin, 381 = 2+379 chars); all 7 features verified at source level. **4 Informational, none block**: FQ4-1 raw `rgba(15,23,32,.8)` literal in W6 dark attribution rule (allowed by W6 scoped block); FQ4-2 GLOSSARY C2 entry renotes removed UI filter (Architect-owned, one-line note); FQ4-3 untracked `.qwen/`+`.tmp/` scratch dirs — gitignore pre-commit; FQ4-4 benign LF→CRLF on logo.svg/manifest. 2 carried risks re-confirmed (RQ3-1 dark tiles ADR-0027; RQ3-2 2-line prerender diff ADR-0024). Items 8–9 code-level only — **true browser pass is James's human gate**. Lead RQ-1 disk-verified) |
+| 7 | Security | done (2026-10-30: `security` subagent (85 tool uses, parallel with QA) — **PASS, 0 Blocking**. `.agents/security.md` (149 L, superseded Cycle 3): full audit, 7 areas all clean. New: **SEC-4-01 Low risk-accepted** (3 OFL woff2 fonts shipped with zero licence/attribution in repo — add OFL notice before next push, push = publish per ADR-0014); SEC-4-02 Info (scratch dirs credential scan clean, never enter dist); SEC-4-03 Info carried (dark-tiles debt ADR-0027). Design-level: SEC-4-D1 new Low (`hfuk-theme` localStorage = only C4 trust-boundary extension; whitelisted on every read path, self-only, non-sensitive), SEC-4-D2/D3 carried (curated-JSON href/mailto; no CSP, frozen inline boot twin). All Cycle 3 fixes re-verified: 507/507 script balance, id-charset assert, boot twin byte-identical, 171-file dist invariant, ADR-0008/0030. No Architect routing. Lead RQ-1 disk-verified) |
+| 8 | DevOps | done (2026-10-30: `devops` subagent (40 tool uses) — `.agents/ops.md` 302 L, Cycle 4 supersedes Cycle 3 (C3 recoverable via `git show c6da9d3:.agents/ops.md`); state verified: 26 tracked mods incl. `.gitignore` + untracked C4 set, `data/`/`data-raw/` untouched. §1 build story (exact commands, 184 dist files itemized, ADR-0015/0029/0030 determinism); §2 gate checklist (G1–G7 closed, 11/11 C4 QA gates with evidence, boot twin-identity gate 10 operational rule: two-file edit); §3 deploy + **pre-push checklist** — (a) FQ4-3 .gitignore **DONE this pass** (`.qwen/` + `.tmp/`, exactly 2 lines verified via `git diff -- .gitignore`; scratch dirs gone from `git status`), (b) SEC-4-01 OFL font attribution → owned by **Stage 9 Docs**, verify before push (push = publish), (c) James's human browser pass items 8–9 (no browser on host); §4 rollback (`git revert` + push reproduces prior output byte-for-byte; reset to `c6da9d3` if unpushed; Pages restore-deployment instant stop; no DB/migrations/flags); §5 observability (static, smoke checks 1–6); §6 risk-accepted with ops consequence; §7 C3 carry-forward. **0 commits made** — only `.gitignore` changed outside ops.md. Lead RQ-1 disk-verified 2026-10-30) |
+| 9 | Docs | done (2026-10-30: `documentation` subagent 38 tool uses — lead RQ-1 disk-verified all 5 file changes, `git diff --stat` 200+/9-. (a) `src/pages/LegalPage.tsx`: new "Typography" section in `LicencesPage()` — self-hosted `public/fonts` under SIL OFL 1.1, Archivo 700 (14,508 B) + Public Sans 400/600 (14,632/14,592 B), `font-display: swap` + system fallback, exact OFL attribution lines; `LAST_UPDATED` bumped 22→30 October 2026 (closes **SEC-4-01** — OFL notice now ships on the Licences page). (b) `GLOSSARY.md` L81–85: `published / approx kind` reworded — UI filter removed in BEACON release (Cycle 4), `kind` retained in data (closes **FQ4-2**; copies `qa.md`). (c) `docs/build-log.md` +43: Cycle 4 ledger row + items→ADR map (0024–0028; 0029/0030 pipeline) + QA/security outcomes. (d) `docs/MAINTENANCE.md` +78: Cycle 4 ops runbook — pre-push chain, dist invariants (184/168/169/507), theme boot snippet two-file rule + re-run-assert, data-refresh + deploy + rollback + smoke. (e) `README.md` +48/−9: Known limitations + feature list (layers off on load, theme picker, BEACON tokens, removed stale filter line). **Re-verification (lead):** double `npm run build` → ADR-0015 **184/184 SHA-256 byte-identical**; invariants 184 files / 168 `<loc>` / 169 shells / 169 hfuk-theme / 507 `<script>`; `npm run check:layout` exit 0; SEC-4-01 OFL text + 30 October date confirmed present in shipped `dist/assets/index-*.js`. **0 commits made.** build-data×2 + validate-tessellation SKIPPABLE (data/ + data-raw/ untouched)) |
+| 10 | Hindsight | done (2026-10-30: Stage-10 subagent (66 tool uses) authored the Cycle 4 section in scratch (`.qwen/tmp/c4-hindsight-append.md`) — no MCP tools in the subagent → **lead spliced it into `.agents/hindsight.md` 187→311 L** (section "## Cycle 4 Hindsight — Completed 2026-10-30 (BEACON rebrand/release; uncommitted)"; prior C3/C2 content preserved verbatim; 2 lead accuracy fixes on splice: "0 commits made" evidence rows L176/L177; bank-state header reworded). **Lead bank ingest done 2026-10-30**: `hindsight_ingest_document` correction page "Correction: HospiceInfo Cycle 4 BEACON rebrand state (2026-10-30)" (doc_id `correction-hospiceinfo-cycle-4-beacon-rebrand-state-2026-10-30`) carrying the section with file-path metadata — bank re-seeded 2026-10-28 had no C4 page; curation of the five pages is automatic via the bank server. 0 rework rounds. Lead RQ-1 disk-verified) |
+| T | Reporter | done (2026-10-30: `reporter` subagent, foreground, read-only, chat-only — one-screen status report delivered to James. Report surfaced: all 10 stages done (0 rework rounds), the 7 delivered items + ADRs 0024–0030 on disk, QA PASS 11/11 (FQ4-2/FQ4-3 fixed), Security PASS 0 Blocking with SEC-4-01 RESOLVED (OFL on Licences page, verified in shipped dist), dist invariants (184 double-build byte-identical / 168 `<loc>` / 169 shells / boot twin 381=2+379 / 507 script balance / `kind==='published'` = 7), and — blocking publish — James's OPEN human gate items 8–9 (visual contrast light+dark @ 1024/1280/1440/375 + theme persistence, code-level only, no browser on host) with C4 uncommitted on HEAD `c6da9d3`. Awaits James's decision: browser pass, then commit + push approval (push = publish, ADR-0014). Lead RQ-1: report claims cross-checked against pipeline.md/qa.md/security.md/ops.md facts) |
 
 ## Stage status — Cycle 2 (closed)
 
@@ -161,12 +233,17 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
     substantial delivery (4 prior no-op/stalled dispatches are not round-consuming)
   - Cycle 3: 0 fix-verify rounds — `qa-cycle3` first-delivery PASS (11 checks);
     sub-session first-turn timed out on the lead side, write landed on disk
+  - Cycle 4: 0 fix-verify rounds — `qa-engineer` first-delivery PASS (11 gates),
+    4 Informational + 2 carried risks (non-blocking), lead-disk-verified 2026-10-30
 - Security gate: 0 (PASS first time; the 2026-10-16 stale file was superseded
   by the 2026-10-22 report)
   - Cycle 2: 0 fix-verify rounds — PASS first time
   - Cycle 3: round 1 of 2 — CLOSED 2026-10-29 (SEC-3-01 code-level FAIL;
     WF-1 + WF-2 landed in `scripts/prerender.mjs`; full 5-pt suite green;
     post-fix verification PASS, lead-disk-verified; lead corrected
+  - Cycle 4: 0 fix-verify rounds — `security` first-delivery PASS (full audit),
+    1 Low risk-accepted + 2 Info + 3 design-level (no Architect routing),
+    lead-disk-verified 2026-10-30
     report's "blank page" impact to "invalid HTML structure" — see row 7)
 - Research recon (Cycle 2): 3 passes — v3 (content-only), v4 (partial, §0 only),
   v5 (partial, §1.2/§1.3; 27 → 22 residual stale markers; first-turn timeout).
@@ -175,6 +252,23 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Open findings
 
+- QA gate (Cycle 4, 2026-10-30): **0 open Blocking** — PASS, 11/11 gates.
+  4 Informational (non-blocking): FQ4-1 raw dark-attribution rgba literal;
+  FQ4-2 GLOSSARY one-line note re removed UI filter (Architect-owned); FQ4-3
+  gitignore `.qwen/`+`.tmp/` scratch dirs pre-commit; FQ4-4 benign CRLF.
+  Carried risks re-confirmed: RQ3-1 (dark OSM tiles, ADR-0027), RQ3-2 (2-line
+  prerender diff, ADR-0024). Items 8–9 true browser pass = James's human gate.
+  Detail: qa.md.
+- Security gate (Cycle 4, 2026-10-30): **0 open Blocking** — PASS, full audit.
+  **SEC-4-01 Low RESOLVED 2026-10-30 in Stage 9** (was: action before next
+  push/publish, push = publish, ADR-0014): OFL notice/attribution for the 3
+  shipped woff2 fonts now ships on the Licences page (`LegalPage.tsx`
+  "Typography" section; lead confirmed the text present in the rebuilt
+  `dist/assets/index-*.js`, double-build byte-identity re-verified). SEC-4-02
+  Info (scratch dirs clean, never enter dist), SEC-4-03 Info carried (dark
+  tiles). Design-level SEC-4-D1 (hfuk-theme localStorage, whitelisted,
+  self-only, non-sensitive — Low), D2/D3 carried; no Architect routing.
+  Detail: security.md.
 - Security gate (Cycle 3, 2026-10-29): **0 open Blocking** — SEC-3-01 RESOLVED:
   code fix DONE + lead-disk-verified (`scripts/prerender.mjs` WF-1 closed the
   boot `<script>`; WF-2 id charset assert folded in; all 169 dist pages
@@ -264,6 +358,11 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Notes
 
+- 2026-10-30 (lead): **James's gate decision: "Commit + push now" — C4 ship commit + push approved (James, after the one-screen Reporter report). Items 8–9 (visual contrast light+dark @ 1024/1280/1440/375 + theme persistence) become post-publish human verification.** Rollback = `git revert <sha>` + push (push = publish, ADR-0014). Origin switched to SSH before the push (this host's daemon shell hangs on HTTPS + GCM pushes; the token-URL workaround is never used — that token was rotated). Ship SHA recorded in the closeout tick below.
+- 2026-10-30 (lead): **Stages 8 DevOps, 9 Docs, 10 Hindsight CLOSED (Cycle 4) — all done, 0 rework rounds; Stage T Reporter dispatched.** DevOps pre-push checklist: (a) FQ4-3 gitignore `.qwen/`+`.tmp/` DONE; (b) SEC-4-01 OFL font attribution DONE in Docs (Licences page Typography section, text verified in shipped dist); (c) James's human browser pass items 8–9 (visual contrast + theme persistence) — **OPEN** (no browser on host), surfaced in the Reporter report, blocks push (push = publish, ADR-0014). Hindsight: Stage-10 section spliced into `.agents/hindsight.md` 187→311 L (lead disk-verified; 2 accuracy fixes) + lead bank ingest — correction page "Correction: HospiceInfo Cycle 4 BEACON rebrand state (2026-10-30)" (doc_id `correction-hospiceinfo-cycle-4-beacon-rebrand-state-2026-10-30`). C4 work remains uncommitted on HEAD `c6da9d3` until the human gate clears and James approves commit + push.
+- 2026-10-30 (lead): **Stage 6 QA + Stage 7 Security gates CLOSED (Cycle 4) — both PASS, 0 Blocking, 0 rework rounds. Gate-tail remaining before publish: Stage 8 DevOps → 9 Docs → 10 Hindsight → T Reporter. Two pre-commit actions folded into the tail: (1) SEC-4-01 OFL font attribution (Licences page/docs) — push auto-publishes (ADR-0014); (2) FQ4-3 gitignore `.qwen/` + `.tmp/` scratch dirs.** C4 work remains uncommitted on HEAD `c6da9d3`; James's human browser pass for items 8–9 (visual contrast + theme persistence) is part of the Stage-4-era gate follow-through and is called out in the Reporter report. Detail: qa.md + security.md (both lead RQ-1 disk-verified).
+- 2026-10-30 (lead): **Stage 5 Coding CLOSED (Cycle 4) — W1–W10 done; 11-item verification gate 11/11 PASS; Stage 6 QA is next (Stage 7 Security runs parallel with it once QA launches, per QWEN.md).**
+  Detail: `.agents/implementation.md` ledger (all rows DONE with evidence; full gate-results table). Gate script v2 ALL PASS exit 0 (items 1/2/4/10-CDN); tessellation exit 0 (≈151 s); sitemap 168 `<loc>`; item 6 `kind`/badge grep PASS with note — the only scripts/ diff is the 2-line ADR-0024 theme-boot snippet in `scripts/prerender.mjs` (W4), the diff gate item 4 itself mandates (R2-2 resolved by W7(d) wording, requirements.md L94; risk-accepted note, non-blocking). Items 8–9 verified at code level (no browser on this host — W3 footer flex fix, W6 dark-scoped Leaflet block, W2 GP subordination, theme.ts/boot-snippet persistence) — true visual + theme-persistence passes carry to Stage 6 QA as in prior cycles. Item 11: static site, no migration, no destructive ops; rollback = revert of the cycle commit. C4 work stays uncommitted on HEAD `c6da9d3` until the gates clear (git-connected Pages: a push auto-publishes).
 - 2026-10-27 (lead): **Deploy mode changed to git-connected Cloudflare Pages (ADR-0014) — auto-publish on push; the manual-publish-after-gates convention is superseded; G5/W8/G7 remain open verification gates and no longer block publication.**
   Trigger: the first git-connected Pages build failed — "No build command specified. Skipping build step." → Pages deployed the **repository root** (default output dir), so `data-raw/uk-land.json` (54.6 MiB) hit Cloudflare's 25 MiB per-file limit ("Failed to validate assets in the output directory").
   James's choice: **keep git-connected + build config**. Implemented: new `wrangler.jsonc` (repo root; `pages_build_output_dir: "dist"`, `name: "hospiceinfo"`); build command `npm ci && npm run build` to be set in the project settings (dashboard *Settings → Build & deploy*, or `npx wrangler pages project update hospiceinfo --build-command "npm ci && npm run build"`); **ADR-0014** (`docs/adr/0014-git-connected-deploy.md`) records the decision and notes that the manual-publish convention was never ADR-0009 (ADR-0009 on disk is site-config single source).

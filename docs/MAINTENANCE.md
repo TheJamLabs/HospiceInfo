@@ -197,3 +197,81 @@ publish. The site renders the log at `#corrections` (page-local fetch only).
   Hospice" sliver entries are known, accepted quirks).
 - `npm run check:layout` exits 0 (styles.css keeps exactly 3
   `flex-direction`).
+
+## Cycle 4 (2026-10-30) — BEACON ops runbook
+
+Cycle 4 (2026-10-30) — BEACON rebrand (10 `--hf-*` design tokens, ADR-0028;
+display name remains **Hospice Finder UK**, ADR-0023), Auto/Light/Dark theme
+picker (ADR-0024 + ADR-0027 dark Leaflet CSS), GP and charity-shop layers OFF
+on first load (ADR-0025), de-emphasised GP layer (ADR-0026), removal of the
+"Has published service area" filter, and three self-hosted OFL 1.1 fonts
+(`public/fonts/`). The Cycle 3 sections above remain the base guide; where
+this section states larger counts (184 files, 507/507 scripts), those are the
+current values. Full Cycle 4 ops detail:
+[.agents/ops.md](.agents/ops.md) (supersedes the Cycle 3 file at that path;
+the Cycle 3/2/1 text is in git history: `git show c6da9d3:.agents/ops.md`).
+
+**Standing pre-push chain** (ops.md §7.1 — every future push, in this order):
+
+```bat
+npm run build-data                 :: twice; outputs byte-identical
+                                    :: (SKIP only when data/ + data-raw/ are
+                                    :: untouched in the diff — checked first)
+node scripts/validate-tessellation.mjs   :: exit 0
+npm run build                      :: twice; dist/ trees byte-identical (SHA-256)
+npm run check:layout               :: exit 0
+```
+
+then commit → James-approved push to `main` → Pages auto-publish.
+`validate-tessellation` is the long pole (~110–160 s); run it as a background
+job, never foreground. `npm ci` (not `npm install`) is the reproducible
+install — reproducibility is pinned by `package-lock.json` (ADR-0030).
+
+**Dist invariants** (re-asserted on every push; Cycle 4 values):
+
+| Invariant | Check | Expectation |
+|---|---|---|
+| Physical files | Node walk of `dist/` | **184** (171 emitted: 169 `.html` shells + `sitemap.xml` + `robots.txt`; + 13 Vite-copied: 2 assets, 3 woff2, `logo.svg`, `manifest.webmanifest`, `og-image.png`, 5 `data/*.json`) |
+| Sitemap | `dist/sitemap.xml` | **168** `<loc>` (161 hospice + 7), 0 `<lastmod>` — asserted in `scripts/prerender.mjs`, non-zero exit on violation |
+| Boot snippet | grep `hfuk-theme` in all emitted shells | present in **169/169** HTML shells |
+| Script balance | count across `dist/**/*.html` | **507** `<script` / **507** `</script>`, 0 mismatches (SEC-3-01 re-check) |
+
+**Theme boot snippet — two-file rule.** The no-flash theme-boot snippet is
+frozen and byte-identical in the app shell `index.html` and the prerender
+twin `scripts/prerender.mjs` (381-char snippet). Any edit to it is a
+**two-file edit** — both files, byte-for-byte — and then re-run the 169-shell
+assertion above (QA gate 10). A one-sided edit silently desyncs all 169
+emitted shells. The only persisted user preference on the site is the
+`hfuk-theme` localStorage key: `"light"` / `"dark"`, absent = auto (follows
+`prefers-color-scheme`, re-resolved live via a `matchMedia` listener); values
+are whitelisted on read (ADR-0024, SEC-4-D1 — do not add a second
+localStorage key without a security review).
+
+**Data refresh** (ops.md §7.2 — only when `data/` or `data-raw/` change):
+fetch fresh inputs only through the committed scripts, then `npm run
+build-data` (double-run byte identity) → `node scripts/validate-tessellation.mjs`
+(exit 0; ~110–160 s, background job) → `npm run build` (double-build
+identity) + `npm run check:layout` (exit 0) → commit data assets and raw
+inputs together (never split) → push. Provenance — SHA-256 of every remote
+input — is recorded in [`data/README.md`](data/README.md) before the push
+(push = publish; SEC-4-D2: no external writes into `data-raw/`).
+
+**Deploy & rollback** (ADR-0014, ADR-0030). A James-approved push to `main`
+runs `npm ci && npm run build` on Cloudflare Pages and publishes `dist/` — the
+push **is** the publish; no local deploy command, no secrets, no build-time
+network. A failed Pages build does not replace the live site — the previous
+deployment stays up. Rollback is twofold:
+
+- **Code:** `git revert <sha>` + James-approved push. Because the build is
+  deterministic (a fresh clone + `npm ci` + `npm run build` reproduces the
+  deployed bytes offline), rollback reproduces the previously published
+  output **byte-for-byte** — no drift between reverted code and what was
+  served.
+- **Live site (immediate, no code change):** restore the previous deployment
+  from the Pages dashboard (Deployments → restore); blast radius is the
+  published URL only. Then follow with the `git revert` so tree and site
+  agree.
+
+Post-publish smoke checks: ops.md §5 (169 pages/`hfuk-theme` shells, 168
+`<loc>`, `robots.txt` 75 bytes, three woff2 served at
+14,508 / 14,632 / 14,592 bytes).

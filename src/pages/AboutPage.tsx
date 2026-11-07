@@ -8,6 +8,7 @@ import { siteConfig } from '../lib/siteConfig';
 export default function AboutPage() {
   return (
     <div className="container my-3" style={{ maxWidth: 820 }}>
+      <a className="back-to-map" href="#map">← Back to map</a>
       <h1 className="h3">About this map</h1>
       <p>
         This is a fully static, client-side map of UK hospices and their catchment

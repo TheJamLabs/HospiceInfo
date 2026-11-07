@@ -27,20 +27,25 @@ your mail client (nothing is collected by the site).
 - **Start here card** — the landing page (at the top-left) offers a
   postcode lookup. Unknown routes default to it.
 - **Diamond markers** — hospice sites (colour is a deterministic hash of
-  the hospice id, so it is stable across rebuilds)
+  the hospice id, so it is stable across rebuilds); visible on first load
+  along with the catchment areas
 - **Dots** — each GP practice, coloured by the catchment it is assigned to
+  (off by default on first load — toggle in the header)
 - **Areas** — each hospice's catchment: a Voronoi tessellation of the
   practice + hospice-site points over the UK
-- **Squares** — charity shops from the curated hospices' websites (toggle
-  in the header)
+- **Squares** — charity shops from the curated hospices' websites (off by
+  default on first load — toggle in the header)
 - **Grid-bucket markers** — low-zoom grid cells that reveal the underlying
   practice markers on click and fly at zoom level 11
 - **A→Z list** — the side panel lists hospices alphabetically by default,
-  Z→A, or by practice counts descending. The "Has published service area"
-  toggle filters to the 7 hospices that explicitly state a service area on
-  their website
+  Z→A, or by practice counts descending
 - **Side panel: search, nation pills, per-hospice practice counts**;
   non-matching-nation elements are dimmed on the map
+- **Theme picker** — Auto / Light / Dark (Auto follows the operating
+  system's colour scheme; the choice is persisted in the browser)
+- **BEACON design release** — the navy-and-coral visual identity built on
+  10 `--hf-*` design tokens (ADR-0028); the display name "Hospice Finder
+  UK" is unchanged (ADR-0023)
 - The catchment colour key (20 curated) lives in the **Source & Method**
   modal
 
@@ -176,3 +181,34 @@ Bootstrap 5. No backend, no auth, no telemetry.
 `npm audit` currently flags esbuild (dev-server only, used by Vite during
 `npm run dev`); the fix is Vite 8, a breaking upgrade. Accepted for this
 prototype — it does not affect the built app in `dist/`.
+
+## Known limitations
+
+- **Light map tiles in both themes** — the map renders OSM light tiles even
+  in the dark theme; dark-tile support is deferred debt (SEC-4-03,
+  risk-accepted; a one-line tile-URL change per ADR-0027 §4.5 when it is
+  taken up).
+- **Theme preference is per-browser** — the Auto/Light/Dark choice is
+  stored only in the user's browser (`hfuk-theme` in `localStorage`); until
+  the user picks Light or Dark the site follows the OS colour scheme, and
+  the choice does not sync across devices.
+- **Minimal font subset** — only Archivo 700 and Public Sans 400/600 ship
+  (self-hosted, SIL OFL 1.1, attributed on the licences page); any other
+  weight falls back to the system font stack.
+- **Visual/contrast and theme persistence pass via human gate** — QA items
+  8–9 (light + dark contrast at 1024/1280/1440/375, and fresh → auto →
+  light/dark persistence) pass at code/spec level only; the final browser
+  confirmation is a manual gate owned by the repo operator, since no
+  browser is available on the build host.
+- **Curated JSON trust boundary** — the committed data files are
+  human-curated, and curation is the control (SEC-4-D2, risk-accepted);
+  every data landing goes through the pre-push chain with provenance
+  recorded in `data/README.md` — no external writes into `data-raw/`.
+- **No CSP header** — the site ships no Content-Security-Policy header
+  (SEC-4-D3, risk-accepted); the only inline JavaScript is the frozen
+  no-flash theme-boot snippet, and any future inline-JS addition re-raises
+  the CSP question.
+- **One raw colour literal** — the W6 block uses `rgba(15,23,32,0.8)`
+  directly instead of a design token (FQ4-1, informational).
+- **Dev-only `npm audit` advisories** — three advisories (vite, esbuild,
+  postcss) affect the build toolchain only, not the shipped `dist/`.

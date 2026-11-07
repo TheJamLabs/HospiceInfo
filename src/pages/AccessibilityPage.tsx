@@ -6,6 +6,7 @@ import { siteConfig } from '../lib/siteConfig';
 export default function AccessibilityPage() {
   return (
     <div className="container my-3" style={{ maxWidth: 720 }}>
+      <a className="back-to-map" href="#map">← Back to map</a>
       <h1 className="h3">Accessibility</h1>
       <p>
         We aim to meet <strong>WCAG 2.1 level AA</strong>. The site is plain

@@ -5,6 +5,7 @@ import 'bootstrap/dist/js/bootstrap.esm.js';
 import 'leaflet/dist/leaflet.css';
 import './styles.css';
 import App from './App';
+import { attachAutoListener, getStoredMode } from './lib/theme';
 
 (function () {
   if (window.location.hash) { return; }
@@ -22,3 +23,8 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <App />
   </React.StrictMode>
 );
+
+// W5/ADR-0024: in auto mode, track OS colour preference changes live (the boot
+// snippet is the sole writer at load; this subscription is a module-level call,
+// deliberately NOT a React effect — arch R1).
+if (getStoredMode() === 'auto') attachAutoListener();

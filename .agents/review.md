@@ -1,3 +1,83 @@
+# Review — Cycle 4 (2026-10-30)
+
+**Scope.** Challenged `.agents/requirements.md` L1–167 (W1–W10, Sequencing, A1–A4, Verification gate) against `.agents/architecture.md`, `.agents/research.md`, `.agents/design.md` (BEACON, gate H4-1, Concept 2), `docs/feature.md` AC2/AC5/AC7, ADR-0024…0028 plus standing invariants (0008, 0011, 0012, 0015, 0007/0016), and current source on disk. Every premise below re-verified in code with file:line.
+
+## Per-item review (W1–W10)
+
+**W1 — GP layer gating** — OK (minor cite drift, F7).
+- `showShops` `useState(true)`, shops switch, prop passthrough: `src/App.tsx:26,96-97,197` ✓; `visiblePractices` `src/components/MapView.tsx:251-254` ✓ (W1 cite exact); `visibleShops` is L264 (W1 cites L265).
+- No `showGps` in src/ (grep 0) ✓. Default-off, in-memory `useState(false)`, filter-parallel hiding unassigned GPs (`hospiceId === null`): consistent with ADR-0025 and hide-not-delete (ADR-0012; `unassigned[]` `src/data/hospices.json` L461).
+
+**W2 — Muted GP markers + search tiers** — issue (step 10 uncheckable, F1); rest OK.
+- Premises verified: GP bucket divIcon 28px `#1d4ed8`/`#fff`, `iconSize [28,28]`, `iconAnchor [14,14]` `src/components/MapView.tsx:171-181`; CircleMarker `radius={selectedId === p.hospiceId ? 7 : 5}` + `fillOpacity … : 0.85` L244-245 ✓.
+- Step 10 (legend reorder) uncheckable: `src/components/Legend.tsx` is only the 20-catchment curated colour key, rendered solely inside the Methodology modal (`src/components/Methodology.tsx:131`); the persistent map legend was retired in Cycle 2 (Legend.tsx header comment). No shops/GP legend blocks exist in src/. Stale source: the spec line `.agents/architecture.md:26`.
+- Search tier rework (step 5): current panel search shows Hospices→Practices→Shops (`src/components/HospiceFilter.tsx:56,89,119`); reorder plus substring/`localeCompare`/tie-break is feasible and matches ADR-0026 for ~918 practices.
+
+**W3 — Footer** — OK.
+- `src/components/AppShell.tsx:53` is the only `<footer>`; `.app-footer` has zero rules in `src/styles.css` (grep 0) — "add rule at file top" is a pure addition ✓. `#6c757d` exists today (`src/styles.css` `.app-loading`) so the `var(--hf-text-muted)` mapping is coherent.
+
+**W4 — Back navigation** — OK (cite drift, F7).
+- The non-map branch is exactly 6 routes, each `Navigate to="/"` with no back handling: `src/App.tsx:238-249` ✓.
+- Link rows verified: `src/pages/StartHere.tsx:100`, `src/pages/CorrectionsPage.tsx:187`, `src/methodology` links at `src/pages/Methodology.tsx:262`. W4 cites `StartHerePage.tsx`; the file is `src/pages/StartHere.tsx`.
+- `history.length > 1 → go(-1)` with Navigate fallback is standard; scope is 7 rows, route components and the router/guard (ADR-0007/0016) untouched.
+
+**W5 — Theme boot snippet** — OK (anchor note, F8).
+- Current `index.html` (16 lines) has no CSS link — Vite injects the bundle; the real insertion anchor is before the module script at `index.html:14`. W5's "just before the site CSS" phrasing is a dangling anchor but executable (F8).
+- Premises hold: no `data-bs-theme` in repo (grep 0), no existing boot snippet in `src/` → ADR-0024 duplication is purely additive. Static inline `<head>` placement is load-order safe; 3-state Auto/Light/Dark with `localStorage` key `hfuk-theme`, auto-only `matchMedia` listener, no React theme state — all consistent with ADR-0024 and the A1 ambiguity resolution.
+- Prerender side: `scripts/prerender.mjs` `buildPage()` push-list is the stated target; byte-equality of the two copies is enforced by gate 4 (double build, ADR-0015) — checkable ✓.
+
+**W6 — W5 dark CSS block + token block** — OK (F6: not "extend").
+- `src/styles.css` (314 lines) has zero `--hf-*`, zero `data-bs-theme` selectors, zero `font-family`/`@font-face` (grep 0) → W6's "extend the existing dark block" cites a block that does not exist; must be created (F6, risk-accepted — intent unambiguous).
+- 10 `--hf-*` tokens × 2 blocks wired to `--bs-body-bg/-color/-border-color` matches ADR-0028; token-swap-only rebrand keeps scope at token-swap + recolour + fonts, per design.md gate H4-1.
+
+**W7 — Published-service-area removal** — issues (F2/F3/F4).
+- Gate #6 cites `src/data/types.ts`; the file is `src/lib/types.ts` (`kind` at L11/L34; no `src/data/types.ts` on disk) — as written the gate is unexecutable (F2 **Blocking**).
+- KEEP set per A5/AC5 verified present: `Methodology` page, `AboutPage`, `LegalPage`, AppShell tagline at `src/components/AppShell.tsx:36`, `StartHere` page ✓; `kind` retained in `src/lib/types.ts` + provenance only ✓.
+- `data/*.json`, `data-raw/`, `scripts/` untouched ✓ (invariants 0011/0015). UI-trace deletions (`kind === 'approx'` → "approx" at `src/components/HospicePanel.tsx:157-160`) verified.
+
+**W8 — Recolour prune sweep** — issues (F5/F6); safe only under W2→W8 sequencing.
+- Premise "hospice bucket holds `#64748b`" is wrong: the blue GP bucket divIcon `#1d4ed8` is the target; `#64748b` does not appear in `src/styles.css` (grep 0) → as written W8 never finds its target (F5) and its new bg `var(--hf-primary)` contradicts W2's `var(--hf-gp-fill)` (F5).
+- "extend existing dark block" again — none exists (F6). Net-new `[data-bs-theme="dark"]` block in `src/styles.css` is the only coherent reading.
+- Scope stays within token-swap + recolour + fonts ✓; `leaflet.css` untouched (ADR-0027 constraint) ✓.
+
+**W9 — Font self-hosting** — OK.
+- A1 resolution (stop at record, no CDN fallback; fonts named Archivo 700 + Public Sans 400/600) matches design.md; file placement `src/assets/fonts/` is new (no `fonts/` on disk today, glob 0).
+- CSS `@font-face` mono/church-slab treatment is additive to W6's token block ✓. No dep added (ADR-0008) ✓.
+
+**W10 — Beacon palette application** — OK.
+- Light `#163a5f` / dark `#7dadd6` / gp-fill `#74879b` & `#8298ad` values match design.md Concept 2 ✓.
+- Replacement targets verified: `src/styles.css` `.app-header` L24-27, `.skip-link` L49, `.sheet-fab` bg; `public/manifest.webmanifest` `theme_color`; `public/logo.svg` (4× `#1d4ed8`) ✓.
+- Coral `#e06744` is OG-image only, never a token — respected in W10 scope ✓.
+
+## Sequencing soundness
+
+W8→W1→W2→W5→W6→W7→W3→W4→W9→W10 respects all data dependencies: tokens (W6) exist before any recolour (W8/W10); W2's GP fill precedes W8's sweep; gate 4 (byte-equality double build) runs last. No orphan steps. W3/W4/W9/W10 are independent leaves — order among them immaterial.
+
+### Re-review — rework round 1 verification (2026-10-30)
+
+Scope: patched W2/W5/W7/W8 + gate #6 + architecture.md §2. **F1–F8 all RESOLVED** (lead disk-verified reviewer read-verification against on-disk requirements.md, architecture.md, index.html, MapView.tsx, HospicePanel.tsx, styles.css, Lib types.ts). New findings from the re-review, all lead disk-verified against source 2026-10-30:
+
+- **N1 (Blocking)** — W7 step 3 cited a non-existent `publish` const + "Has published service area" popup line in MapView; the live trace is the inline ternary at `src/components/MapView.tsx:106` (`{hospice.kind === 'published' ? 'Published service area' : 'Approximated catchment'}`), which the step never touched → gate #6 unsatisfiable.
+- **N2 (risk-accepted)** — W7 step 2 "ml-auto span wrapping it" inaccurate: the "approx" badge is a `<>…</>` fragment at `HospicePanel.tsx` L157–162; the only `*-auto` span is the practice-count badge (L165), which the same step says to keep.
+- **N3 (risk-accepted)** — `HospicePanel.tsx` L57 comment `// pm 4.1/W10: list sort + "published service area" filter (ADR-0011).` trips gate #6 after step 2; must be rewritten to `// pm 4.1/W10: list sort (ADR-0011)`.
+- **N4 (risk-accepted)** — W5 step 3 cite `index.html:14` drifted to L16 (description meta re-wrapped, file now 18 lines).
+- **N5 (risk-accepted)** — W7 step 1: ternary is at App.tsx L145–154 (not L146); no `publish` const in App.tsx (grep: only L145/L147 match); else-branch is a full div, not `''`.
+
+**Verdict: CONDITIONAL PASS — rework round 2/2 (final).** Rework: N1 only; N2–N5 applied in the same patch (lead disk-verified all five in requirements.md 2026-10-30: W7 step 1 → L145–154 whole-ternary removal; step 2 → L73 filter branch, L127–139 form-switch, L157–162 fragment, L57 comment rewrite, L165 count badge kept; step 3 → MapView.tsx L106 verbatim line deletion with curated line preserved; W5 step 3 → `index.html:16`). Re-verify scope: W7 steps 1–3 + gate #6 traceability. A failed round 2 → HUMAN DECISION REQUIRED (2-round cap). Full re-review evidence: `.qwen/tmp/review-c4-re-review.md` (lead disk-verified, 6.6 KB).
+
+### Re-verification — rework round 2/2 (final) (2026-10-30)
+
+Scope: W7 steps 1–3 (requirements.md L90–92) + W5 step 3 (L76) + gate #6 traceability only; F1–F8 not re-adjudicated. All cites reviewer disk-anchored reads 2026-10-30; **lead independently re-verified R2-1/R2-2 against disk** (HospicePanel.tsx filter branch L71 ✓ / form-switch L123–135 + label L133 ✓; `kind` sweep: types.ts L11/L34, Methodology.tsx L93–94, LegalPage.tsx L64 ✓).
+
+**Verdict: FAIL — 2 blocking (text-only; no code or sequencing impact).**
+
+- **R2-1 (Blocking)** — W7 step 2 (L91) carries two off-disk cites: the `publishedOnly` filter branch is at **L71** (step says L73; the variable is `list`, not `visible`), and the form-switch block is at **L123–135** (step says L127–139; label at L133 correct). All other cites verified (L57 ✓, L59 ✓, fragment L157–162 ✓, `ms-auto` L165 ✓).
+- **R2-2 (Blocking)** — gate #6 (d) (L94) "`kind` only in types.ts + docs/provenance" is unsatisfiable: after W7 1–3, `kind` remains in Methodology.tsx L93–94 (KEEP-set file for badge patterns; not exempted by this clause) and LegalPage.tsx L64 (prose). The gate would fail even after faithful execution of every step — same failure class as F2.
+
+Verified PASS: W7 step 1 (App.tsx L145–154 verbatim; no `publish` const; `{selected.source}` kept), W7 step 3 (MapView.tsx L106 verbatim + `· curated` line intact), W5 step 3 (`index.html:16` = module script), gate #6 pattern traceability (7 × `published service area`, 21 × `approx` — all accounted).
+
+**Status: RESOLVED 2026-10-30 — Stage 4 CLOSED.** HUMAN DECISION option 1 (lead patches + lead disk-verifies, no third reviewer round — 2-round cap honored): lead applied both one-line patches to `.agents/requirements.md` (W7 step 2: `list` filter L71 + form-switch L123–135; gate #6 (d): `kind` reworded to types.ts L11/L34 + KEEP-set Methodology L93–94 + LegalPage L64 prose) and lead disk-verified both anchors (HospicePanel.tsx L71/L123–135; `kind` sweep = 9 matches exactly accounted). **Stage 4: PASS, closed 2026-10-30.** Escalation options preserved as history in `.agents/pipeline.md` § HUMAN DECISION REQUIRED; evidence: `.qwen/tmp/reverify-r2.md` (lead disk-verified).
+
 # Review — Cycle 3 (2026-10-29)
 
 Reviewer pass over `.agents/architecture.md` (415 L) and ADRs 0015–0023, checked

@@ -38,6 +38,7 @@ export default function CorrectionsPage() {
 
   return (
     <div className="container my-3" style={{ maxWidth: 760 }}>
+      <a className="back-to-map" href="#map">← Back to map</a>
       <h1 className="h3">Corrections log</h1>
       <p className="text-muted">
         Every time a data fix lands on this site, the operators append one entry

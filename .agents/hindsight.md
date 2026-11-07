@@ -184,3 +184,127 @@ None Blocking. Listed risk-accepted (carried-forward or resolved) items:
 - npm audit: esbuild dev-only advisory (not shipping to dist).
 - 12 unassigned practices (9 OSM-gap postcodes; covered by geocoder gap).
 - G5 / G7 / W8: explicitly noted above as human gates.
+
+## Cycle 4 Hindsight — Completed 2026-10-30 (BEACON rebrand/release; uncommitted)
+
+### What changed (7 delivered items, all disk-verified RQ-1)
+
+1. **Hospices-only first load** (ADR-0025): GP + shops layers off by
+   default — zero `localStorage` persistence, in-memory `useState(false)`
+   per layer; catchment areas remain visible.
+2. **About/footer overlap fix**: `.app-footer` flex rules (`small`
+   `flex-basis: 100%` under 1100 px) stop the legal block overlapping at
+   desktop widths.
+3. **Back-to-home affordance**: `← Back to map` anchor on every info route
+   (about / methodology / privacy / licences / accessibility / errors).
+4. **Auto/Light/Dark theme** (ADR-0024): sole `localStorage` key
+   `hfuk-theme` (whitelist `light`/`dark`, absent = auto); sole JS owner
+   `src/lib/theme.ts` (77 L, no React state, `matchMedia` auto listener
+   module-level in `main.tsx`); no-flash boot IIFE in `index.html` head —
+   frozen byte-identical twin emitted by `scripts/prerender.mjs` (2-space
+   indent inside the `out.push`); `data-bs-theme` on `<html>`.
+5. **"Has Published Service Area" filter removed from all UI** — GROUP
+   PROVENANCE RETAINED (`kind` unchanged in data); zero UI badge tokens;
+   question remains in METHOD/About prose (hide-not-delete, ADR-0012).
+6. **GPs + shops de-emphasised** (ADR-0026): panel/search order GPs
+   muted + shops listed before GPs, smaller GP pin styling.
+7. **BEACON rebrand** (ADR-0022/0028): 10 `--hf-*` colour tokens per
+   theme block (`src/styles.css` light L28/L35, dark L50/L57 — light
+   `#163a5f`, dark `#7dadd6`, GP fill `#74879b`/`#8298ad`) + 2 font
+   tokens; Archivo 700 + Public Sans 400/600 self-hosted (`public/fonts/`
+   = exactly 3 woff2, SIL OFL 1.1, favicon/logo recoloured to navy);
+   coral `#e06744` appears only in `og-image.png` (0 text hits in
+   src/ + public/).
+
+### ADRs recorded (docs/adr/ — exact on-disk titles)
+
+0024-`theme-auto-light-dark`, 0025-`layer-state-both-off-first-load`,
+0026-`search-ranking-shops-then-gps`, 0027-`dark-leaflet-css-overrides`,
+0028-`css-token-plan-for-rebrand`, 0029-`keyless-osm-build-time-geocoding`,
+0030-`reproducible-static-pipeline`. (The task brief's parenthetical
+titles were wrong on 0024/0025/0029/0030 — disk titles above
+authoritative; verify by glob before citing.)
+
+### Invariants (disk-verified this run; supersedes Cycle 3's "181 files")
+
+- `dist` = **184 physical files** (= 171 emitted + Vite JS/CSS + fonts 3
+  + logo + manifest + og-image + data JSONs); double build
+  **184/184 SHA-256 byte-identical**.
+- Sitemap **168 `<loc>`** (7 static + 161 hospice); **169 `.html`** shells;
+  boot snippet `/hfuk-theme/` in **all 169**; script tags
+  **507 open / 507 close** across dist.
+- `check:layout` exit 0; `validate-tessellation` exit 0 (161 hospices /
+  3 empty cells); `package.json` untouched (no deps added — ADR-0008).
+- Data anchors unchanged (`65818ace cc096f17 f7df12fd dd19e8ae`), 161
+  hospices / 11,014 practices / 138 shops; THE INVARIANT (`kind ===
+  'published'` = exactly 7) holds.
+
+### Gates & findings
+
+- **QA**: PASS (11/11 gates, 0 Blocking). FQ4-1 `#000000` fallback in dark
+  Leaflet CSS (informational); FQ4-2 stale GLOSSARY `kind` line (FIXED —
+  line reworded, provenance noted); FQ4-3 scratch dirs `.qwen/`+`.tmp/`
+  (FIXED — `.gitignore` now covers both); FQ4-4 CRLF logo.svg
+  (informational, round-trips).
+- **Security**: PASS, 0 Blocking. SEC-4-01 OFL font attribution (Low)
+  RESOLVED in Stage 9 (Licences page Typography section, OFL 1.1 text +
+  byte sizes, verified in shipped dist). SEC-4-02/03 informational
+  (scratch dirs now gitignored; dark-tile debt carried, ADR-0027 §4.5).
+  Design: SEC-4-D1 `hfuk-theme` trust surface (Low, accepted), D2 =
+  SEC-F3 (Medium), D3 = SEC-F2 (Info, no CSP).
+- **Deploy**: ADR-0014 git-connected Cloudflare Pages (push to `main`
+  publishes); `data/` + `data-raw/` zero diff (SHA-256 verified — data
+  pipeline did not run this cycle), scripts touched only for the
+  ADR-0024 boot twin.
+
+### Closure state — READ BEFORE ANY PUBLISH DECISION
+
+- **0 commits made.** All C4 work is **uncommitted on HEAD `c6da9d3`**
+  (lead disk-verified 2026-10-30: `git status --short` + `git log -n 3`;
+  ledger "0 commits made" rows: Stage 8 DevOps L176, Stage 9 Docs L177).
+- **Open human gate (James's)**: items 8–9 — visual contrast + theme
+  persistence verified ONLY at code level (no browser on host). Double
+  build, token greps and dist invariants all pass; human browser pass
+  still outstanding before any push.
+- G5 / G7 / W8: carried from Cycle 3, unchanged this cycle.
+- `.agents/design/` reconciliation: **7 SVGs = 6 concept pairs
+  (haven/beacon/keep × light/dark) + 1 type-palette specimen** — the
+  "6" (security) and "7" (pipeline) counts are both correct at their
+  scopes; not a defect.
+- Never write "published" for C4 until commit + James-approved push
+  (push = publish, ADR-0014).
+
+### Bank state & ingest plan (no MCP tools in the Stage-10 subagent —
+the vllm-linux bank could not be searched or ingested from it; lead
+performed the ingest post-stage)
+
+- Bank was re-seeded 2026-10-28 from gitlog → reflects at most the pre-C4
+  committed state; **no Cycle 4 page exists** (theme, BEACON tokens,
+  ADRs 0024–0030, 184-dist invariants all absent).
+- **Ingest DONE (lead, 2026-10-30)**:
+  `hindsight_ingest_document` correction page "Correction: HospiceInfo
+  Cycle 4 BEACON rebrand state (2026-10-30)"
+  (doc_id `correction-hospiceinfo-cycle-4-beacon-rebrand-state-2026-10-30`)
+  carrying this section with file-path metadata (`.agents/hindsight.md`,
+  `src/lib/theme.ts`, `src/styles.css`, `docs/adr/0024…0030`); curation of
+  the five pages (component map / conventions / initiatives / decisions /
+  core concepts) is automatic via the bank server.
+
+### Remember for next time
+
+- **Boot twin rule**: the `hfuk-theme` IIFE lives in exactly two places —
+  `index.html` head and `prerender.mjs` `out.push`; edit both in the same
+  change or dist drifts (QA gate 10 checks byte equality).
+- **dist gate set** (re-run after any build): 184 files / 168 `<loc>` /
+  169 shells / 169 boot snippets / 507+507 scripts / `check:layout` exit
+  0 / double-build SHA-256.
+- **C4 is uncommitted** — treat any "C4 shipped" assumption as false until
+  the ledger says committed; glob ignores gitignored `dist/`, verify dist
+  by direct path reads.
+- ADR titles: trust `docs/adr/` filenames (the pipeline brief misnamed 4
+  of the 7).
+- `kind` is provenance-only now (ADR-0012): never re-add published-area
+  UI without a new ADR; GLOSSARY records this (Cycle 4 terms).
+- OFL attribution for the 3 shipped fonts lives on the Licences page
+  (Typography section) — add future fonts only with the same attribution
+  pattern.

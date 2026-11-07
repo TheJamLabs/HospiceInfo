@@ -176,6 +176,8 @@ function buildPage({ title, desc, canon, ogType, hospice }) {
   out.push('<head>');
   out.push('  <meta charset="UTF-8" />');
   out.push('  <meta name="viewport" content="width=device-width, initial-scale=1" />');
+  // ADR-0024: static theme-boot snippet — byte-identical to index.html; QA checks equality
+  out.push('  <script>\n    (function () {\n      var m = \'auto\';\n      try { var s = localStorage.getItem(\'hfuk-theme\'); if (s === \'light\' || s === \'dark\') { m = s; } } catch (e) {}\n      var d = m === \'dark\' || (m === \'auto\' && window.matchMedia(\'(prefers-color-scheme: dark)\').matches);\n      document.documentElement.setAttribute(\'data-bs-theme\', d ? \'dark\' : \'light\');\n    })();\n  </script>');
   out.push('  <title>' + esc(title) + '</title>');
   out.push('  <meta name="description" content="' + esc(desc) + '" />');
   out.push('  <link rel="canonical" href="' + xesc(SITE_URL + canon) + '" />');

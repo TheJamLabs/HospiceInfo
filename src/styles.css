@@ -1,3 +1,67 @@
+/* W9: self-hosted fonts (item 7, ADR-0028; OFL, no CDN — ADR-0008).
+   Vendors: Fontsource (official google/fonts distribution), latin subset. */
+@font-face {
+  font-family: 'Archivo';
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/Archivo-700.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/PublicSans-400.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Public Sans';
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+  src: url('/fonts/PublicSans-600.woff2') format('woff2');
+}
+
+/* BEACON design tokens (Cycle 4, ADR-0028; exact values from .agents/design.md
+   Concept 2). These two blocks are the ONLY raw colour literals in this file. */
+:root {
+  --hf-primary:#163a5f;
+  --hf-primary-ink:#ffffff;
+  --hf-surface:#ffffff;
+  --hf-surface-muted:#f4f7fa;
+  --hf-border:#d8e0e8;
+  --hf-text:#1c2733;
+  --hf-text-muted:#5f7183;
+  --hf-gp-fill:#74879b;
+  --hf-legend-bg:rgba(255,255,255,.95);
+  --hf-row-active:#e8f0f8;
+  --hf-font-display: Archivo, -apple-system, 'Segoe UI', sans-serif;
+  --hf-font-body: 'Public Sans', -apple-system, 'Segoe UI', 'Helvetica Neue', sans-serif;
+  --bs-body-font-family: var(--hf-font-body);
+  --bs-heading-font-family: var(--hf-font-display);
+  --bs-body-bg:var(--hf-surface);
+  --bs-body-color:var(--hf-text);
+  --bs-border-color:var(--hf-border);
+}
+
+/* :root[...]-prefixed so this block outranks Bootstrap 5.3's own
+   :root[data-bs-theme=dark] var block (loaded earlier in main.tsx). */
+:root[data-bs-theme="dark"] {
+  --hf-primary:#7dadd6;
+  --hf-primary-ink:#0e1c2b;
+  --hf-surface:#0f1720;
+  --hf-surface-muted:#17222e;
+  --hf-border:#2b3a4a;
+  --hf-text:#e3ecf4;
+  --hf-text-muted:#8fa3b8;
+  --hf-gp-fill:#8298ad;
+  --hf-legend-bg:rgba(15,23,32,.92);
+  --hf-row-active:#223449;
+  --bs-body-bg:var(--hf-surface);
+  --bs-body-color:var(--hf-text);
+  --bs-border-color:var(--hf-border);
+}
+
 html,
 body,
 #root {
@@ -27,8 +91,8 @@ body,
 
 .app-header {
   flex: 0 0 auto;
-  background: #ffffff;
-  border-bottom: 1px solid #dee2e6;
+  background: var(--hf-surface);
+  border-bottom: 1px solid var(--hf-border);
   padding: 0.5rem 0;
 }
 
@@ -39,10 +103,10 @@ body,
   min-height: 32px;
   padding: 0.25rem 0.5rem;
   border-radius: 6px;
-  color: #495057;
+  color: var(--hf-text);
 }
 .site-nav-link:hover {
-  background: #f1f3f5;
+  background: var(--hf-surface-muted);
 }
 
 /* Skip-to-content link: hidden until focused (pm 2.5) */
@@ -51,8 +115,8 @@ body,
   left: -9999px;
   top: 0;
   z-index: 3000;
-  background: #fff;
-  color: #1d4ed8;
+  background: var(--hf-surface);
+  color: var(--hf-primary);
   padding: 0.5rem 1rem;
 }
 .skip-link:focus {
@@ -67,8 +131,8 @@ body,
 
 .app-panel {
   flex: 0 0 340px;
-  background: #fff;
-  border-right: 1px solid #dee2e6;
+  background: var(--hf-surface);
+  border-right: 1px solid var(--hf-border);
   min-width: 280px;
   overflow: hidden;
 }
@@ -82,13 +146,13 @@ body,
   padding: 0.55rem 0.75rem;
   min-height: 44px; /* pm 4.4: touch-friendly rows */
   border: 0;
-  border-bottom: 1px solid #f1f3f5;
+  border-bottom: 1px solid var(--hf-surface-muted);
   background: none;
   cursor: pointer;
 }
 
 .panel-item:hover {
-  background: #f8f9fa;
+  background: var(--hf-surface-muted);
 }
 
 /* pm 4.4: real touch targets for the panel's search box and country select. */
@@ -111,10 +175,15 @@ body,
   .app-header .btn {
     min-height: 44px;
   }
+  /* W5/ADR-0024: the theme control becomes a full-width row under the title. */
+  .theme-group {
+    flex: 1 1 100%;
+    justify-content: space-between;
+  }
 }
 
 .panel-item-active {
-  background: #eef4fb;
+  background: var(--hf-row-active);
 }
 
 .dot {
@@ -156,8 +225,8 @@ body,
   max-height: 55%;
   overflow: auto;
   width: 260px;
-  background: rgba(255, 255, 255, 0.95);
-  border: 1px solid #dee2e6;
+  background: var(--hf-legend-bg);
+  border: 1px solid var(--hf-border);
   border-radius: 8px;
   padding: 0.5rem 0.6rem;
 }
@@ -184,11 +253,11 @@ body,
 }
 
 .legend-item:hover {
-  background: #f1f3f5;
+  background: var(--hf-surface-muted);
 }
 
 .legend-item.active {
-  background: #e7f1ff;
+  background: var(--hf-row-active);
 }
 
 .legend-label {
@@ -199,7 +268,7 @@ body,
 }
 
 .legend-note {
-  border-top: 1px solid #f1f3f5;
+  border-top: 1px solid var(--hf-surface-muted);
   margin-top: 0.4rem;
   padding-top: 0.4rem;
 }
@@ -208,7 +277,7 @@ body,
   display: block;
   width: 12px;
   height: 12px;
-  border: 2px solid #fff;
+  border: 2px solid var(--hf-primary-ink);
   border-radius: 2px;
   transform: rotate(45deg);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
@@ -223,14 +292,14 @@ body,
   display: block;
   width: 10px;
   height: 10px;
-  border: 1.5px solid #fff;
+  border: 1.5px solid var(--hf-primary-ink);
   border-radius: 2px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 .app-loading {
   font-size: 1.1rem;
-  color: #6c757d;
+  color: var(--hf-text-muted);
 }
 
 /* ------------------------- mobile bottom sheet (pm 4.5) ------------------------- */
@@ -265,7 +334,7 @@ body,
     min-width: 0;
     z-index: 1600;
     border-right: 0;
-    border-top: 1px solid #dee2e6;
+    border-top: 1px solid var(--hf-border);
     border-radius: 12px 12px 0 0;
     box-shadow: 0 -4px 16px rgba(0, 0, 0, 0.25);
     transform: translateY(105%);
@@ -286,8 +355,8 @@ body,
     padding: 0 1.5rem;
     border-radius: 999px;
     border: 0;
-    background: #1d4ed8;
-    color: #fff;
+    background: var(--hf-primary);
+    color: var(--hf-primary-ink);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
     font-size: 0.95rem;
     cursor: pointer;
@@ -310,4 +379,69 @@ body,
     right: 10px;
     max-width: none;
   }
+}
+
+/* W2/ADR-0026: search result section headers (Shops / Hospices / GP practices),
+   shown only while a non-empty query is active. */
+.panel-section-header {
+  padding: 0.4rem 0.75rem 0.15rem;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: var(--hf-text-muted);
+  border-top: 1px solid var(--hf-surface-muted);
+}
+
+
+/* W6/ADR-0027: dark-theme Leaflet treatment. One scoped block here (the app
+   stylesheet) — leaflet/dist/leaflet.css is never edited, and the OSM light
+   tiles remain LIGHT in both themes (ADR-0027, no tile URL change). */
+[data-bs-theme="dark"] .leaflet-container {
+  background: var(--hf-surface-muted);
+  color: var(--hf-text);
+}
+[data-bs-theme="dark"] .leaflet-control-zoom a {
+  background-color: var(--hf-surface);
+  color: var(--hf-text);
+  border-color: var(--hf-border);
+}
+[data-bs-theme="dark"] .leaflet-control-attribution {
+  background: rgba(15, 23, 32, 0.8);
+  color: var(--hf-text-muted);
+}
+[data-bs-theme="dark"] .leaflet-popup-content-wrapper {
+  background: var(--hf-surface);
+  color: var(--hf-text);
+  border: 1px solid var(--hf-border);
+  border-radius: 12px;
+}
+[data-bs-theme="dark"] .leaflet-popup-tip {
+  background: var(--hf-surface);
+}
+
+/* W3: the footer is a flex row (d-flex in AppShell) — give <small> a
+   shrinkable track and nav a fixed one so the copyright line never overlaps
+   the links; below 1100px the small line wraps to a full row. */
+.app-footer small {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.app-footer nav {
+  flex: 0 0 auto;
+}
+@media (max-width: 1100px) {
+  .app-footer small {
+    flex-basis: 100%;
+  }
+}
+
+/* W4: back-to-map affordance (arch §3.2) — link colour comes from
+   the Bootstrap link token (theme-aware after W8); underline on hover. */
+.back-to-map {
+  display: inline-block;
+  margin-bottom: 0.5rem;
+}
+.back-to-map:hover {
+  text-decoration: underline;
 }

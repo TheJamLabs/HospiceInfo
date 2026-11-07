@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750">
+  <rect width="1200" height="750" fill="#ffffff"/>
+  <text x="40" y="48" font-family="Arial, sans-serif" font-size="22" font-weight="700" fill="#212529">Hospice Finder UK — Cycle 4 rebrand: type &amp; palette specimens</text>
+  <text x="40" y="72" font-family="Arial, sans-serif" font-size="12" fill="#6c757d">Each column: display + body type, light/dark primary, neutrals. Nation catchment colours (data-driven, not tokenised) identical in all concepts — bottom row.</text>
+  <!-- Haven -->
+  <text x="40" y="120" font-family="Georgia, serif" font-size="34" font-weight="700" fill="#0e5f57">Hospice Finder UK</text>
+  <text x="40" y="150" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#2b241a">Fraunces (display) — Work Sans (body)</text>
+  <text x="40" y="170" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#7c7060">Fraunces-400.woff2, -600 · WorkSans-400/-500/-600</text>
+  <g font-family="Arial, sans-serif" font-size="11" fill="#2b241a">
+    <rect x="40" y="190" width="38" height="38" rx="6" fill="#0e5f57"/>
+    <text x="46" y="246">L primary</text>
+    <rect x="84" y="190" width="38" height="38" rx="6" fill="#3fae9e"/>
+    <text x="84" y="246">D primary</text>
+    <rect x="40" y="256" width="38" height="38" rx="6" fill="#faf6ef" stroke="#e3d9c6"/>
+    <text x="46" y="312">L surface</text>
+    <rect x="84" y="256" width="38" height="38" rx="6" fill="#f2ece0" stroke="#e3d9c6"/>
+    <text x="84" y="312">L muted</text>
+    <rect x="128" y="256" width="38" height="38" rx="6" fill="#1c1914"/>
+    <text x="128" y="312">D surface</text>
+    <rect x="172" y="256" width="38" height="38" rx="6" fill="#2b241a"/>
+    <text x="172" y="312">L text</text>
+    <rect x="216" y="256" width="38" height="38" rx="6" fill="#7c7060"/>
+    <text x="216" y="312">L text-mut</text>
+    <rect x="40" y="322" width="38" height="38" rx="6" fill="#ece2cd" stroke="#e3d9c6"/>
+    <text x="46" y="378">L row-act</text>
+    <rect x="84" y="322" width="38" height="38" rx="6" fill="#64748b" />
+    <text x="84" y="378">gp (today)</text>
+  </g>
+  <line x1="412" y1="100" x2="412" y2="400" stroke="#dee2e6"/>
+  <!-- Beacon -->
+  <text x="448" y="120" font-family="'Arial Black', Arial, sans-serif" font-size="34" font-weight="900" letter-spacing="-1" fill="#163a5f">Hospice Finder UK</text>
+  <text x="448" y="150" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#1c2733">Archivo (display) — Public Sans (body)</text>
+  <text x="448" y="170" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#5f7183">Archivo-700.woff2 · PublicSans-400/-600</text>
+  <g font-family="Arial, sans-serif" font-size="11" fill="#1c2733">
+    <rect x="448" y="190" width="38" height="38" rx="6" fill="#163a5f"/>
+    <text x="454" y="246">L primary</text>
+    <rect x="492" y="190" width="38" height="38" rx="6" fill="#7dadd6"/>
+    <text x="492" y="246">D primary</text>
+    <rect x="448" y="256" width="38" height="38" rx="6" fill="#ffffff" stroke="#d8e0e8"/>
+    <text x="454" y="312">L surface</text>
+    <rect x="492" y="256" width="38" height="38" rx="6" fill="#f4f7fa" stroke="#d8e0e8"/>
+    <text x="492" y="312">L muted</text>
+    <rect x="536" y="256" width="38" height="38" rx="6" fill="#0f1720"/>
+    <text x="536" y="312">D surface</text>
+    <rect x="580" y="256" width="38" height="38" rx="6" fill="#1c2733"/>
+    <text x="580" y="312">L text</text>
+    <rect x="624" y="256" width="38" height="38" rx="6" fill="#5f7183"/>
+    <text x="624" y="312">L text-mut</text>
+    <rect x="448" y="322" width="38" height="38" rx="6" fill="#e8f0f8" stroke="#d8e0e8"/>
+    <text x="454" y="378">L row-act</text>
+    <rect x="492" y="322" width="38" height="38" rx="6" fill="#74879b"/>
+    <text x="492" y="378">gp (today)</text>
+  </g>
+  <line x1="820" y1="100" x2="820" y2="400" stroke="#dee2e6"/>
+  <!-- Keep -->
+  <text x="856" y="120" font-family="Georgia, serif" font-size="34" font-weight="700" fill="#275c45">Hospice Finder UK</text>
+  <text x="856" y="150" font-family="'Segoe UI', Arial, sans-serif" font-size="15" fill="#232c24">Newsreader (display) — Figtree (body)</text>
+  <text x="856" y="170" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#6f7a6c">Newsreader-400/-600.woff2 · Figtree-400/-500/-600</text>
+  <g font-family="Arial, sans-serif" font-size="11" fill="#232c24">
+    <rect x="856" y="190" width="38" height="38" rx="6" fill="#275c45"/>
+    <text x="862" y="246">L primary</text>
+    <rect x="900" y="190" width="38" height="38" rx="6" fill="#64b18a"/>
+    <text x="900" y="246">D primary</text>
+    <rect x="856" y="256" width="38" height="38" rx="6" fill="#f5f4ee" stroke="#d9d8c8"/>
+    <text x="862" y="312">L surface</text>
+    <rect x="900" y="256" width="38" height="38" rx="6" fill="#ecebe1" stroke="#d9d8c8"/>
+    <text x="900" y="312">L muted</text>
+    <rect x="944" y="256" width="38" height="38" rx="6" fill="#151a15"/>
+    <text x="944" y="312">D surface</text>
+    <rect x="988" y="256" width="38" height="38" rx="6" fill="#232c24"/>
+    <text x="988" y="312">L text</text>
+    <rect x="1032" y="256" width="38" height="38" rx="6" fill="#6f7a6c"/>
+    <text x="1032" y="312">L text-mut</text>
+    <rect x="856" y="322" width="38" height="38" rx="6" fill="#e0e4d5" stroke="#d9d8c8"/>
+    <text x="862" y="378">L row-act</text>
+    <rect x="900" y="322" width="38" height="38" rx="6" fill="#7e8a7d"/>
+    <text x="900" y="378">gp (today)</text>
+  </g>
+  <!-- nation colours (identical in all concepts) -->
+  <text x="40" y="440" font-family="Arial, sans-serif" font-size="13" font-weight="700" fill="#212529">Nation catchment colours — data-driven (h.color), not tokenised; identical in all three concepts</text>
+  <g font-family="Arial, sans-serif" font-size="12" fill="#212529">
+    <rect x="40" y="458" width="38" height="26" fill="#6fa8dc"/>
+    <text x="88" y="476">England #6fa8dc</text>
+    <rect x="220" y="458" width="38" height="26" fill="#74b374"/>
+    <text x="268" y="476">Scotland #74b374</text>
+    <rect x="440" y="458" width="38" height="26" fill="#d99e5b"/>
+    <text x="488" y="476">Wales #d99e5b</text>
+    <rect x="620" y="458" width="38" height="26" fill="#cf6b62"/>
+    <text x="668" y="476">Northern Ireland #cf6b62</text>
+  </g>
+  <text x="40" y="530" font-family="Arial, sans-serif" font-size="12" fill="#6c757d">Mock note: raster image-gen endpoints (mockup + general) down during this stage (5 aborted attempts); all prototypes hand-authored as SVG with exact theme HEX values. Serif/sans columns approximate the final vendor families.</text>
+</svg>

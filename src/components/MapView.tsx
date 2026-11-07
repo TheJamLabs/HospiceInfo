@@ -21,6 +21,7 @@ interface Props {
   catchments: Catchment[];
   shops: Shop[];
   showShops: boolean;
+  showGps: boolean;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   nation: NationFilter;
@@ -103,8 +104,7 @@ function HospiceMarker({ hospice, icon, opacity, onSelect }: {
           {hospice.town} · {hospice.postcode}
           <br />
           <span className="text-muted small">
-            {hospice.kind === 'published' ? 'Published service area' : 'Approximated catchment'}
-            {hospice.curated ? ' · curated' : ''}
+            {hospice.curated ? 'curated' : ''}
           </span>
           <DisagreeLink point={{ id: hospice.id, name: hospice.name, postcode: hospice.postcode, hospiceName: null }} />
         </div>
@@ -193,9 +193,9 @@ function PracticeLayer({ practices, hospiceById, selectedId, onSelect, nation }:
         b.key,
         L.divIcon({
           className: '',
-          html: `<div style="width:28px;height:28px;line-height:24px;background:#1d4ed8;color:#fff;border:2px solid #fff;border-radius:50%;text-align:center;font-size:11px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)">${b.count}</div>`,
-          iconSize: [28, 28],
-          iconAnchor: [14, 14],
+          html: `<div style="width:20px;height:20px;line-height:16px;background:var(--hf-gp-fill);color:#fff;border:2px solid #fff;border-radius:50%;text-align:center;font-size:11px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.4)">${b.count}</div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
         })
       );
     }
@@ -230,14 +230,15 @@ function PracticeLayer({ practices, hospiceById, selectedId, onSelect, nation }:
           <CircleMarker
             key={p.id}
             center={[p.lat as number, p.lon as number]}
-            // pm 2.3: larger radius as the touch-target mitigation (a 5px
-            // radius ≈ 10px dot is ~(3-4)× bigger than the pre-fix 3px one).
-            radius={selectedId === p.hospiceId ? 7 : 5}
+            // pm 2.3: larger radius as the touch-target mitigation;
+            // W2/ADR-0026 mutes the GP layer (4 / 6 selected — smaller than
+            // the 12–16px hospice markers).
+            radius={selectedId === p.hospiceId ? 6 : 4}
             pathOptions={{
               color: '#ffffff',
               weight: 1,
               fillColor: hosp?.color ?? '#999',
-              fillOpacity: dimmedNation ? 0.15 : dim ? 0.12 : 0.85,
+              fillOpacity: dimmedNation ? 0.15 : dim ? 0.12 : 0.55,
             }}
             eventHandlers={{ click: () => (p.hospiceId ? onSelect(p.hospiceId) : undefined) }}
           />
@@ -247,10 +248,10 @@ function PracticeLayer({ practices, hospiceById, selectedId, onSelect, nation }:
   );
 }
 
-export default function MapView({ hospices, practices, catchments, shops, showShops, selectedId, onSelect, nation }: Props) {
+export default function MapView({ hospices, practices, catchments, shops, showShops, showGps, selectedId, onSelect, nation }: Props) {
   const visiblePractices = useMemo(
-    () => practices.filter((p) => p.lat != null && p.lon != null),
-    [practices]
+    () => (showGps ? practices.filter((p) => p.lat != null && p.lon != null) : []),
+    [practices, showGps]
   );
   const visibleHospices = useMemo(
     () => hospices.filter((h) => h.lat != null && h.lon != null),

@@ -1,5 +1,14 @@
+import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { SITE_FOOTER_TEXT } from '../lib/siteConfig';
+import {
+  attachAutoListener,
+  detachAutoListener,
+  effectiveTheme,
+  getStoredMode,
+  setBsTheme,
+  setStoredMode,
+} from '../lib/theme';
 
 const NAV_LINKS = [
   { href: '#feedback', label: 'Feedback' },
@@ -10,6 +19,17 @@ const NAV_LINKS = [
   { href: '#accessibility', label: 'Accessibility' },
 ];
 
+// W5/ADR-0024: three-state theme control. The mode lives in this component's
+// state only (never in App.tsx — arch R1); the boot snippet is the sole
+// writer of data-bs-theme at load, and pickMode re-applies it on click.
+const THEME_MODES = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'light', label: 'Light' },
+  { value: 'dark', label: 'Dark' },
+] as const;
+
+type ThemeMode = (typeof THEME_MODES)[number]['value'];
+
 interface AppShellProps {
   /** Map-page-only header controls (shop toggle, Source & Method button). */
   headerExtras?: ReactNode;
@@ -17,6 +37,14 @@ interface AppShellProps {
 }
 
 export default function AppShell({ headerExtras, children }: AppShellProps) {
+  const [mode, setMode] = useState<ThemeMode>(() => getStoredMode());
+  const pickMode = (m: ThemeMode) => {
+    setStoredMode(m);
+    detachAutoListener();
+    if (m === 'auto') attachAutoListener();
+    setBsTheme(effectiveTheme(m));
+    setMode(m);
+  };
   return (
     <div className="app">
       <a className="skip-link" href="#mainContent">
@@ -37,6 +65,21 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
               </div>
             </div>
             <nav aria-label="Site pages" className="d-flex flex-wrap align-items-center gap-2">
+              <div className="btn-group theme-group" role="group" aria-label="Colour theme">
+                {THEME_MODES.map((t) => (
+                  <button
+                    key={t.value}
+                    type="button"
+                    className={
+                      'btn btn-outline-secondary btn-sm' + (mode === t.value ? ' active' : '')
+                    }
+                    aria-pressed={mode === t.value}
+                    onClick={() => pickMode(t.value)}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
               {headerExtras}
               {NAV_LINKS.map((l) => (
                 <a key={l.href} className="site-nav-link" href={l.href}>

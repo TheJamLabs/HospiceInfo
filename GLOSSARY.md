@@ -81,8 +81,9 @@ provenance, and documentation. New terms are formatted in *italics*.
 - **published / approx `kind`**: `kind` on a hospice row — `"published"` is one
   of the 20 hand-verified (curated) catchments with a published service area;
   `"approx"` is the remaining geometric (Voronoi) estimate. The UI filter
-  "Has published service area" exposes only the `published` rows. (The adjectival
-  form *approx kind* is used in review shorthand.)
+  "Has published service area", which exposed only the `published` rows, was
+  removed in the BEACON release (Cycle 4); `kind` remains in the data.
+  (The adjectival form *approx kind* is used in review shorthand.)
 - **branch site**: a secondary surgery location of a main GP practice; the Wales
   practices register ships main and branch sites as two separate datasets
   (`gp-practices-wales-{main,branch}-2026-10.{csv,geojson}`), both fed into the
@@ -108,3 +109,11 @@ provenance, and documentation. New terms are formatted in *italics*.
 - **Open Graph image**: public/og-image.png (1200x630), referenced by og:image on every emitted page for social-link previews.
 - **hash-redirect guard**: the snippet in src/main.tsx that, on a real-path load with an empty hash, replaces the URL with the matching #/route so the hash router lands on the intended page (ADR-0016; closes R1).
 - **manual pin**: an operator-supplied latitude/longitude for a postcode the geocoder cannot resolve, stored in data-raw/manual-geo-ni.json and merged into the build geo map (ADR-0021).
+## Cycle 4 terms (first-load layers, theme, rebrand tokens)
+
+- **theme-boot snippet**: the static inline `<head>` script that sets `data-bs-theme` on `<html>` before first paint (localStorage `hfuk-theme`; absent = auto = `prefers-color-scheme`); byte-identical copies live in `index.html` and `scripts/prerender.mjs` `buildPage()` (ADR-0024).
+- **Auto/Light/Dark theme**: the 3-state header control (AppShell, all pages) persisting the choice as `light`/`dark` under `hfuk-theme` (absent = auto); auto re-resolves the OS preference live via a `matchMedia` listener. The mode is deliberately not held in React state (ADR-0024).
+- **hfuk-theme**: the app's single localStorage key (`"light"` / `"dark"`; absent = auto) — the only persisted user preference on the site (ADR-0024).
+- **first-load layer defaults**: both the charity-shop and GP-practice layers are off on a fresh load (`useState(false)`, in-memory only, not persisted) while catchment polygons remain visible (ADR-0025).
+- **muted GP layer**: the visual subordination of GP practice markers — 20 px slate `--hf-gp-fill` bucket divIcons and smaller, more transparent CircleMarkers (radius 4/6, base `fillOpacity` 0.55) — with shops ranked before GPs in controls, search sections, and legend (ADR-0026).
+- **design tokens**: the `--hf-*` CSS custom properties (`:root` = light set, `[data-bs-theme="dark"]` = dark set) that are the single source of truth for app colour; Bootstrap `--bs-*` variables are wired to them so any Designer concept lands as a token-value swap (ADR-0028).
