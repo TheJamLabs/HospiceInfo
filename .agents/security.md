@@ -146,3 +146,90 @@ Note: this Security pass spanned one context-resume break; every verification ro
 ## Closure
 
 **Cycle 4 security gate: PASS — 0 Blocking.** Risk-accepted carry-forward: SEC-4-01 (OFL attribution, Low). Informational: SEC-4-02, SEC-4-03. Design-level: SEC-4-D1 (new, Low), SEC-4-D2 (carried, Medium), SEC-4-D3 (carried, Info) — no Architect rework routed. All Cycle 3 blocking/fix-pass work re-verified intact. Cleared for Stage 8 (DevOps).
+
+## Cycle 5 resolution (2026-11-07 — HUMAN DECISION, option C)
+
+A fresh Cycle 5 security pass was **not executed** on this host: three
+consecutive `security` subagent attempts died mechanically — context wall
+(67,865 > 58,920 hard limit), stream stall, and a 3rd context-wall death
+(task `b98b73eb65e3fca0`, 63,515 > 58,920,
+COMPRESSION_FAILED_INFLATED_TOKEN_COUNT) — reaching the pre-committed
+2-round fix-verify cap. James resolved with **option C (risk-accept)**:
+this report's Cycle 4 verdict **carries forward as the Cycle 5 security
+posture** (recorded by the lead; no new dispatch was authorized).
+
+Justification, per the pipeline contract:
+- **Cycle 5 is data-only** — no `src/` UI change. The delta is 2 data
+  scripts (`scripts/extract-hospices-wales.mjs`,
+  `scripts/extract-hospices-sc-oscar.mjs`) plus 3 bug fixes in
+  `scripts/merge-hospices.mjs`. None touch the Cycle 4 trust surfaces
+  (theme boot, layers, rendering sinks, static assets, prerender/dist,
+  supply chain, data flow); the scripts run at build/data time, make no
+  network calls, use no secrets/eval, and their outputs enter the app only
+  through the already-reviewed same-origin `/data/*.json` boundary
+  (SEC-4-D2/F3 — human-curation trust, ids charset-asserted in the chain).
+- Carried forward unchanged: SEC-4-01 (OFL attribution, Low,
+  risk-accepted), SEC-4-02/03 (informational), SEC-4-D1/D2/D3
+  (design-level). Cycle 4's 0-Blocking posture stands for Cycle 5 as a
+  **risk-accepted carry**, not a fresh pass.
+- Residual risk (documented, non-blocking): the two new extractor scripts'
+  data-time behaviour (parsing, field mapping) was not independently
+  security-reviewed this cycle; they operate on build-time public JSON
+  only, with outputs that are human-inspected curated data.
+
+**Cycle 5 security gate: PASS (risk-accepted carry of Cycle 4) — 0
+Blocking.** Cleared for Stage 8 (DevOps).
+
+## Cycle 5 — Landing (2026-11-08)
+
+- **Pass type:** FRESH pass on the Cycle 5 landed state (working tree at `e1fbc1b` plus the Cycle 5 working-tree files).
+- **Evidence (exactly 4 files read):** `scripts/extract-hospices-sc-pcs.mjs`, `scripts/extract-hospices-sc-oscar.mjs`, `scripts/merge-hospices.mjs`, `package.json`.
+
+**Trust boundary (ADR-0030):** pinned offline source under `data-raw/` → parsed JSON → prerendered static HTML. The delta adds two pinned input files (`palliativecare-scotland-hospices-2026-11.html`, Wayback pin 20260514160126; `oscar-scotland-hospices-2026-11.csv`) and two append-only extractors. **No new runtime egress, no new trust boundary**: both extractors import only `node:fs`; all I/O is local `data-raw/` files. Untrusted web content crosses the boundary exactly once, at the human-fetch gate (H5-2), exactly as designed; downstream everything is local-file → JSON → static HTML.
+
+### Checklist
+
+1. **PASS** — No runtime network/fetch/http in either extractor: sole import is `node:fs`; no `fetch`/`http`/`https`/`net` anywhere in the two files. The only URL in the extractors is the palliativecarescotland.org.uk source URL inside the PCS header comment (provenance, never fetched in-script).
+2. **PASS** — PCS entity decoding (local fn `decode` in `extract-hospices-sc-pcs.mjs`) handles `&amp; &lt; &gt; &#039; &quot;` with the `&amp;` pass first (correct ordering, no double-decode), and a raw `<` in anchor text is structurally excluded by the `[^<]+?` capture. A `<script>` payload in the source arrives as `&lt;script…&gt;`, decodes to literal `<script>` TEXT inside a JSON string value, and is inert. Exact residual bound: `JSON.stringify` (prerender JSON-LD, `prerender.mjs` `jsonld`/`buildPage`) does not escape `</script>`, so a name containing `&lt;/script&gt;` would decode to `</script>` and terminate the JSON-LD `<script>` tag in a prerendered page. That primitive (a) does not occur in any landed input this cycle (verified by full read of the pinned CSV — 30 rows — and pinned HTML — 19 matched entries); (b) is absent from every other prerender name sink (`<title>`/meta/OG via `esc()`, which escapes `<`/`>`); (c) is escaped by React in client-rendered text and attributes; and (d) could only reach the repo via a repo write — the same publisher-trusted curation boundary as SEC-4-D2 (Medium, carried), not a new trust boundary and no new Blocking finding. Future-cycle hardening option: escape `<` as `\u003c` in the JSON-LD stringifier. (Info: double-encoded `&amp;lt;` decodes to literal `<` — cosmetic; `&apos;`/`&#39;` variants are not decoded — cosmetic.)
+3. **PASS** — Id schemes cannot collide: `sc-pcs-<NN>` (NN = numeric NHS-board id, e.g. `sc-pcs-30`, `sc-pcs-58`) is prefix-disjoint from `en-<cqcId>` (CQC `1-<digits>` ids), `sc-CS<digits>` (GIS), `sc-oscar-<SC6>`/`sc-oscar-r<n>` (OSCAR), `wales-*`, `ni-*`. Dedupe: the PCS extractor skips rows by casefolded name, by id, and by the 13-entry ADR-0032 equivalence MAP (ids 19, 44, 45, 50, 51, 57, 61, 63, 67, 68, 70, 75, 76 → existing `sc-oscar-*` rows); the 4 strict-name covers (ids 5, 43, 52, 72) leave exactly the expected 2 appends, and the script hard-fails (EXIT 1, no write) on any other count. The OSCAR extractor skips ids already in the register; the merge's global unique-id assertion (exit 1) is the backstop.
+4. **PASS** — `merge-hospices.mjs` routes `sc-pcs-*` → `SOURCES.scPcs` (PalliativeCareScotland source string); `sc-oscar-*` → `SOURCES.scOscar` and the GIS fallback `SOURCES.sc` are preserved (three-arm ternary on sc rows). England curated CATCHMENTS seeding keys only on `en-<cqcId>` derived from `location/1-<digits>` in `cqcUrl`, and a curated row can displace only the register row with that same `en-` id — no sc/wales id can be keyed or replaced.
+5. **PASS** — `package.json` unchanged this cycle (`git status` and `git diff -- HEAD` for the file both empty); no new dependencies.
+6. **PASS** — No secrets/tokens/credential-bearing paths in the new code: scripts reference only relative `data-raw/` paths; no `process.env` reads, no absolute user paths, no tokens; the two URL strings are public provenance URLs.
+
+### Id-collision / dedupe analysis
+
+- `sc-pcs-30` and `sc-pcs-58` (the only two appends this cycle) intersect no existing namespace; `sc-pcs-` is character-distinct from `sc-CS` (lowercase `p` vs `C` at position 4) and from `sc-oscar-` (`p` vs `o`).
+- Dedupe is triple-layered in the PCS extractor (name / id / 13-entry MAP) plus the delta guard (exactly 2 appends, else EXIT 1 before any write) plus the in-script pre-image verify (all pre-existing rows must be JSON-equal in place after the write, else EXIT 1). Append-only behaviour is machine-verified, not merely documented; the merge re-asserts global id uniqueness as the final gate.
+
+### Carried Cycle 4 risk-accepts (still relevant)
+
+- **SEC-4-01** (LOW) — missing OFL font attribution: Cycle 5 delta touches neither `public/fonts/` nor `src/styles.css`; carried forward.
+- **SEC-4-02** (INFO) — scratch hygiene: a new untracked scratch script `scripts/_tmp-hash.mjs` sits in the Cycle 5 working tree (content outside this pass's 4-file evidence scope); consistent with the existing pattern — keep untracked, gitignore/clean before publish. Carried forward.
+- **SEC-4-03** (INFO) — dark OSM tileset debt; untouched by this cycle. Carried forward.
+
+**Security verdict: 0 Blocking, 3 Risk-accepted** (all 3 are carried Cycle 4 items: SEC-4-01 Low, SEC-4-02 Info, SEC-4-03 Info; no new findings)
+
+## Cycle 5 — Landing (2026-11-08)
+
+Date: 2026-11-08. FRESH security pass on the landed Cycle 5 state (Scotland H5-2 PCS append + Wales H5-1 zero-set; HEAD `e1fbc1b`). Data-only cycle — no `src/` changes. Static, no-backend site (ADR-0030). Trust boundary unchanged: pinned offline source files under `data-raw/` → parsed JSON → prerendered static HTML. Read-only pass; every fact re-verified on disk in this pass (helper scans in `.tmp/` only).
+
+## VERDICT: **PASS** — 0 Blocking findings
+
+## Findings
+
+| ID | Severity | Description | Evidence |
+|----|----------|-------------|----------|
+| SEC5-L1 | Informational | New extractor code (Cycle 5) introduces zero runtime network. | Token scan of `scripts/extract-hospices-sc-pcs.mjs` and `scripts/extract-hospices-sc-oscar.mjs` for `fetch(`, `http://`, `https://`, `XMLHttpRequest`, `axios`: OSCAR produces no hits at any position; PCS's sole hit is the line-8 doc-comment URL of its source page. Both scripts import only `node:fs`. |
+| SEC5-L2 | Informational | PCS extractor entity handling neutralises markup in the pinned raw file. | Decodes `&amp;`, `&lt;`, `&gt;`, `&#039;`, `&quot;` (with the `&amp;` pass ordered first); any `<script` occurrence in the source page becomes inert decoded text inside the pinned JSON; no eval/Function at runtime. |
+| SEC5-L3 | Informational | ID schemes are prefix-disjoint and append logic is delta-guarded. | `sc-pcs-<NN>` / `sc-oscar-<SC|rN>` / `sc-CS*` / `en-1-<digits>` / `wales-*` / `ni-*` never collide. PCS dedupe is triple-layered (name, id, 13-entry equivalence MAP) and the extractor enforces exactly-2-valid-appends, exit 1 before any write, plus a pre-image JSON-equality verify; merge-hospices' global unique-id assertion (192/192) is the backstop. |
+| SEC5-L4 | Informational | England CATCHMENTS seed cannot be keyed or replaced by another nation's id. | `scripts/merge-hospices.mjs` routes `sc-pcs-*` and `sc-oscar-*` rows to their source strings; seed keys are derived only from `en-<cqcId>` parsed from `location/1-<digits>` in `cqcUrl` under an explicit `en-` prefix guard. |
+| SEC5-L5 | Informational | No dependency drift this cycle. | `package.json` carries zero diff this cycle (absent from `git status`); parses OK. |
+
+### Carried items (no new action this pass)
+
+- SEC-4-01 (OFL font attribution): resolved in Cycle 4 Docs/Licences page — stays closed.
+- SEC-4-02 (scratch hygiene): `scripts/_tmp-hash.mjs` remains an untracked scratch helper — keep untracked, delete before any commit/publish (lead housekeeping); the `.tmp/` lead-scratch convention (FQ4-3) is cleaned at cycle end.
+
+Design-level note: no new trust boundaries, authentication, or data-flow changes were introduced — the cycle is strictly extract-merge-build over pinned local files, so no Architect rework is routed.
+
+**Security verdict: 0 Blocking, 0 Risk-accepted (new). Stage 7 CLOSED for the 2026-11-08 landing pass (rework rounds consumed: 0).**

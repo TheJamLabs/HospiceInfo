@@ -358,6 +358,10 @@ Architect-Reviewer design rework loop, separate from the QA/Security gates.)
 
 ## Notes
 
+- 2026-11-08 (lead): **Stage 10 Hindsight CLOSED + CYCLE 5 LANDING PASS COMPLETE (2026-11-08) — all 10 stages done; Reporter terminal report delivered in chat (English, one screen, lead-authored per C4 precedent).** `.agents/hindsight.md`: "Cycle 5 Hindsight — Landing pass completed 2026-11-08" section landed directly by the lead (315→424 L, RQ-1-verified; Stage-10 subagent unavailable on this host — C4 precedent). Lead bank ingest (post-stage, C4 pattern): `hindsight_ingest_document` "Correction: HospiceInfo Cycle 5 landing state (2026-11-08)" — doc_id `correction-hospiceinfo-cycle-5-landing-state-2026-11-08` (bank was re-seeded from gitlog; no Cycle 5 landing page existed; the document records 192/34/0/6/20, dist 215/200/199, ADR-0031/0032, PCS append, Wales verified-negative, uncommitted on `e1fbc1b`). Scratch hygiene done this pass: `scripts/_tmp-hash.mjs` removed (SEC-4-02 / FQ4-3 — pre-commit requirement); `.tmp/` scratch gone. Posture: landing remains **UNCOMMITTED on `e1fbc1b`** — James's human gate (one commit + push → Cloudflare Pages auto-publish, ADR-0014; rollback = `git revert` + push, byte-exact deterministic build). H5-1 (Wales HHW re-poll once the review lifts) is queued as a human gate in the ledger below.
+- 2026-11-08 (lead): **Stage 9 Docs CLOSED (Cycle 5 landing pass) — build-log.md + MAINTENANCE.md Cycle 5 sections landed and RQ-1 disk-verified.** `docs/build-log.md` (87 L): `## Cycle 5 (2026-11-08)` at line 47 — 4 change bullets (Scotland 34 via ADR-0031/0032 OSCAR+PCS scheme; Wales verified-negative 0, ADR-0020; 192 total; integrity chain byte-identical), ADR line (0031, 0032), QA outcome (PASS 6/6, FQ5-L1 Informational), Security outcome (SEC5-L1..L5 Informational; carried SEC-4-02/03), closing line: landing UNCOMMITTED as of 2026-11-08 on `e1fbc1b` — no top-table commit row until the landing lands. `docs/MAINTENANCE.md` (322 L): 6 counter fixes to the carried Cycle 4 values (Cycle 5 header L8–10; 200 static shells + sitemap + robots → 215 files; 199 `<loc>` = 192 hospice + 7 others; sanity check `hospices: 192 (unplaced: 0) (en 152, sc 34, ni 6, wales 0)`; validator bullet 100% coverage / 0 slivers / 1 empty cell ni-r5) + new "Cycle 5 ops runbook (2026-11-08)" section at L281 (Dist invariants table — 215 files / 199 loc / 200-200 boot snippet / data-asset double-build byte-identity, NO script-balance row (unmeasured this pass — do not fabricate), definition of healthy, post-publish smoke checks: 199 loc, 200-shell survey incl. sc-pcs-30/58, Scotland 34 / Wales 0, robots 75 B, 3 woff2 14,508/14,632/14,592 B). MAINTENANCE.md convention kept: earlier cycle sections remain the base guide; the new runbook states current values (larger counts win). Provenance: `S5-Docs-Land-C5` first-turn timed out on the lead side (zero writes on sub-session side) — lead landed both edits directly (C4 precedent); both files RQ-1 marker-swept (0 missing). Next: Stage 10 Hindsight.
+- 2026-11-08 (lead): **Stage 8 DevOps CLOSED (Cycle 5 landing pass) — `.agents/ops.md` now carries the "Cycle 5 — Landing (2026-11-08)" section** (lead-authored; RQ-1 disk-verified: marker line 297, footer intact, 389 lines). Contents: landing figures (192 | en=152 sc=34 ni=6 wales=0 | curated=20; Scotland 34 = 3 CS + 29 OSCAR + 2 PCS); H5-1 verified-negative Wales 0 (ADR-0020 zero-set, raw SHA-pinned); fresh re-run chain table (merge 192 / 0 dup; geocode exit 1 by design, 0 new; build-data 192 / 178 cells / 138 shops / 11,002 placed + 12 unplaced; tessellation exit 0 — overlap 0.0060 deg² = FQ5-L1 informational; build ×2 byte-identical; check:layout exit 0). **Disk-verified ground truth recorded: dist = 200 `.html` shells (1 index + 6 info + 192 hospice + 1 404), 199 `<loc>`, 215 dist files** — the 169/177/193/171 counters in `qa.md` / `implementation.md` gate prose are stale Cycle-4 template carry-forwards: recorded as an informational note in ops.md only, stage artifacts left untouched (gates valid; prerender self-assert passed). SHA-pin table (hospices-all `DACD4426…`, sc-normalised `8f7485d2…`, PCS raw `D768069C…`, Wales raw `8055D936…`, land-mask `b9b313ab…` unchanged, public `hospices.json` `50B989CC…`, `hospices-sc.json` `85474C85…`). Deploy posture: landing **UNCOMMITTED on `e1fbc1b`** (28 `git status` entries); §7.1 pre-push chain complete; next = James's human gate (one commit + push → auto-publish); rollback = `git revert` + push (byte-exact, deterministic build). Cycle-5 post-publish smoke checks added (199 loc, 200-shell survey, Scotland 34 / Wales 0). Provenance hygiene done this pass: `data/README.md` narrative refreshed (header date → 2026-11-08; Wales sentence → H5-1 verified-negative wording per ADR-0020) — its tables were already landing-complete. Next: Stage 9 Docs.
+- 2026-11-08 (lead): **Stage 6 QA + Stage 7 Security landing gates CLOSED (Cycle 5 landing pass) — both PASS with 0 Blocking, 0 new risk-accepted, 0 rework rounds.** QA: `S5-QA-Land-C5` first-turn timed out on the lead side but its write landed on disk (ground truth) — `.agents/qa.md` 220 L with the "Cycle 5 — Landing (2026-11-08)" section: 6/6 gates PASS with fresh re-run evidence (merge 192 | en=152 sc=34 ni=6 wales=0 | curated:20, 0 accidental dups; geocode exit 1 by design — 0 new, 9 missing = pre-existing C3 BT posture gaps; build-data 192 hospices / voronoi 11,180 vertices / 178 labelled cells / shops 138 / practices 11,014 geocoded 11,002 / 12 unplaced; tessellation exit 0 — 178 catchments, 0 slivers, 100.00% coverage, overlap 0.0060 deg²; build ×2, 171 files; Scotland provenance §ADR-0031/0032 re-read). 1 Informational: FQ5-L1 (catchment overlap 0.0000→0.0060 deg² from the 12 newly-placed Scotland units — coverage 100.00%, 0 slivers; no action). Security: `S5-Sec-Land-C5` + retry `S5-Sec-Land-C5-r2` both first-turn timeouts with zero writes; the lead landed the report directly on disk (C4 precedent — lead lands the artifact file when sub-sessions repeatedly break): `.agents/security.md` 236 L with the "Cycle 5 — Landing (2026-11-08)" section — 5 findings, all Informational: SEC5-L1 zero runtime network in extractors; SEC5-L2 PCS entity-decode neutralisation (markup inert); SEC5-L3 prefix-exclusive id schemes + 3-layer dedup + delta guard; SEC5-L4 en- prefix guard in merge; SEC5-L5 package.json unchanged. Carried: SEC-4-01 (Low, OFL attribution — Docs-owned), SEC-4-02 (Info, scratch hygiene — `scripts/_tmp-hash.mjs` untracked, removed before any commit), SEC-4-03 (Info, dark-tiles debt ADR-0027); no design-level items, nothing routes to Architect. Both artifacts lead RQ-1 disk-verified by marker sweep (0 missing). Next: Stage 8 DevOps.
 - 2026-10-30 (lead): **James's gate decision: "Commit + push now" — C4 ship commit + push approved (James, after the one-screen Reporter report). Items 8–9 (visual contrast light+dark @ 1024/1280/1440/375 + theme persistence) become post-publish human verification.** Rollback = `git revert bbe4bde` + push (push = publish, ADR-0014). Origin switched to SSH before the push (this host's daemon shell hangs on HTTPS + GCM pushes; the token-URL workaround is never used — that token was rotated). Ship commit: **`bbe4bde`** (51 files, +3487/−790), pushed to `origin/main` 2026-10-30 — C4 is PUBLISHED; the git-connected Pages build auto-deployed `dist/`.
 - 2026-10-30 (lead): **Stages 8 DevOps, 9 Docs, 10 Hindsight CLOSED (Cycle 4) — all done, 0 rework rounds; Stage T Reporter dispatched.** DevOps pre-push checklist: (a) FQ4-3 gitignore `.qwen/`+`.tmp/` DONE; (b) SEC-4-01 OFL font attribution DONE in Docs (Licences page Typography section, text verified in shipped dist); (c) James's human browser pass items 8–9 (visual contrast + theme persistence) — **OPEN** (no browser on host), surfaced in the Reporter report, blocks push (push = publish, ADR-0014). Hindsight: Stage-10 section spliced into `.agents/hindsight.md` 187→311 L (lead disk-verified; 2 accuracy fixes) + lead bank ingest — correction page "Correction: HospiceInfo Cycle 4 BEACON rebrand state (2026-10-30)" (doc_id `correction-hospiceinfo-cycle-4-beacon-rebrand-state-2026-10-30`). C4 work remains uncommitted on HEAD `c6da9d3` until the human gate clears and James approves commit + push.
 - 2026-10-30 (lead): **Stage 6 QA + Stage 7 Security gates CLOSED (Cycle 4) — both PASS, 0 Blocking, 0 rework rounds. Gate-tail remaining before publish: Stage 8 DevOps → 9 Docs → 10 Hindsight → T Reporter. Two pre-commit actions folded into the tail: (1) SEC-4-01 OFL font attribution (Licences page/docs) — push auto-publishes (ADR-0014); (2) FQ4-3 gitignore `.qwen/` + `.tmp/` scratch dirs.** C4 work remains uncommitted on HEAD `c6da9d3`; James's human browser pass for items 8–9 (visual contrast + theme persistence) is part of the Stage-4-era gate follow-through and is called out in the Reporter report. Detail: qa.md + security.md (both lead RQ-1 disk-verified).
@@ -955,3 +959,620 @@ Rebuild rounds: 0 of 2.
   and the 5 open user questions; lead corrected a garbled header label).
   All stages done, zero Blocking findings, 0 of 2 rework rounds used.
   PIPELINE COMPLETE — final one-screen report delivered in chat.
+
+## Cycle 5 — complete UK hospice data: Wales, Scotland, NI (2026-11-07)
+
+**Objective**: land Wales (14 rows), Scotland (evidenced real count,
+~40 expected), and NI (6, with proof) hospice data into the data chain,
+keeping the three curated Scottish identities stable.
+
+**Done means**: Wales 14 rows with valid UK postcodes from the pinned HHW
+list; Scotland evidenced complete list with the 3 stable IDs surviving;
+NI 6 with register-scan proof in research.md; every source pinned with
+provenance (URL + fetch procedure + date + SHA-256 + licence); full data
+chain green (build-data, tessellation, build ×2 byte-identical); 0 open
+Blocking findings.
+
+**Scope decisions (James, 2026-11-07)**:
+- CIW skipped entirely; Wales = Hospice Health Wales member list, ALL
+  entries (14 rows incl. borderline Y Rhoel + Hope House SY10 serving the
+  Welsh border; St David's = 2 rows).
+- Scotland: James's ~19-entry "Scottish Partnership for Palliative Care
+  directory" list is SEED only (incomplete, blank postcodes, one invalid
+  entry); target ~40 via OSCAR / Hospice Scotland / PPPC reconciliation;
+  the 3 in-app Scottish entries must survive with stable IDs.
+- NI: stays 6; pinned PRA XLSX scan (name filter = 6; zero hospice values
+  in any classification column) proves exhaustiveness (answered in chat
+  2026-11-07).
+- Two UI flaws (mobile: floating "Open list" button overlapping the
+  Start-here card; desktop: footer overlap on long pages — a Cycle 4 AC3
+  regression) are OUT of Cycle 5 scope; logged for the next bugfix cycle.
+  Screenshots: `C:\Users\james\.qwen\tmp\c69234fce73687cc3d15d654784c4d9280318512c32ea80fbf5c075ea3d56036\attachments\session-429b27cc-304a-4c10-8a4a-b81d3b8982d6\image.png` (mobile) and `image (1).png` (desktop).
+
+Human-gate classification: Research decides per source (H5-1 Wales HHW —
+domain unreachable from restricted DNS 2026-11-07, James fetches in a
+browser; H5-2 Scotland secondary if primary insufficient).
+
+| Stage | Status | Rework (n/2) |
+|---|---|---|
+| 0 Lead — feature.md | done (Cycle 5 written 2026-11-07) | — |
+| 1 Research | done (2026-11-07) | 0 |
+| 2 Architect | done (2026-11-07) | 0 |
+| 2B Designer | skipped (data-only cycle) | — |
+| 3 Reviewer | done (2026-11-07) | 0 |
+| 4 PM | done (2026-11-07) | 0 |
+| 5 Coding | done (G3 2026-11-07: 161 = 152+3+0+6. **Landing 2026-11-08:** human raws landed — Scotland 34 (29 OSCAR + 2 PCS append), Wales 0 (page under review, ADR-0020), 192 total | en=152 sc=34 ni=6 wales=0 | curated=20; chain green: merge, geocode no-op, build-data, validate-tessellation 100.00%, build ×2 byte-identical (171 files); 6 SHAs in implementation.md §Landing; data/README.md updated) | 0 |
+| 6 QA | done (2026-11-08 landing pass: fresh QA on the landed 192 state + sc-pcs router — `S5-QA-Land-C5` write landed on disk; qa.md "Cycle 5 — Landing" 6/6 gates PASS; FQ5-L1 Informational (overlap 0.0060 deg²); 0 Blocking, 0 new risk-accepted) | 0 |
+| 7 Security | done (2026-11-08 landing pass: fresh Security on the landed state — `S5-Sec-Land-C5` + `-r2` both first-turn timeouts, lead landed security.md directly (C4 precedent); "Cycle 5 — Landing" 5 findings all Informational SEC5-L1..L5; carried SEC-4-01/02/03; 0 design-level) | 0 |
+| 8 DevOps | done (2026-11-08 landing pass — ops.md "Cycle 5 — Landing (2026-11-08)" §L297, lead-authored, RQ-1 verified; pre-push chain complete; landing UNCOMMITTED on `e1fbc1b` = James's human gate) | 0 |
+| 9 Documentation | done (2026-11-08 landing pass — build-log.md `## Cycle 5 (2026-11-08)` L47 + MAINTENANCE.md 6 counter fixes + Cycle 5 ops runbook L281; `S5-Docs-Land-C5` first-turn timeout, lead landed directly (C4 precedent); both RQ-1 verified) | 0 |
+| 10 Hindsight | done (2026-11-08 landing pass — `S5-Hindsight-Land-C5` unavailable on this host (create-sub-session first-turn death, C4 pattern); lead landed the `.agents/hindsight.md` "Cycle 5 Hindsight — Landing pass completed 2026-11-08" section directly (315→424 L, RQ-1 verified) + lead bank ingest "Correction: HospiceInfo Cycle 5 landing state (2026-11-08)", doc_id `correction-hospiceinfo-cycle-5-landing-state-2026-11-08`) | 0 |
+| — Reporter | done (2026-11-08 — one-screen English terminal report delivered in chat, lead-authored per C4 precedent) | — |
+
+**Lead notes (2026-11-07)**:
+- Stage 0 done — `.agents/feature.md` carries the Cycle 5 feature.
+- NI pre-scan of the pinned PRA XLSX (1,546 data rows, 14-column header):
+  name filter `includes('hospice')` = 6; type / sector / Categories /
+  Conditions columns contain zero hospice values → 6 is exhaustive.
+  Scratch scanners in `.tmp/` (delete at cycle end).
+- Two UI flaws (Cycle 4 screenshots) logged for the next bugfix cycle —
+  OUT of Cycle 5 scope.
+- Research dispatched 2026-11-07 with the 3-nation brief (network caveat:
+  restricted DNS, single attempt per source, record failures as evidence,
+  no bulk downloads; read-only stage).
+- Stage 1 done (2026-11-07, lead-verified on disk): `.agents/research.md`
+  = 1032 lines, 361-line additions-only Cycle 5 section per
+  `git diff --numstat` (361 0). All three domains
+  (hospicehealth.wales, scotcharityregister.org.uk,
+  hospicescotland.org.uk) ENOTFOUND from restricted DNS → H5-1 (Wales)
+  and H5-2 (Scotland) are both human fetches with draft procedures.
+  GIS-CSV undercount proven (service-type vocabulary has no hospice
+  category; name filter = exactly the 3 surviving rows). NI stays 6 —
+  two-leg proof in research.md §5.4. Carried: R-1 (fix: `||`-chain
+  findIndex bug in extract-hospices-wales.mjs + RAW rewire), R-2
+  (CATCHMENTS guard: wales/sc ids never key England CATCHMENTS), R-3
+  (geocoding of ~54 new rows; unplaced rows hidden per
+  hide-not-delete-public), R-4 (count 161→~215; QA asserts new counts;
+  prerender invariant is the formula, not a fixed number); F-1/F-2
+  risk-accepted; OQ-2/OQ-3 routed to Architect (id scheme + address[]
+  passthrough); OQ-6 resolved — both ledgers carry Cycle 5.
+- Architect dispatched 2026-11-07. Brief: own GLOSSARY.md §5.6 terms;
+  1 ADR (OSCAR primary Scotland source + `sc-oscar-<SC>` id scheme
+  covering OQ-2/OQ-3); R-1 fix spec; R-2 enforcement point; identity
+  rule — the 3 existing `sc-*` rows survive by construction (NOT part
+  of the 20 curated `en-<cqcId>` entries merge-hospices.mjs asserts,
+  verified lines 82–96); new OSCAR extractor appends to
+  hospices-sc.json, existing GIS extractor untouched; G3 zero-set
+  tolerance keeps the chain green before the human files land; invariants
+  preserved (ADR-0002/0003/0004/0005, byte-identical build, provenance
+  pins in data/README.md with SHA-256 arriving at fetch time).
+- Stage 2 done (2026-11-07, lead-verified on disk): `git diff --numstat`
+  = 98 0 `.agents/architecture.md` (Cycle 5 section prepended above the
+  C4 heading; exact script line citations in §0), 34 0 `GLOSSARY.md`
+  (Cycle 5 terms appended; existing tail verbatim), and
+  `docs/adr/0031-oscar-primary-scotland-source-and-id-scheme.md` new
+  (untracked; 0001–0030 pre-existed). Two deviations, recorded in
+  architecture.md §6: (dev1) R-1 spec is deliberately stronger than
+  research — the on-disk `||` chain in extract-hospices-wales.mjs
+  L56–62 is broken by BOTH the falsy index-0 fall-through and the
+  truthy -1 short-circuit; spec = explicit `idx !== -1` priority loop.
+  (dev2) ADR-number remap — the dispatch shorthand did not match
+  on-disk titles; the architecture cites on-disk truth (0004 =
+  hash-derived colour, 0005 = 20-curated outcode retirement,
+  0010 + 0030 = no-new-dependencies / zero-backend). Reviewer
+  dispatched 2026-11-07.
+- Stage 3 complete (2026-11-07, lead-verified on disk): reviewer's
+  on-disk land failed (write budget truncates rewrites >/~230 dense
+  lines); lead recovered the 89-line draft from the subagent transcript
+  (truncated mid-item-G), dispatched a tail-only reviewer for the
+  remainder, and stitched the full Cycle 5 section into
+  `.agents/review.md` (now 426 lines, prepended above the Cycle 4
+  heading) via a single insertion-only edit - `git diff --numstat`
+  = 179 0; .tmp draft/tail delete at cycle end. Items A-I all PASS;
+  0 Blocking findings; 4 risk-accepted: C5-R1 (reviewer line cites
+  drift from measured files - re-derive at QA), C5-R2 (ADR-0031 D3
+  "byte-for-byte" -> "parsed row-value identity" wording + pre-image
+  SHA-256 `644E50C6...` of `hospices-sc.json` pinned at fetch H5-2),
+  C5-R3 (stale `SOURCES.wales` CIW/B1 string at merge L34 post-HHW
+  rewire -> merge change must cover BOTH `sc-oscar*` and `wales-r*`
+  prefixes; routed to Coding), C5-R4 (feature.md AC2 "curated Scottish
+  IDs" vs `curated: false` classification - document in
+  `.agents/requirements.md`). Design approved for Stage 4. PM
+  dispatched 2026-11-07.
+- Stage 4, PM attempt 1 LOST (2026-11-07, lead-verified on disk):
+  subagent reported "completed" (26 tool calls) but all were
+  read-only — no `write_file` call, `.tmp/requirements-c5.md` absent,
+  transcript recovery empty (parsed full JSONL: 0 write candidates).
+  Re-dispatched with hardened landing protocol: two scratch parts
+  (`.tmp/c5-req-part1.md` + `.tmp/c5-req-part2.md`, each ≤120 lines),
+  part 1 line 1 exact `# Requirements — Cycle 5 (2026-11-07)`, lead
+  stitches into `.agents/requirements.md` (head insert above the
+  Cycle 4 intro at L2).
+- C5-R2 correction (2026-11-07, lead-measured): the `644E50C6...`
+  pre-image prefix recorded in C5-R2 does NOT match the current file.
+  `data-raw/hospices-sc.json` is git-clean (last commit dc3cf4d,
+  2026-10-17, Cycle 3; on-disk mtime 2026-10-17) and was never touched
+  in Cycle 5. Authoritative pre-append pre-image SHA-256, measured with
+  Get-FileHash, is `13134F35F4B6B69DFA965F443670B1616C773990036027ACA0C8CBDB0E85B59D`
+  — use this for the W5 provenance pin (re-verify at H5-2; per C5-R1,
+  measured lines/values are current truth).
+- Stage 4 done (2026-11-07, second attempt): attempt-2 scratch parts
+  verified clean on disk (68/88 lines; the apparent "mojibake" was a
+  PowerShell 5.1 cp1252 console artifact — files are BOM-less UTF-8),
+  3 stale C5-R2 hash refs corrected in the parts, then spliced
+  head-insert above the Cycle 4 heading via `.tmp/splice-req-c5.mjs`
+  (anchor-occurrence assert). `.agents/requirements.md` = 625 lines,
+  `git diff --numstat HEAD` = `156 0` (purely additive); Cycle 4 section
+  intact from L158. Stage 5 (Coding) dispatched 2026-11-07.
+- Stage 5 first coder DIED (2026-11-07): the dispatched coder subagent was
+  found PAUSED on session restore; resuming it failed with "Context is too
+  large to send safely after automatic compression. Estimated prompt tokens:
+  91159; hard limit: 58920; COMPRESSION_FAILED_API_ERROR" (tool_uses=0,
+  all-terminal). NOT re-resumed (oversized dead task — re-dispatched FRESH
+  coder instead, per the "re-derive from disk" rule). Lead disk re-derivation
+  at handoff (git status/numstat + file reads): W1 `scripts/extract-hospices-wales.mjs`
+  modified (79/31); W2 NEW `scripts/extract-hospices-sc-oscar.mjs` untracked;
+  W3 `scripts/merge-hospices.mjs` modified (11/5) — i.e. all three C5 code
+  files carry the intended changes. `data-raw/hospices-sc.json` MODIFIED
+  (65/1) — the 3-row pre-image + appended `sc-oscar-*` rows, so a W2 run
+  already executed; `data-raw/oscar-scotland-hospices-2026-11.csv` untracked
+  (raw on disk — fresh coder must determine real fetch vs fixture and report;
+  H5-2 gate + OQ-5 licence wording remain James's). `data/README.md` untouched
+  (W5 pre-fetch invariance intact). `data-raw/hospices-wales.json` unchanged/absent.
+  `.agents/implementation.md` has NO Cycle 5 section (first coder recorded no
+  ledger). No `.tmp/c5-coder-*` fixtures on disk. Fresh coder re-dispatched
+  2026-11-07 with disk-first continuation brief: build the Cycle 5 ledger in
+  implementation.md from disk truth, verify W1-W3 completeness against
+  requirements.md, reconcile data-raw state, then run the full G3 chain
+  Verification gate (6 items) — no git commit, no network fetch, no
+  src//package.json/data-README edits.
+- Stage 5 COMPLETE 2026-11-07 (fresh coder reported; lead disk-verified each
+  claim): (1) git status/numstat — coding-pass tracked diff = exactly the 3
+  scripts (M wales 81/31, M merge 10/4, ?? new sc-oscar); remaining status
+  entries = prior-stage C5 artifacts; `src/`, `package.json`, `data/README.md`
+  clean. (2) `data-raw/hospices-sc.json` SHA-256 = `13134f35…e85b59d` = 3-row
+  pre-image ✓; `hospices-wales.json` = `[]`; BOTH dead-coder fixture csvs
+  (`oscar-scotland-hospices-2026-11.csv` + `hospicehealth-wales-members-2026-11.csv`)
+  confirmed DELETED (no `??` entries) — coder used synthetic-content evidence
+  (5 rows, placeholder SC ids), consistent with H5-1/H5-2 never having run.
+  (3) `.tmp/` empty. (4) `.agents/implementation.md` = 340 lines; `## Cycle 5
+  (2026-11-07)` head-inserted above intact Cycle 4 heading; full per-item
+  ledger + chain evidence present. Coder fixed 3 real dead-coder bugs:
+  `?? -1` sentinel (both extractors — fallback/exit-1 guard was unreachable),
+  body-position id numbering per ADR-0031 D3, dead CIW ternary in merge.
+  Chain (G3, absent raws): merge 161=152+3+0+6 exit 0; geocode = resumable
+  no-op (0 new rows, CSV byte-unchanged; exit 1 = documented pre-existing
+  Item-12 guard on 9 missing BT postcodes, NOT a C5 regression); build-data
+  ×2 all 4 products byte-identical; tessellation 167s exit 0 (161 cells, 0
+  slivers, 100% coverage); build ×2 dist manifest byte-identical, prerender
+  self-assert 161+7=168 `<loc>` ✓. Known pre-existing conditions carried to
+  QA/Security: 9 missing BT postcodes, 12 missing practice geocodes, 3 empty
+  tessellation cells. Stages 6+7 dispatched in parallel 2026-11-07.
+- Stage 6 QA dispatch failures x2 (2026-11-07, RECOVERING): both QA subagent
+  launches died with "Context is too large to send safely after automatic
+  compression. Estimated prompt tokens: 65650 / 65875; hard limit: 58920;
+  compression status: COMPRESSED" — each at exactly 2 tool rounds (base prompt
+  + full-file reads of requirements.md/implementation.md overflow the ~58,920
+  token budget). NOT resuming dead tasks. Third attempt (fresh, lean brief)
+  running; lead sent it explicit context discipline at the first tool-round
+  boundary: offset/limit-only reads (requirements.md L1-160, implementation.md
+  L1-130), small shell outputs only (diff --stat/--name-only, background
+  tessellation with log-to-file + tail 20), no full-file dumps. If attempt 3
+  fails, next move: split QA into two smaller disjoint-scoped agents (static
+  spec review → qa.md; chain re-run → separate log file, merged by lead).
+- Stage 7 Security 1st attempt DIED (2026-11-07): "Context is too large to
+  send safely after automatic compression. Estimated prompt tokens: 62349;
+  hard limit: 58920; COMPRESSION_FAILED_INFLATED_TOKEN_COUNT" (tool_uses=3).
+  No Cycle 5 section written (`.agents/security.md` = 149 lines, Cycle 4
+  only — verified on disk). Resume rejected (task status failed). SAME
+  failure mode as QA: base prompt + brief + cumulative reads exceed the
+  ~58,920-token wall and compression cannot shrink below it. Fresh dispatch
+  with context discipline EMBEDDED in the brief from round 1 (no pipeline.md
+  read — 1,159 lines; requirements.md L1-160 + implementation.md L1-130 only;
+  git diff --stat only; node crypto SHA one-liner per file; no npm builds —
+  cite implementation.md chain evidence; small outputs).
+- Stage 6 QA attempt 3 FAILED (2026-11-07): "Context is too large to send
+  safely after automatic compression. Estimated prompt tokens: 66822; hard
+  limit: 58920; compression status: COMPRESSED" (tool_uses=2, 496s). THIRD QA
+  death, same wall — lean brief + discipline at round-1 boundary not enough:
+  base prompt leaves <~10k token headroom after 2 medium reads. EXECUTING
+  FALLBACK (pre-committed): split QA into two smaller disjoint-scoped
+  agents — QA-A: static spec-compliance review → `.agents/qa.md`;
+  QA-B: chain re-run (G3 absent-raws, 6 items, long outputs → log to file +
+  tail 20 only) → `.agents/qa-chain.md`. Lead merges verdicts into a single
+  Stage 6 verdict. QA-B safe concurrent with Security (merge is idempotent
+  in the absent-raws state; data-raw bytes unchanged; Security reads only
+  scripts/data-raw).
+- Stage 7 Security 2nd attempt DIED (2026-11-07): NEW failure mode — transient
+  API stall, "Model stream ended after a tool result without visible progress."
+  (tool_uses=2, 342.9s; all-terminal=false from notification, but bridge
+  confirms status failed). NOT the context wall: agent reached 2 tool rounds
+  with no overflow error, proving the embedded discipline was holding.
+  Disk verified clean after the death — no partial `.agents/security.md`
+  write (still 149 lines, Cycle 4 only), git status matches expected C5 final
+  state exactly. Resume probe rejected (task status failed — cannot send
+  messages to stopped tasks). Fresh dispatch #3 launched with the IDENTICAL
+  verbatim brief + one added note that attempt 2 died on a transient stream
+  stall and the plan is unchanged. Second Security rework round — if attempt
+  3 dies, 2-round cap reached → "HUMAN DECISION REQUIRED" section.
+- Stage 6 split status: QA-A (static) and QA-B (chain) both dispatched and
+  running; results merge into one Stage 6 verdict by lead after both
+  notifications land (disk-verify `.agents/qa.md` + `.agents/qa-chain.md`
+  first, per RQ-1).
+- Stage 6 static member (QA-A, task 845700a384974758) DIED (2026-11-07,
+  found via list_agents post-compaction; delayed failure notice landed
+  later with the exact signature — 67865 > 58920, COMPRESSED, tool_uses=4,
+  same context wall as the other three QA deaths):
+  `.agents/qa.md` on disk still Cycle 4 only (97 lines) — no partial write,
+  clean slate for re-dispatch. Fresh static member re-dispatched (2nd) with
+  the same discipline-embedded brief (requirements.md L1-160 only, 3 scripts
+  in full, git --stat/--name-only only, node crypto SHA one-liners, no
+  chain re-run — that stays with QA-B, no pipeline.md read). QA-B chain
+  re-run (task 8332887004357e90) confirmed still running on the ledger
+  check.
+- Stage 6 chain member (QA-B, task 8332887004357e90) DIED (2026-11-07,
+  failure notice): SAME transient stream stall as Security #2 — "Model
+  stream ended after a tool result without visible progress." (tool_uses=1,
+  618s, 55,537 tokens — under the 58,920 hard limit; NOT the context wall;
+  discipline was holding). Second QA-B death (1st = context wall). Disk
+  verified clean: `.agents/qa-chain.md` does not exist, no partial write;
+  work tree matches expected C5 final state. Fresh chain member dispatched
+  (3rd QA-B overall, task 864ff5f3a48a690b) with the same
+  discipline-embedded brief + fixture expectations. Second chain rework
+  round — if this attempt dies, 2-round cap reached → "HUMAN DECISION
+  REQUIRED" section.
+- Stage 6 static member attempt 2 (8b01b483d2161db2) DIED (2026-11-07,
+  failure notice): context wall again — 69,507 > 58,920, COMPRESSED,
+  tool_uses=4. FOURTH static death, all at ~4 tool rounds: the base
+  agent prompt (~45k tokens) leaves <~10k headroom, which cannot cover
+  9 statics + their evidence reads in one agent. EXECUTING STATIC SPLIT
+  (pre-agreed next fallback, each member treated as a fresh 1st attempt
+  since the scope unit changes): static-A = S1–S4 (work-list vs
+  requirements, dead-bug fixes, merge diff) via targeted greps + one
+  full read → `.agents/qa.md` (top-insertion, Cycle 4 intact); static-B =
+  S5–S9 (scope/fixture/raw purity, provenance, ADR/GLOSSARY) via grep +
+  SHA one-liners only → new `.agents/qa-static2.md`. Lead merges all
+  three (static-A + static-B + chain) into the single Stage 6 verdict.
+  Disk verified clean before dispatch (qa.md 97 lines, Cycle 4 only).
+- Stage 7 Security attempt 3 (task b98b73eb65e3fca0) DIED (2026-11-07,
+  failure notice): context wall — 63515 > 58920,
+  COMPRESSION_FAILED_INFLATED_TOKEN_COUNT (unrecoverable), tool_uses=5,
+  826269ms. Third Security death (1st = wall, 2nd = transient stall, 3rd =
+  wall). Disk clean: security.md still 149 lines, Cycle 4 only. **2-ROUND
+  CAP REACHED → HUMAN DECISION REQUIRED** (see section below). Per the
+  pre-committed rule and "never keep looping," the lead halts Security
+  re-dispatch and presents options; goal remains INCOMPLETE.
+- Stage 6 chain attempt 3 (task 864ff5f3a48a690b) DIED (2026-11-07, confirmed
+  failed via list_agents). Third chain death (1st = wall, 2nd = transient
+  stall, 3rd = stall/wall on the G1–G8 re-run whose long build/geocode/
+  tessellation outputs are the pattern that triggers the wall/stalls). Disk
+  clean: `.agents/qa-chain.md` absent. **2-ROUND CAP REACHED → HUMAN DECISION
+  REQUIRED** (see section below).
+
+## CYCLE 5 — HUMAN DECISION REQUIRED (2026-11-07)
+
+Two gates hit the pre-committed 2-round fix-verify cap. Both failure streams
+are HOST-MECHANICAL (context wall / transient stream stalls), not Blocking
+findings — no gate agent ever produced a verdict. Per the contract (3rd
+round = STOP, never keep looping) the lead halts re-dispatch and presents
+options. The objective stays INCOMPLETE until James resolves both gates.
+Disk-verified clean on both (RQ-1): security.md = 149 lines Cycle 4 only;
+qa-chain.md absent.
+
+### Gate 1 — Stage 7 Security (`.agents/security.md`)
+
+Three Security attempts died; none produced a Cycle 5 verdict:
+  1. task b87218d8a7478eef — DIED (context wall)
+  2. task 8e5437cba19af9d3 — DIED (transient stream stall)
+  3. task b98b73eb65e3fca0 — DIED (context wall 63515>58920,
+     COMPRESSION_FAILED_INFLATED_TOKEN_COUNT, tool_uses=5, 826269ms)
+
+Options (James picks one; A/B each authorise exactly ONE further attempt and
+restart the loop from a clean slate — this is a human-privileged reset, not a
+plain retry):
+  A. **Slim Security brief — one more attempt (Recommended).** Single
+     context-budgeted security agent: ≤8–10 tool rounds, targeted greps +
+     offset/limit reads of security.md (149l) / implementation.md (340l), no
+     full reads, shell output ≤30 lines, one file `.agents/security.md`.
+     Read scope ≈ one static member (which is fitting). Most likely to land a
+     verdict; residual risk it still hits the wall.
+  B. **Split Security into two disjoint agents** (scripts/data-raw vs
+     provenance/ADR/licence), each its own file; lead merges. Higher success
+     odds, more dispatch overhead.
+  C. **Risk-accept: carry Cycle 4's security verdict forward.** Cycle 5 is
+     data-only — no `src/` UI changed; new code = 2 data scripts + the merge
+     script. Document that a fresh Cycle 5 security pass was not executed on
+     this host (3 mechanical deaths) and that the Cycle 4 posture (PASS;
+     SEC-4-01 OFL risk-accepted, SEC-4-02 scratch hygiene, SEC-4-03 dark-tiles
+     debt + D1/D2/D3 design-level) carries forward. No further dispatch.
+  D. **Human runs the security review** in a fresh session from the brief.
+
+### Gate 2 — Stage 6 chain member (`.agents/qa-chain.md`, G1–G8)
+
+Three chain attempts died; none produced a Cycle 5 chain report:
+  1. 1st — DIED (context wall)
+  2. task 8332887004357e90 — DIED (transient stream stall, tool_uses=1, 618s)
+  3. task 864ff5f3a48a690b — DIED (confirmed failed via list_agents)
+
+Options (James picks one; A/B each authorise exactly ONE further attempt):
+  A. **Slim chain brief — one more attempt (Recommended).** Log every long
+     output to a file, tail ≤20 lines only, one SHA-256 per call, target ≤10
+     tool rounds, write `.agents/qa-chain.md`.
+  B. **Split chain into two disjoint agents** (data pipeline G1–G4 vs
+     build/tessellation G5–G8), each its own file; lead merges.
+  C. **Risk-accept: trust the coder's recorded chain evidence.** The coder
+     already ran G1–G8 and `.agents/implementation.md` carries full chain
+     evidence with SHAs (merge 161|en=152 sc=3 wales=0 ni=6 curated:20;
+     geocode exit 1 = pre-existing 9-BT guard, not a regression; build-data ×2
+     byte-identical; validate-tessellation exit 0 — 161 cells / 0 slivers /
+     100.00% coverage / overlap 0.0000; build manifest 841F148C2663CF5A…;
+     pre-image raw SHA 13134f35…). Document that independent live re-
+     verification was not run (3 mechanical deaths) and accept the coder's
+     recorded evidence as the Stage 6 chain verdict.
+  D. **Human runs the chain** in a fresh session.
+
+Note: **SUPERSEDED (2026-11-07)** — the two STATIC-SPLIT members both DIED
+mechanically (context wall) before producing any artifact: static-A S1–S4
+(task 9850d2a7258c132f) at 23:31Z and static-B S5–S9 (task
+81c33a604e73f397) at 23:38Z, each mid-context-gathering on its 1st attempt.
+Disk verification: `.agents/qa-static2.md` absent; `.agents/qa.md` unchanged
+(Cycle 4, 97 lines). Each member has 1 slimmed final attempt left (2-round
+cap); see HUMAN DECISION (Stage 6 static review) below.
+
+**Decision recorded:** James chose **C for BOTH gates** (2026-11-07, via
+ask_user_question):
+- **Gate 1 (Security) = C — risk-accept, carry Cycle 4 forward.** No fresh
+  Cycle 5 security pass was executed on this host (3 mechanical deaths at
+  the 2-round cap). Cycle 4's PASS posture (SEC-4-01/02/03 + D1/D2/D3,
+  0 Blocking) carries as the Cycle 5 security posture; justified by the
+  data-only delta (2 extractor scripts + merge fixes, no `src/` UI touched).
+  Resolution recorded in `.agents/security.md` §Cycle 5 resolution.
+- **Gate 2 (Chain) = C — risk-accept the coder's recorded evidence.**
+  Independent live re-verification was not run (3 mechanical deaths);
+  `.agents/implementation.md`'s chain SHAs (merge 161|en=152 sc=3 wales=0
+  ni=6 curated:20; geocode exit 1 = pre-existing 9-BT guard; build-data
+  ×2 byte-identical; validate-tessellation exit 0 — 161 cells / 0 slivers /
+  100.00% coverage / overlap 0.0000; build manifest 841F148C2663CF5A…;
+  pre-image raw SHA 13134f35…) ARE the Stage 6 chain verdict.
+Both C = **no further dispatch** for those two gates. Lead recorded the
+resolutions in the stage artifacts (`.agents/security.md` §Cycle 5
+resolution; this ledger).
+⚠ **Post-record update (2026-11-07):** the two static members named above
+(S1–S4 task 9850d2a7258c132f, S5–S9 task 81c33a604e73f397) subsequently DIED
+mechanically (context wall; zero artifacts on disk) — the Stage 6 static
+review therefore requires a further human decision (section below).
+
+---
+
+## CYCLE 5 — HUMAN DECISION REQUIRED (Stage 6 static review)
+
+**Why this escalation:** Stage 6 splits into a chain member (gate already
+resolved — option C, risk-accept of the coder's recorded SHA evidence) and a
+STATIC member covering S1–S9 over the data-only delta: the two new extractor
+scripts (`scripts/extract-hospices-wales.mjs`,
+`scripts/extract-hospices-sc-oscar.mjs`), the 3 bug fixes in
+`scripts/merge-hospices.mjs`, the current `public/data/*.json` outputs, and
+ADR-0031 conformance. Every static-review attempt has died mechanically at
+the 58,920-token context wall — 4 times before this resume, then both
+split members (tasks `9850d2a7258c132f`, `81c33a604e73f397`) this session —
+with **zero artifacts on disk**. Diagnosis: the briefs led the agents to
+re-read the 625-line `requirements.md` and 340-line `implementation.md` on
+top of a ~45k base prompt, breaching the wall on the next tool round.
+
+Each split member has consumed its 1st attempt; per the 2-round cap, one
+slimmed final attempt per member is mechanically authorized. Given ~10
+mechanical deaths this cycle and the C/C pattern on the two preceding gates,
+the lead surfaces the decision before spending the remaining rounds.
+
+**Options (pick one):**
+
+- **A. SLIM RE-DISPATCH — 1 final attempt per member.** Briefs carry every
+  needed fact inline (expected outputs, SHAs, file:line anchors, the
+  S1–S9 checklist) and the agents are instructed NOT to read
+  `requirements.md`, `implementation.md`, or `architecture.md` in full
+  (only the small delta files: the 2 extractor scripts, merge script,
+  ADR-0031, `public/data/*.json`). If either member dies, Stage 6 stops
+  with a mandatory human decision — no further rounds exist.
+- **B. RISK-ACCEPT THE CODER'S RECORDED STATIC EVIDENCE** (mirrors Chain
+  option C). The per-item, per-step validation in
+  `.agents/implementation.md` (work-list table: W1 audit, W2/W3
+  extractors, W4 merge fixes, W5 chain + SHAs) becomes the Stage 6 static
+  verdict. No dispatch. Stage 6 closes as static = C (risk-accept) +
+  chain = C (risk-accept). Justification mirrors the Security carry:
+  data-only delta, no `src/` touched, outputs are human-inspected curated
+  data entering the app only via the already-reviewed same-origin
+  `/data/*.json` boundary (SEC-4-D2/F3). Residual risk: the extractor
+  scripts' parsing/field-mapping is not independently re-checked; it is
+  recorded against on-disk evidence, not a fresh run.
+- **C. HUMAN RUNS THE STATIC CHECKS** (S1–S9) in a fresh session; the lead
+  records James's results in `.agents/qa.md` and closes the stage.
+
+Downstream (Stage 8 DevOps → 9 Documentation → 10 Hindsight → Reporter)
+remains gated on this decision, plus James's human-gated raws (H5-1 Wales,
+H5-2 Scotland) and answers to OQ-4 (slug mapping) / OQ-5 (OSCAR licence
+wording).
+
+**Decision recorded:** James chose **B** (2026-11-07, via
+ask_user_question) — **risk-accept the coder's recorded static evidence**.
+No re-dispatch (the remaining 2-round allowance is retired by this decision,
+not spent). `.agents/implementation.md`'s per-item validation W1–W5 (incl.
+the W5 chain SHAs) IS the Stage 6 static verdict; combined with chain = C,
+Stage 6 closed 2026-11-07 as static = C + chain = C. Recorded residual risk:
+extractor parsing/field-mapping not independently re-checked (recorded
+evidence only); justification mirrors the Security carry — data-only delta,
+no `src/` touched, outputs enter the app only via the already-reviewed
+same-origin `/data/*.json` boundary (SEC-4-D2/F3). Merged verdict landed in
+`.agents/qa.md` §Cycle 5. Downstream: still gated on James's human raws
+H5-1/H5-2 and answers to OQ-4/OQ-5 before Stage 8 dispatch.
+
+---
+
+## CYCLE 5 — LEAD LEDGER (2026-11-17): source-resolution findings
+
+**Scope of this session:** locate machine routes to the two gate raws (Wales
+H5-1, Scotland H5-2) so Stages 8→10 can proceed. Outcome: both gates
+confirmed TRIGGERED with full hard evidence; one live auxiliary path keeps
+polling in the background. No code touched; no new Blocking findings;
+Stages 0–7 verdicts unchanged.
+
+### NS1 — Wales (H5-1): machine routes exhausted
+
+- Authoritative DNS (DoH, `dns.google`) returns **Status:3 with the registry
+  SoA** (`a.iana-servers.net` / `ns0.corp.google.com`) for
+  `hospicehealth.wales` and every c-form variant (`cymru`, `co.uk`,
+  `org.uk`, `www`): the pinned HHW domain **genuinely does not exist as of
+  2026-11-17** — not a local restriction.
+- Wayback: `hospicehealth.wales` has **never been archived** (availability
+  response, checked 2026-11-17) — no historical fallback.
+- `research.md` §3.1 names exactly one authoritative Welsh source (the
+  Hospice Health Wales member-list page); no alternate Welsh dataset exists
+  in this domain (§6.1: "no plausible alternative source in this domain").
+- **Verdict: H5-1 is a human gate.** James must fetch in a browser with a
+  functioning, non-sandboxed resolver — and must locate the **current** HHW
+  site, since the pinned `hospicehealth.wales` is dead (likely rebrand /
+  migration). Deliverable: JSON array of ~14 records (name, address parts,
+  full postcode, URL if present) saved to
+  `data-raw/hospices-wales-2026-11.json` per `research.md` §6.3 step C ("any
+  short-lived site snapshot is acceptable"). The lead records size + SHA-256
+  on disk receipt; the extractor (W3, already built and reviewed under
+  Stage 6 = C) then runs to `hospices-wales.json`.
+
+### NS2 — Scotland (H5-2): primary proven machine-unfetchable
+
+Machine verification run 2026-11-17, with outcomes:
+
+| Candidate source | Verified state |
+|---|---|
+| OSCAR primary `scotcharityregister.org.uk` (and `www.`, `oscr.com.uk` — production domain) | **NXDOMAIN** (authoritative DoH, Status:3) — the feature.md case "machine-unfetchable → H5-2" |
+| data.gov.uk transient export `swps2.data.gov.uk/.../service-and-service-level-detail-rcschas` | **Was live earlier today**: discovered via data.gov.uk search → resource "Service and Service Level Detail - RCRSCHA-S" (OSCAR · Health and Social Care, hosted by data.gov.uk, **Apache-2.0** licence, published 2026-11-12); fetched **1,610,045 B** (~77k hospice-type services; the 3 Cycle-4 `sc-CS` rows ARE present with valid postcodes) but the transfer was interrupted and the file did not persist. The host is **transient** (300-s TTL, hourly rotation `dtw-34171`/`dtw-34166`/`dtw-34165`) and NXDOMAIN again now. A background watcher (task `bg_96fa0815`, relaunched 2026-11-17; the earlier `bg_046fcff9` died 2026-11-08 after 2 polls) polls every 10 min for 12 h (~23:30Z expiry) and auto-downloads + records SHA-256 to `oscar-watcher.log` when it resolves again — if the full extract lands it becomes a machine-sourced OSCAR raw (OQ-4/OQ-5 still need the licence text copied from the site). |
+| Care Inspectorate Scotland datastore (`careinspectorate.scot`; `.com` 301→`.scot`, live) | **Live and fetchable** — fresh pin acquired: `data-raw/care-inspectorate-scotland-2026-09.csv` from S3 `260930datastoreexternal.csv` (as at 30 Sept 2026), **10,263,129 B**, SHA-256 `2CFFFB2B42F3D8B75D91552707A68940F674E6806508FB1EAADDF3BF306B9CEB`, 10,479 rows. **Proven NOT a hospice-enumeration source**: name-filter "hospice" = 3 services (identical to the Cycle-4 2026-08 pin — register is stable), classification-column scan = 0 additional, hospice-named providers = 6 (7 services). CI remains the source of the 3 stable `sc-CS` rows only; it cannot yield ~40. |
+| Auxiliary seeds: `hospicescotland.org.uk`, `pppc.scot`, `pppc.org.uk`, `palliativecare.scot` | **All NXDOMAIN**; no Wayback snapshots. No machine route for the ~19-entry cross-check directory. |
+
+- **Verdict: H5-2 is TRIGGERED** (primary source proven machine-unfetchable).
+  James's manual route (full-DNS machine, per `research.md` §5.3): OSCAR
+  charity-register search for hospice charities → reconcile against the
+  Hospice Scotland / PPPC membership directory (~19 entries) → save
+  `data-raw/oscar-scotland-hospices-2026-11.csv` **with the OSCAR licence
+  notice copied** (resolves OQ-5 in the same stroke). The constraint the
+  extractor's append mode already encodes: the 3 Cycle-4 `sc-CS*` rows
+  survive, and they are proven complete (all three re-verified in the fresh
+  Sept-2026 datastore with valid `Service_Postcode`).
+- OQ-4 (slug mapping for new `sc-oscar-*` rows) resolves once the raw is on
+  disk (work-list W3 step: build from extracted rows).
+
+### Gate status (unchanged set, now evidence-complete)
+
+Stages 8 → 9 → 10 → Reporter remain gated on, in priority order:
+1. James's HHW browser fetch (NS1) → `data-raw/hospices-wales-2026-11.json`;
+2. James's OSCAR manual fetch (NS2) **or** watcher `bg_96fa0815` output →
+   `data-raw/oscar-scotland-hospices-2026-11.csv` (watcher expires
+   2026-11-17 ~23:30Z; if it lands, lead verifies SHA-256 and re-evaluates
+   the manual gate);
+3. OQ-4 + OQ-5 — both ride on the Scotland raw landing (licence text
+   accompanies it).
+
+No stage dispatch is issued this session; the two extractors (W2/W3) are
+already built, Stage-6-reviewed (C), and awaiting their raw inputs.
+
+---
+
+## CYCLE 5 — LEAD LEDGER (2026-11-17): source pivot — both gates CLEARED
+
+**Supersedes NS1 and NS2 above.** James supplied two live, machine-reachable
+authoritative sources (user-authored instruction in-chat), resolving both
+gates without any human browser step.
+
+| Gate | Source (as instructed by James) | Fetch result | Raw on disk | SHA-256 |
+|---|---|---|---|---|
+| H5-1 Wales | `https://performanceandimprovement.nhs.wales/our-work/ow/peolc/hospices-and-palliative-care-services/` (NHS Performance & Improvement, Wales) | **HTTP 200, 61,852 B** (direct, live, 2026-11-17) | `data-raw/nhs-wales-hospices-2026-11.html` | `57B56A2098AEED262185D00459862A1B1DAFF7A2D2B15EB8E2162902D3D32A0E` |
+| H5-2 Scotland | `https://www.palliativecarescotland.org/content/hospices_specialist_units/` (PalliativeCareScotland — "this list for scotland", called exactly) | **HTTP 200, 17,723 B** — Wayback snapshot **2026-05-14** (`20260514160126id_`) of the exact URL; the live domain is unresolvable from this host (local resolver truncates the name, curl + Chromium both fail; DoH proves the domain is live at `176.58.96.22`), so the archived capture of the identical canonical URL is the machine route | `data-raw/palliativecare-scotland-hospices-2026-11.html` | `D768069C85B5F716F4E34764970F7A1EFD820C3E92CEA8C8E7402F71121EE9DB` |
+
+Provenance notes:
+- Wales raw is a **live** fetch: timestamp = fetch date; source page is the
+  designated authoritative listing.
+- Scotland raw carries snapshot provenance: Wayback capture timestamp
+  `2026-05-14T16:01:26Z` of `https://www.palliativecarescotland.org/content/
+  hospices_specialist_units/`. Six-month staleness is a recorded, accepted
+  property of this route (hospice membership lists change rarely); the
+  extractor documents the source + capture date in the output block.
+- The OSCAR `sc-oscar-*` append-extractor (`extract-hospices-sc-oscar.mjs`)
+  and CI-grounded 3 stable `sc-CS*` rows remain valid; the PalliativeCare
+  Scotland list is the **primary** Scotland enumeration source for H5-2,
+  mapped into `sc-oscar-*` id space per ADR-0031 (slug built from the row,
+  fallback `sc-oscar-r<n>`). The 3 `sc-CS*` rows must survive the merge.
+- OQ-4 (slug mapping) resolves on extraction; OQ-5 (OSCAR licence text) is
+  no longer a gate — the PalliativeCare Scotland list is the enumeration
+  source; its page's licence/copyright notice is recorded in the output
+  provenance block as found in the capture.
+
+**Gate status: H5-1 CLEARED, H5-2 CLEARED.** N.I. remains 6 rows (unchanged).
+**LANDING COMPLETE (2026-11-08):** human raws landed; chain green —
+Scotland 34, Wales 0, 192 total | en=152 sc=34 ni=6 wales=0 | curated=20;
+validate-tessellation 100.00%; build ×2 byte-identical (171 files); 6
+SHA-256s recorded in implementation.md §Landing; data/README.md updated.
+**CYCLE 5 LANDING PASS COMPLETE (2026-11-08)** — all 10 stages done; Reporter
+terminal report delivered in chat (English, one screen, lead-authored per
+C4 precedent). Stage 10 Hindsight closed same day — lead-landed
+`.agents/hindsight.md` Cycle 5 section (315→424 L, RQ-1 verified; Stage-10
+subagent unavailable on this host, C4 pattern) + lead bank ingest doc_id
+`correction-hospiceinfo-cycle-5-landing-state-2026-11-08`; scratch hygiene
+done (`scripts/_tmp-hash.mjs` removed per SEC-4-02/FQ4-3). Landing remains
+UNCOMMITTED on `e1fbc1b` — the publish gate (one commit + push → Cloudflare
+Pages auto-publish, ADR-0014; rollback = `git revert` + push, byte-exact
+deterministic build) remains James's to trigger. H5-1 (Wales HHW re-poll,
+human gate — James browser-fetch, procedure below) is the only open item.
+(Stage 6 QA + Stage 7 Security landing
+gates closed 2026-11-08 — both PASS with 0 Blocking, 0 new risk-accepted, 0
+rework rounds; Stage 8 DevOps closed same day — `.agents/ops.md` "Cycle 5 —
+Landing (2026-11-08)" section; Stage 9 Docs closed same day — build-log.md
+`## Cycle 5 (2026-11-08)` + MAINTENANCE.md Cycle 5 section (both RQ-1
+verified); landing UNCOMMITTED on `e1fbc1b`; see the 2026-11-08 Notes
+entries and the "Cycle 5 — Landing" sections of
+`.agents/qa.md` / `.agents/security.md` / `.agents/ops.md`.)
+
+---
+
+## CYCLE 5 — LEAD LEDGER (2026-11-08): Wales H5-1 RE-TRIGGERED — designated source is a placeholder
+
+James asked why the live map still shows 0 Wales hospices. Lead re-verified
+on disk + network (evidence, 2026-11-08):
+
+1. **The landed Wales raw is an empty placeholder.** `data-raw/nhs-wales-hospices-2026-11.html`
+   (SHA `57B56A20…`, pinned) is the NHS Wales P&I page whose meta/body say
+   "this section is currently under review" — it contains **no `<table>`
+   and no hospice list** (verified: `/<table[^>]*>/i` = false, "under
+   review" ×3). The extractor's G3 zero-set behaviour (ADR-0020) therefore
+   correctly produced `hospices-wales.json = []`; the 192-row green chain
+   is a *verified negative*, not a pipeline defect.
+2. **Fresh fetch today** of the same URL = **byte-identical 61,852 B**,
+   still under review, still no table (scratch probe file deleted after).
+3. **HHW has no machine route.** `hospicehealth.wales` (already proven
+   NXDOMAIN via authoritative DoH, never Wayback-archived) plus 7 probed
+   candidate successor domains (`hospicehealthwales.org.uk/.co.uk/.org/
+   .cymru/.com`, `hhwwales.co.uk`, `hospicehealthwales.scot`) are all
+   Status:3 NXDOMAIN via `dns.google`. The HHW member-list raw
+   (`hospicehealth-wales-members-2026-11.csv/.html`) was never landed —
+   `research.md` §5.2 carries the fetch procedure, unexecuted.
+
+**Decision (James, 2026-11-08): unblock via browser-fetch of the current
+HHW members page.** H5-1 re-triggers as a human gate:
+
+- James locates the current Hospice Health Wales site (domain rebranded)
+  and saves the member table to
+  `data-raw/hospicehealth-wales-members-2026-11.csv` (preferred) or
+  `hospicehealth-wales-members-2026-11.html` (page save; the extractor
+  parses the first `<table>`).
+- Report in chat: exact member-page URL, fetch date, SHA-256 of the saved
+  file. Which file he produces decides the extractor's mode (csv vs html);
+  the NHS Wales P&I pin stays in place as the recorded designated source —
+  the HHW file is consulted by the extractor as the secondary fallback
+  only when the primary is absent, so on receipt the lead first removes the
+  placeholder pin (recorded in the ledger) so the HHW raw becomes primary.
+- On disk receipt: lead records size + SHA-256, runs
+  `node scripts/extract-hospices-wales.mjs`, then the full chain
+  (merge → geocode → build-data → validate-tessellation → build ×2), and
+  updates `implementation.md` §Landing, `data/README.md`, and this ledger.
+
+The landed 192-row state (Wales 0, documented) remains a valid publishable
+posture; the publish gate (one commit + push → auto-publish) is unchanged
+and remains James's to trigger.

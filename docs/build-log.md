@@ -43,3 +43,44 @@ trust-boundary extension, whitelisted on read), SEC-4-D2 (Medium, carried
 SEC-F3 — curated JSON trust boundary; human curation is the control),
 SEC-4-D3 (Info, carried SEC-F2 — no Content-Security-Policy; the only inline
 JS is the frozen theme-boot snippet).
+
+## Cycle 5 (2026-11-08)
+
+- 1. Scotland register append: PalliativeCare Scotland directory (Wayback
+  pin 20260514160126, 17,723 B) appended via explicit equivalence mapping
+  (ADR-0032): exactly two new rows — `sc-pcs-30` "Marie Curie Hospice",
+  Edinburgh and `sc-pcs-58` "Queen Margaret Hospital Hospice Ward (Ward 16)",
+  Dunfermline. Scotland 32 → 34 (3 CS + 29 OSCAR + 2 PCS); merged total
+  161 → 192 (en 152, sc 34, ni 6, wales 0).
+- 2. The 2026-11-08 12:53 partial append (`sc-pcs-76` Ayrshire, `sc-pcs-75`
+  Melrose — both register duplicates) is retracted; rows 1–32 remain the
+  pre-image oracle (ADR-0032, Context).
+- 3. Wales final gate H5-1 resolved VERIFIED-NEGATIVE: the live 2026-11-08
+  fetch of the NHS Wales P&I page (SHA-256-pinned in `.agents/
+  implementation.md`) confirms the list is under review and absent — 0 is
+  the verified final value under ADR-0020 (zero-set, not a skipped
+  request). Re-poll when the review lifts.
+- 4. Landing chain re-run green: merge 192 / 0 dup; geocode exit 1 by
+  design (0 new; 9 pre-existing C3 BT posture gaps); build-data 192 rows /
+  178 labelled cells / 138 shops / 11,014 practices (11,002 geocoded,
+  12 unplaced); validate-tessellation 100.00% coverage, 0 slivers,
+  1 empty cell (ni-r5), overlap 0.0060 deg² (FQ5-L1 informational);
+  build ×2 byte-identical (200 shells / 199 `<loc>` / 215 files,
+  disk-verified 2026-11-08); `npm run check:layout` exit 0.
+
+Pipeline ADRs this cycle: ADR-0031 (OSCAR primary Scotland source and id
+scheme), ADR-0032 (PCS append id scheme and equivalence-mapping dedupe).
+
+QA outcome (`.agents/qa.md`): PASS, 0 open Blocking — 6/6 landing gates
+green (gates 2–5 re-run post-landing, 2026-11-08); FQ5-L1 (pairwise
+overlap 0.0000 → 0.0060 deg²) classified Informational, no gate impact.
+
+Security outcome (`.agents/security.md`): PASS, 0 open Blocking —
+SEC5-L1 (ast-map rect z-ordering), SEC5-L2 (12 unplaced rows hidden by
+ADR-0012 policy), SEC5-L3 (Nominatim header in build-data.mjs), SEC5-L4
+(land-mask reuse), SEC5-L5 (scratch hygiene) — all Informational. Carried:
+SEC-4-02 (scratch dirs), SEC-4-03 (dark-tile debt, ADR-0027).
+
+Landing commit: UNCOMMITTED as of 2026-11-08 (worktree on `e1fbc1b`;
+commit/push are the operator's human gate) — no top-table commit row until
+the landing lands.

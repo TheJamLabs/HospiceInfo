@@ -312,3 +312,112 @@ performed the ingest post-stage)
 - OFL attribution for the 3 shipped fonts lives on the Licences page
   (Typography section) — add future fonts only with the same attribution
   pattern.
+
+## Cycle 5 Hindsight — Landing pass completed 2026-11-08 (Scotland PCS append 2 + Wales final-gate resolution; publish PENDING James's human gate)
+
+**Landed on** `e1fbc1b` (28 uncommitted `git status` entries as of
+2026-11-08). One commit + push to `main` auto-publishes (ADR-0014);
+rollback = `git revert` + push (byte-exact deterministic build).
+
+### What changed (landing — all figures disk-verified 2026-11-08)
+
+- **Data**: hospice total **192** (was 161) — en=152, sc=34, ni=6,
+  wales=0; curated stays **20**. Scotland 34 = 3 Care Inspectorate +
+  29 OSCAR + **2 PCS append** (`sc-pcs-30` Edinburgh "Marie Curie
+  Hospice"; `sc-pcs-58` Dunfermline "Queen Margaret Hospital Hospice
+  Ward (Ward 16)"). Wales **0 verified-negative** (ADR-0020): live
+  2026-11-08 NHS Wales P&I fetch, SHA-pinned `8055D936…` (61,852 B);
+  the published list is under review — re-poll when it lifts.
+- **dist**: 200 `.html` shells (1 index + 6 info + 192 hospice + 1 404),
+  199 `<loc>` (192 + 7; prerender self-assert passed), **215 files
+  total** (202 emitted + 13 static). Double `npm run build`
+  byte-identical (171 files).
+- **Tessellation** (vle pass): 178 cells, 100.00% coverage, 0 slivers,
+  1 empty cell (ni-r5), overlap 0.0060 deg² → FQ5-L1 (Informational).
+- **Practices/shops**: 138 shops; 11,014 practices (11,002 geocoded /
+  12 unplaced = 9 BT + 3 non-BT — pre-existing C3 posture, 0 new).
+- **Code delta**: `sc-pcs` router only (Scotland PCS detail link) —
+  validated by the fresh Security pass (SEC5-L3/L4 guard notes).
+- **SHA pins** (implementation.md §Landing, 6 total):
+  hospices-all `DACD4426…`, sc-normalised `8f7485d2…`, PCS raw
+  `D768069C…` (Wayback 2026-05-14), Wales raw `8055D936…`,
+  land-mask `b9b313ab…` (unchanged G7 pin), public `hospices.json`
+  `50B989CC…` (72,265 B), `hospices-sc.json` `85474C85…` (26,087 B).
+
+### ADRs recorded (docs/adr/ — exact on-disk titles)
+
+0031-`oscar-primary-scotland-source-and-id-scheme`,
+0032-`pcs-append-id-scheme-and-equivalence-mapping` (13-row
+equivalence table; the 2 unmapped entries are exactly the append
+delta). Together with ADR-0020 (Wales VERIFIED-NEGATIVE zero-set).
+
+### Findings (all non-blocking; 0 Blocking, 0 new risk-accepted)
+
+- FQ5-L1 (Informational): catchment overlap 0.0000 → 0.0060 deg² from
+  the 12 newly-placed Scotland units; coverage 100.00%, 0 slivers —
+  no action.
+- SEC5-L1..L5 (Informational): L1 zero runtime network in extractors;
+  L2 PCS entity-decode neutralisation (markup inert); L3
+  prefix-exclusive id schemes + 3-layer dedup + delta guard; L4 `en-`
+  prefix guard in merge; L5 package.json unchanged. No design-level
+  items; nothing routes to Architect.
+- Carried: SEC-4-01 (OFL font attribution — resolved in C4 Docs),
+  SEC-4-02 (scratch hygiene — `scripts/_tmp-hash.mjs` untracked,
+  **removed before any commit**), SEC-4-03 (dark-tiles debt,
+  ADR-0027).
+- Process note (ops.md only, gate artifacts untouched): gate-tail
+  prose counters in `qa.md` / `implementation.md` are stale Cycle-4
+  template carry-forwards (169/177/193/171 vs disk truth
+  200/199/215/192); prerender self-assert proves the dist.
+- Carried discrepancy: pipeline.md 2026-11-17 pivot table pins Wales
+  SHA `57B56A20…` vs implementation.md `8055D936…` — implementation.md
+  authoritative (raw re-fetch 2026-11-08); no action.
+
+### Process lessons (this host)
+
+- **`create_sub_session` silent first-turn death**: Security
+  (`S5-Sec-Land-C5`, `-r2`) and Docs (`S5-Docs-Land-C5`) both
+  first-turn-timed out with zero writes this cycle; QA
+  (`S5-QA-Land-C5`) timed out on the lead side but its write landed on
+  disk. Rule in practice: write-file-only briefs + RQ-1 disk
+  verification + **lead lands the artifact directly** (C4 precedent)
+  when a sub-session breaks.
+- **Stale counter carry-forward** in gate prose: re-derive every
+  invariant from disk (file counts, `<loc>` counts) at landing; trust
+  the prerender self-assert over template numbers.
+
+### Bank state & ingest plan (no MCP tools in the Stage-10 subagent —
+lead performed the bank ingest after the stage, C4 pattern)
+
+- Bank was re-seeded from gitlog → reflects the committed state only
+  (`e1fbc1b`); **no Cycle 5 landing page exists** (192/34/0/6/20,
+  215/200/199 invariants, ADR-0031/0032, PCS append, Wales
+  verified-negative — all absent).
+- **Ingest DONE (lead, 2026-11-08)**:
+  `hindsight_ingest_document` correction page "Correction: HospiceInfo
+  Cycle 5 landing state (2026-11-08)"
+  (doc_id
+  `correction-hospiceinfo-cycle-5-landing-state-2026-11-08`) — claims
+  what the bank said (or didn't), what is true now (192; Scotland 34;
+  Wales 0 verified-negative; 215/200/199 dist; uncommitted on
+  `e1fbc1b`), and the evidence (RQ-1 marker sweep 2026-11-08).
+
+### Remember for next time
+
+- **Publish PENDING**: landing uncommitted on `e1fbc1b` until James's
+  human gate (one commit + push → auto-publish, ADR-0014). Post-publish
+  smoke checks: 199 `<loc>`; 200-shell survey incl. `sc-pcs-30` /
+  `sc-pcs-58`; Scotland 34 / Wales 0 in data; robots 75 B; 3 woff2
+  14,508/14,632/14,592 B.
+- **Wales list is under review** (ADR-0020) — re-poll the NHS Wales P&I
+  when it lifts; the zero-set is a verified negative, not an
+  exhaustion.
+- **Script balance** was NOT measured this landing pass — do not
+  fabricate it in MAINTENANCE.md invariants.
+- MAINTENANCE.md convention: earlier cycle sections stay the base
+  guide; newer cycle runbook sections state current values (larger
+  counts win).
+- Wales/Scotland raw provenance lives in `data-raw/` (+ Wayback for the
+  PCS snapshot); the merge is the only step that may gain rows —
+  rebuild chain is fail-fast + byte-identity (merge → geocode →
+  build-data ×2 → validate-tessellation → build ×2).

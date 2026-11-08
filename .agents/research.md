@@ -1,3 +1,364 @@
+# Research — Cycle 5 (2026-11-07)
+
+New-cycle record, prepended above the Cycle 4 record (2026-10-30); the rest of this
+file (Cycle 4 + Cycle 3) is preserved verbatim. Objective (per the 2026-11-07 dispatch
+and the operator scope spec `memory/project/cycle-5-scope-specifications.md` — note:
+`.agents/feature.md` and `.agents/pipeline.md` still carry Cycle 4 content; see §5.7
+OQ-6): produce **complete, provenanced hospice lists for Wales, Scotland and Northern
+Ireland**, with evidence for each data source and the extraction plan.
+
+**VERIFIED** = read/executed this pass with citation · **UNVERIFIED** = not
+machine-verifiable (DNS-restricted; human fetch required) · **RECOMMENDED** = proposal
+for Architect/Coding. No code changed by this stage; this file is the only deliverable.
+
+## 5.1 Network constraint (governs every external probe below)
+
+This machine has restricted DNS; external hosts generally do not resolve. Policy applied
+here: **one attempt per host, no retry** (avoids hammering a broken resolver; keeps one
+clean, attributable error per host). Exact errors recorded; every failure is classified
+**HUMAN-FETCH** (James, on a full-DNS machine). Probes made this pass (2026-11-07):
+
+| Host | Command (PowerShell ⇒ `curl.exe`, never `curl`) | Exact result | Class |
+|---|---|---|---|
+| `hospicehealth.wales` | `curl.exe -sS https://hospicehealth.wales/` | `curl: (6) Could not resolve host: hospicehealth.wales` | HUMAN-FETCH — **H5-1** |
+| `www.scotcharityregister.org.uk` | `curl.exe -sS https://www.scotcharityregister.org.uk/` | `curl: (6) Could not resolve host: www.scotcharityregister.org.uk` | HUMAN-FETCH — **H5-2** |
+| `www.hospicescotland.org.uk` | `curl.exe -sS https://www.hospicescotland.org.uk/` | `curl: (6) Could not resolve host: www.hospicescotland.org.uk` | HUMAN-FETCH — auxiliary reconciliation source |
+
+Consequently **no page content, layout, file format or licence text for any of these
+hosts is verified from this environment**; every such claim below is UNVERIFIED and must
+be confirmed by the fetch itself.
+
+## 5.2 Wales — source: Hospice Health Wales (HHW) member list
+
+### 5.2.1 Current state (VERIFIED)
+
+- `data-raw/hospices-wales.json` = `[]` (read this pass).
+- `data/README.md` raw-inputs table: `hospices-wales.json` is the `[]` placeholder,
+  "blocked on data request: Care Inspectorate Wales has no bulk export"; current-state
+  line: "Wales hospices remain 0" (and "Wales 539 practices placed").
+- `scripts/extract-hospices-wales.mjs` (read in full this pass): `RAW =
+  'data-raw/wales-hospices-2026-10.csv'`; **absent file → writes `[]` + EXIT 0** (G3
+  zero-set tolerance — the branch in effect today); name column resolved **by name**:
+  lowercase-exact `service name` → exact `name` → any header containing `name` (exit 1
+  with logged header if none); postcode column: lowercase-exact `postcode`, value
+  whitespace-collapsed and uppercased; empty-name rows dropped; ids `wales-r<1-based
+  position after the name filter>` (ADR-0002); output `{id, name, postcode}` — **no
+  address field**; first run on a present file logs header + first data row (ADR-0003).
+- The Cycle 4 record's source ranking (CIW first) is superseded by the 2026-11-07 scope
+  decision: **HHW member list = source**; the CIW request route is abandoned (no bulk
+  export; `data-raw/wales-hospices-2026-10.csv` never materialised — G3 has been the
+  active branch since Cycle 3). **All entries on the HHW list are targeted** (no
+  selection; agreed target ≈ 14 rows, §5.2.6).
+
+### 5.2.2 Reachability (VERIFIED)
+
+`hospicehealth.wales` → `curl: (6)` (one attempt, no retry, §5.1) ⇒ **human fetch H5-1
+required**; nothing machine-reachable exists for Wales from this environment.
+
+### 5.2.3 Page form (UNVERIFIED — established by H5-1)
+
+Layout unknown. Two expected forms:
+1. **CSV/spreadsheet download** link on the members page — preferred (raw = the
+   authority's own file; best provenance).
+2. **HTML member table** (names + locations + contact fields) — save via browser
+   "Save page as → Webpage, HTML only".
+
+The extraction plan (§5.2.4) accepts either; ADR-0003 first-run header/sample logging
+means the Coding stage's first run proves the column mapping before anything is trusted.
+
+### 5.2.4 Raw filename + extractor rewire (RECOMMENDED)
+
+**Raw filename: `data-raw/hospicehealth-wales-members-2026-11.csv`.**
+Justification: (a) follows the established `<source-slug>-<dataset>-<YYYY-MM>.<ext>`
+raw-input convention used by `data-raw/care-inspectorate-scotland-2026-08.csv` and
+`data-raw/rqia-regulated-services-2026-06.xlsx` (both listed in `data/README.md`);
+(b) the slug names the authority (Hospice Health Wales), keeping it distinct from the
+never-materialised `wales-hospices-2026-10.csv`; (c) `2026-11` = target fetch month,
+consistent with the other pins. If H5-1 delivers HTML instead of CSV, the filename
+becomes `data-raw/hospicehealth-wales-members-2026-11.html` and the extractor parses
+the member table's rows (no scraping beyond the saved file).
+
+**`scripts/extract-hospices-wales.mjs` rewire (Coding stage):**
+
+| Change | Current (VERIFIED) | Proposed |
+|---|---|---|
+| `RAW` | `data-raw/wales-hospices-2026-10.csv` | `data-raw/hospicehealth-wales-members-2026-11.csv` |
+| G3 absent handling | `[]` + exit 0 | unchanged |
+| name column | `service name` / `name` / contains-`name` via `\|\|` chain | same chain, **fixed** to `!== -1` tests (Risk R-1) |
+| postcode column | exact `postcode` only (else `'')` | exact `postcode`, then any header containing `post`; same normalisation (collapse whitespace, uppercase) |
+| Filter | drop empty names only | unchanged — deliberately **no** "hospice" name filter: HHW members are all hospices by definition, and a name filter would silently drop Welsh-language names (`Tŷ Hafan`, `Y Rhoel`, …) |
+| ids / output | `wales-r<n>`; `{id, name, postcode}` | unchanged |
+| ADR-0003 first run | log header + first row | unchanged |
+
+Expected row count **14** (agreed target, §5.2.6). If the fetched list yields a
+different count, Coding reports the deviation to the lead — a count mismatch is a
+finding, not something to silently filter to 14.
+
+### 5.2.5 Human fetch H5-1 — draft procedure for James
+
+1. On a full-DNS machine, open `https://hospicehealth.wales/` and find the members page
+   (label UNVERIFIED — likely "Our members" / "Member hospices"; confirm at fetch time).
+2. If the members page carries a **CSV/Excel/PDF download**, save the raw file.
+   Otherwise save the page as HTML ("Webpage, HTML only").
+3. Place it at `HospiceInfo\data-raw\hospicehealth-wales-members-2026-11.csv` (or
+   `.html`).
+4. Report in chat: exact member-page URL fetched, fetch date, `SHA-256`
+   (`Get-FileHash <file> -Algorithm SHA256`), and any © / attribution / licence notice
+   shown on the page (needed for the `data/README.md` provenance row).
+5. Lead adds the raw-inputs row to `data/README.md` (URL, procedure, fetch date,
+   SHA-256, licence) before the Coding run touches the extractor.
+
+### 5.2.6 Best-effort expected rows vs the agreed 14-row target
+
+13 named entries from the 2026-11-07 scope spec; St David's Hospice appears with two
+sites ⇒ **14 rows**. The fetched HHW list is **authoritative** over this table:
+
+| # | Name | Postcode (to confirm) | Note |
+|---|---|---|---|
+| 1 | Clwyd Hospice | UNVERIFIED | |
+| 2 | Tŷ Hafan | UNVERIFIED | |
+| 3 | Tŷ Gobaith | UNVERIFIED | |
+| 4 | Hope House | SY10 | EN postcode — geocodes into England (border area) |
+| 5 | Y Rhoel | UNVERIFIED | flagged "borderline" in scope spec — included in the 14 |
+| 6 | St David's Hospice — Llandudno site | LL30 2EN | row 1 of 2 |
+| 7 | St David's Hospice — Newport site | NP20 6NH | row 2 of 2 |
+| 8 | St Kentigern | UNVERIFIED | |
+| 9 | Nightingale House | UNVERIFIED | |
+| 10 | Marie Curie Cardiff & Vale | UNVERIFIED | |
+| 11 | City Hospice | UNVERIFIED | |
+| 12 | Skanda Vale | UNVERIFIED | |
+| 13 | Terfel House | UNVERIFIED | |
+
+**Items to confirm against the fetched list (all UNVERIFIED, domain-knowledge-only):**
+1. Total row count = 14 exactly (ALL entries targeted; no selection).
+2. Postcodes for rows 1–3, 5, 8–13 (only SY10 / LL30 2EN / NP20 6NH come from the scope
+   spec).
+3. St David's: two rows (Llandudno + Newport) vs one row with two sites — if one row,
+   the target becomes 13 and the deviation must be reported, not padded.
+4. Welsh orthography (`Tŷ Hafan`, `Tŷ Gobaith`, `Y Rhoel`) must survive
+   CSV → `hospices-wales.json` → `public/data/hospices.json` byte-exact (UTF-8); Coding
+   should assert the exact strings in the output.
+5. Postcode geocoding coverage for new/changed postcodes is a separate gate (§5.6);
+   unplaced Welsh hospices keep the build green (logged; no polygon; no practices).
+
+## 5.3 Scotland — from the incidental 3 to ~40
+
+### 5.3.1 Why the in-repo GIS CSV produces only 3 rows (VERIFIED — read-only scan, 2026-11-07)
+
+Read-only scan (temporary CJS script; output transcribed below, script deleted after
+recording) over `data-raw/care-inspectorate-scotland-2026-08.csv`:
+
+- **10,496 data rows** (header row 0).
+- **No hospice category exists in the service-type classification vocabulary** — this is
+  the mechanism of the undercount:
+  - `CareService` distinct top values: Day Care of Children 3322 · Child Minding 2725 ·
+    Support Service 1604 · Care Home Service 1380 · Housing Support Service 1089 ·
+    Nurse Agency 148 · Adult Placement Service 73 · Fostering Service 57 · School Care
+    Accommodation 42 · Adoption Service 38 · Child Care Agency 9 · Offender
+    Accommodation 5 — no hospice value.
+  - `Subtype` / `AdditionalSubtypes`: childcare / care-at-home / older-people
+    vocabulary — no hospice value.
+  - `ServiceType` (col 6) is the **provider** type, not the service type: Private 5781 ·
+    Local Authority 2548 · Voluntary or Not for Profit 2118 · Health Board 49 —
+    hospice-funded providers exist here, but only as a provider attribute.
+- **Name filter "hospice" (`ServiceName`) = exactly 3 rows** — precisely the surviving
+  rows in `data-raw/hospices-sc.json`:
+  - `sc-CS2014323454` "Hospice at Home" (Strathcarron Hospice, FK6 5HJ)
+  - `sc-CS2022000173` "The Ayrshire Hospice Respite and Response" (KA7 2TG)
+  - `sc-CS2023000094` "ACCORD@Home" (PA2 7BW)
+
+  All three carry `CareService = Support Service`, `Subtype = Care at Home` ⇒ they are
+  the **hospice-at-home arms** of hospice organisations registered with the Care
+  Inspectorate, not standalone hospices.
+- **"hospice in any cell" = 11 rows**: the other 8 carry "hospice" only in the
+  `ServiceProvider` column (e.g. Strathcarron hospice entities) attached to other
+  service types — not the hospices themselves.
+- **Conclusion:** the Care Inspectorate register classifies by care service type;
+  inpatient / standalone hospices (NHS and independent sector) do not register as a
+  hospice service type, so this pinned source is structurally capped at the 3 incidental
+  rows. The current 3 rows **survive unchanged** (id stability, §5.3.4); the ~40 real
+  Scottish hospices must come from an external source (§5.3.2).
+
+### 5.3.2 Candidate source matrix (machine vs human)
+
+| Source | Reachability from this env (2026-11-07, one attempt each) | Form (UNVERIFIED) | Role |
+|---|---|---|---|
+| **OSCAR** (Scottish Charity Register), `www.scotcharityregister.org.uk` | `curl: (6)` ENOTFOUND ⇒ **H5-2** | Charity register; per-charity records (SC number, name, registered address); bulk-search/export endpoints unknown | **Primary per 2026-11-07 scope** — authoritative list + SC charity numbers + addresses |
+| **Hospice Scotland** member list, `www.hospicescotland.org.uk` | `curl: (6)` ENOTFOUND ⇒ HUMAN-FETCH (auxiliary) | Member-list page | Reconciliation: cross-check names/towns/postcodes against OSCAR |
+| **PPPC ~19-entry directory** (operator-supplied) | n/a (human-supplied file) | ~19 entries | **Seed only** — known incomplete: missing Aintree, Victoria Dundee, St Andrews; blank postcodes; 1 invalid postcode |
+| Care Inspectorate GIS CSV (in-repo) | VERIFIED — scanned (2026-11-07) | pinned CSV, 10,496 rows | Proven capped at 3 (§5.3.1); kept only for the 3 surviving rows |
+
+Extraction plan: **OSCAR entries, reconciled against the Hospice Scotland list**, with
+the PPPC directory as the seed/checklist for the reconciliation (its known gaps are the
+misses to expect: Aintree, Victoria Dundee, St Andrews).
+
+### 5.3.3 Raw filename + extraction plan (RECOMMENDED)
+
+**Raw filename: `data-raw/oscar-scotland-hospices-2026-11.csv`** (same naming
+convention as §5.2.4; slug = authority). If OSCAR export is per-record rather than
+bulk, the human saves one consolidated CSV of the reconciled set (procedure below), one
+row per hospice site.
+
+`scripts/extract-hospices-sc.mjs` stays as-is for the pinned GIS CSV (its fail-fast
+checks — first cell `CSNumber`, required columns, "hospice" name filter — all remain
+true); a **new** extractor (new file, e.g. `scripts/extract-hospices-sc-oscar.mjs`)
+reads the OSCAR CSV and **appends** to `hospices-sc.json`. Column mapping
+(header-by-name, per existing convention):
+
+| Field | Resolution | Fallback |
+|---|---|---|
+| name | header `name` / `charity name` / contains `name` | exit 1 with logged header (ADR-0003 first-run logging) |
+| id | `sc-oscar-<SC>` (`SC` = Scottish Charity Number) — RECOMMENDED, **design decision OQ-2**: the current `sc-<CSNumber>` scheme uses Care Inspectorate Service numbers, a different namespace | if OSCAR yields no SC numbers: `sc-oscar-r<n>` sequential |
+| town | first header containing `town` | optional (default `''`) |
+| postcode | first header containing `post`; whitespace-collapsed + uppercased | rows with blank/invalid postcode are **kept but reported** (geocoding gate §5.6), not dropped |
+| address | optional address lines if present | shape extension to `{address[]}` — flag for Architect (OQ-3) |
+
+Filters: **no** "hospice" name filter on the OSCAR set (it is already the curated
+hospice list); drop empty names only.
+
+### 5.3.4 Identity stability for the in-app 3 (and the operator's 3 slugs)
+
+- `data-raw/hospices-sc.json` (3 rows, VERIFIED) = `sc-CS2014323454`,
+  `sc-CS2022000173`, `sc-CS2023000094`; these ids flow through
+  `scripts/merge-hospices.mjs` into `data-raw/hospices-all.json` and survive unchanged
+  (id = source-of-record key).
+- The 2026-11-07 scope spec names the three in-app Scottish identities by **operator
+  slugs**: `lonesome-hospice`, `george-cross-hospice-edinburgh`,
+  `aintree-hospice-paisley`. **VERIFIED (this pass):** none of these strings appears
+  anywhere in the working tree (greps over the repo; the only near-hits are unrelated
+  strings in the England practice data, e.g. a "Lonesome Lane" CQC entry). The slugs are
+  an operator vocabulary for "the three Scottish entries I see in the app"; the
+  slug→id mapping is **not derivable from the repo** — open question OQ-4. The safe
+  default (needed for the merge design to hold) is "the 3 existing `sc-*` ids never
+  change", which `scripts/merge-hospices.mjs` already guarantees by construction.
+- Note: `Aintree Hospice` (Paisley) is also one of the known PPPC seed **gaps** — if the
+  operator's in-app "Aintree" is in fact one of the 3 register rows, that is an
+  operator-knowledge correction to resolve with James at H5-2 (OQ-4).
+
+### 5.3.5 Human fetch H5-2 — draft procedure for James
+
+1. On a full-DNS machine, open `https://www.scotcharityregister.org.uk/`; search OSCAR
+   for Scottish hospice charities (search terms/filters UNVERIFIED from here — e.g.
+   charity name "Hospice", plus sector/class filters if available).
+2. Reconcile OSCAR ∩ Hospice Scotland member list against the PPPC ~19-entry directory
+   (gaps to expect: Aintree, Victoria Dundee, St Andrews), and save the result as one
+   CSV at `HospiceInfo\data-raw\oscar-scotland-hospices-2026-11.csv`, one row per
+   hospice site, with at least: SC number, name, town, postcode (address lines
+   if present).
+3. Report in chat: search URL(s), fetch date, row count, `SHA-256` (`Get-FileHash`),
+   and the OSCAR data-licence/attribution notice (for the `data/README.md` provenance
+   row — the licence wording is UNVERIFIED from here, OQ-5).
+4. Expected count **~40** (agreed); a materially different count is a finding to report,
+   not a silent accept — the ~40 is an expectation; OSCAR is authoritative.
+
+## 5.4 Northern Ireland — proof for "stay 6"
+
+Target statement: the NI list **stays at exactly 6 hospices**. Both legs of the proof
+were verified this pass (read-only scan of the pinned
+`data-raw/rqia-regulated-services-2026-06.xlsx`, SHA-256 and size pinned in
+`data/README.md`; scan script transient, output transcribed below):
+
+1. **Name filter leg.** Filtering rows whose `Name` contains `hospice` (case-insensitive)
+   yields **exactly 6 rows** — the current `data-raw/hospices-ni.json` contents
+   (VERIFIED read):
+   - Foyle Hospice (BT48 8JE)
+   - Marie Curie Hospice (BT5 6NF)
+   - NICHS / NI Children's Hospice (BT36 6WB)
+   - NI Hospice — Adult Community Services (BT15 3LH)
+   - NI Hospice (BT15 3LH)
+   - Southern Area / Queen's (BT34 2EB)
+
+2. **Classification-columns leg (the anti-undercount check).** The register's
+   classification columns — `Service Type`, `Categories of Care`, `Conditions` — were
+   scanned for hospice-valued entries: **each column has 0 hospice-valued distinct
+   entries** (a hospiced service would leave a trace in one of these columns even if
+   its `Name` does not). Additionally "hospice in any cell of the sheet" = 6, matching
+   the name filter exactly. ∴ no hospice-classified service exists in the register that
+   the name filter missed ⇒ **6 is the complete set from the pinned source; no extractor
+   change is needed for NI in Cycle 5.**
+
+## 5.5 Data-flow and build impact (what a coding stage will touch)
+
+- New raw files (human-fetched): `data-raw/hospicehealth-wales-members-2026-11.csv`
+  (H5-1), `data-raw/oscar-scotland-hospices-2026-11.csv` (H5-2).
+- `data-raw/wales-hospices-2026-10.csv`: retired by the filename rewire in
+  `scripts/extract-hospices-wales.mjs` (G3 absent → `[]` unchanged until the new file
+  lands).
+- `scripts/extract-hospices-wales.mjs`: rewire `RAW` + header mapping (§5.2.4); one-line
+  fix R-1.
+- New `scripts/extract-hospices-sc-oscar.mjs` (§5.3.3), **append (not replace)** to
+  `data-raw/hospices-sc.json` — the 3 GIS-CSV rows must survive ids unchanged
+  (`merge-hospices.mjs` asserts the full set).
+- Stable: `scripts/extract-hospices-ni.mjs` (6-in/6-out proven), `scripts/merge-hospices.mjs`,
+  `data/` provenance table (gains 2 rows), `public/data/hospices-all.json` (count moves).
+- `scripts/build-data.mjs`: no expected change — `CATCHMENTS` / `SLUG_TO_ID` only reference
+  England id slugs, so sc/wales ids flow through as opaque keys (design correctly decoupled).
+- `docs/adr`: one ADR recommended — OSCAR as primary Scotland source + identity-scheme
+  choice (covers OQ-2/OQ-3 in one decision).
+- Testing surface: extractor unit tests (pattern in `tests/`); `tsc -b` unaffected;
+  `NODE_ENV=production` `tsc -b && vite build && node scripts/prerender.mjs` re-run;
+  `validate-maps.mjs` / `validate-tessellation.mjs` green (no catchment changes).
+
+## 5.6 GLOSSARY candidates (for the Architect to finalise)
+
+- **H5-1 / H5-2** — human-fetch tasks with a single owner and a one-shot chat report.
+- **HUMAN-FETCH** — a data source selected as authoritative that is unreachable from this
+  restricted-DNS environment; fetched by the operator, pinned with provenance.
+- **source-of-record row** — a hospice entry flowing through `merge-hospices.mjs` with a
+  stable id; `merge-hospices.mjs` is the identity boundary.
+- **G3 zero-set tolerance** — absent source file → `[]` + exit 0 (build stays valid).
+
+## 5.7 Risks, findings, open questions
+
+**Risks (carry to the Architect / Coding):**
+- **R-1 (fix, documented):** `scripts/extract-hospices-wales.mjs` name-column
+  resolution uses an `||` chain of `findIndex` values; if the name column is at index 0,
+  `findIndex` returns `0` (falsy) and the chain falls through to a later column —
+  must be fixed when the script is rewired (e.g. explicit `-1` sentinel).
+- **R-2:** `scripts/build-data.mjs` fails the build if any `shop.id` does not resolve
+  into `SLUG_TO_ID` (only England slugs). Scotland/Wales hospices must **not** land in
+  `CATCHMENTS` — i.e. no England catchment polygon should be keyed to a `sc-*`/`wales-*`
+  id (enforce in code/ADR).
+- **R-3:** New ~54 rows (Wales 14 + Scotland ~40) are geocoded at build time via
+  Nominatim; low risk (HTB + outcode fallback already in production), but unknown
+  postcodes from human-fetched CSVs will show up as new "unplaced" log lines. Unplaced
+  rows hide from the public map (memory `hide-not-delete-public`) — acceptable, flag if
+  count > a few.
+- **R-4:** `data-raw/hospices-all.json` count grows 161 → ~215; `public/data/` and
+  prerendered `asl`/SEO surfaces all inherit the new rows automatically — no per-file
+  mention updates, but QA must assert the new counts.
+
+**Findings (this research pass):**
+- **F-1 (risk-accepted):** the 3 Scottish register rows are the hospice-at-home arms of
+  hospice organisations (`.agents/research.md` §5.3.1). Kept (id stability); the ~40
+  come from OSCAR.
+- **F-2 (risk-accepted):** the PPPC ~19-entry directory is seed-only, known-incomplete
+  (gaps: Aintree, Victoria Dundee, St Andrews; blank + 1 invalid postcode). Reconciliation
+  against OSCAR (H5-2) resolves it.
+
+**Open questions (answerable only by the fetched data or a human):**
+- **OQ-1:** `wales-hospice-data-gap-analysis-2026-11-07.md` claims 10 Welsh hospice
+  entries were "verified present in the 2026-10-23 build", but the 2026-10-30 build
+  shows `data-raw/hospices-wales.json = []` (current repo state; prior-cycle provenance
+  row was removed when the CIW route was dropped). Resolution: the HHW member list
+  (H5-1) is authoritative — the 14-row target supersedes; treat all 6 source-level
+  name/desk-check items in §5.2.6 as MUST-CONFIRM items. No action until H5-1 lands.
+- **OQ-2:** id scheme for OSCAR rows — `sc-oscar-<SC>` (recommended) vs extending
+  `sc-<CSNumber>` (namespace collision risk: the two number spaces do not overlap but
+  are not provably disjoint from the CSV alone). Architect decision.
+- **OQ-3:** should the new extractors emit `address[]` (Scotland already does)? Recommended
+  for map toasts; wider row shape, needs `merge-hospices.mjs` + `build-data.mjs` passthrough
+  check. Architect decision.
+- **OQ-4:** the operator slugs (`lonesome-hospice`, `george-cross-hospice-edinburgh`,
+  `aintree-hospice-paisley`) do not occur in the repo (VERIFIED this pass); mapping to
+  the 3 existing `sc-*` ids is operator knowledge only. Confirm with James at H5-2.
+- **OQ-5:** OSCAR licence/attribution wording for the `data/README.md` provenance row is
+  UNVERIFIED from here (site unreachable). Must be captured at fetch time (H5-2 item 3).
+- **OQ-6:** ledger staleness (risk-accepted): `.agents/feature.md` and `.agents/pipeline.md`
+  are modified on disk and carry Cycle 4 content; the 2026-11-07 scope came from the
+  dispatch + scope memory. Lead should re-write both for Cycle 5 before further stages.
+
+*Closes Cycle 5 research. Next: Architect (`.agents/architecture.md`).*
 # Research — Cycle 4 (2026-10-30)
 
 Stage 1 (of 10). Research for Cycle 4 — map-first defaults, layer UX, theming, rebrand (per `.agents/feature.md`, re-read in full 2026-10-30). Prepend to this file; the Cycle 3 record below is preserved unchanged.

@@ -294,6 +294,93 @@ validate-corrections.mjs` → commit → publish, with the §7.1 chain.
   (anchors, SHA-256 pins, provenance), re-run the §7.1 chain, **then**
   commit — data-asset and raw-input commits go together, never split.
 
+## Cycle 5 — Landing (2026-11-08)
+
+Stage 8 re-pass for the 2026-11-08 data landing (Scotland register
+re-fetch + OSCAR 29 rows + PCS 2 rows ingested; Wales final gate H5-1
+closed). QA (stage 6) and Security (stage 7) both **CLOSED — PASS,
+0 Blocking, 0 new risk-accepted, 0 rework rounds**. State verified
+read-only 2026-11-08: working tree = 19 tracked modifications +
+untracked landing set (28 `git status --short` entries) on top of HEAD
+`e1fbc1b` — **UNCOMMITTED** (deploy posture below). Everything in
+§1–§7 above that is not overridden here (deploy topology, ADR-0014
+git-connected publish, §4 rollback model, §7 standing chain) remains
+in force.
+
+**Landing figures (disk-verified 2026-11-08).** **192 hospices:
+en 152, sc 34, ni 6, wales 0** (20 curated rows unchanged). Scotland
+34 = 3 CS register + 29 OSCAR + 2 PCS (sc-pcs-30 Edinburgh,
+sc-pcs-58 Dunfermline). Wales gate H5-1: the NHS Wales P&I page was
+fetched directly and SHA-pinned (below) — the page is an under-review
+shell with the list absent, so **0 is the verified final value, not an
+unanswered request** (ADR-0020 zero-set); re-poll when the review lifts.
+
+**Post-landing re-run chain (fresh 2026-11-08 pass — the results QA
+(stages 6) gated on).**
+
+| Step | Result |
+|---|---|
+| `node scripts/merge-hospices.mjs` | exit 0; 192 merged, 0 duplicates |
+| `node scripts/geocode-postcodes.mjs` | exit 1 — **by design** (A-4 no-loop posture): 0 new gaps; the 9 known OSM-gap BT postcodes remain the only in-scope misses (documented, human-verified) |
+| `npm run build-data` | exit 0; 192 hospices; voronoi 11,180 vertices / 178 labelled cells; 138 charity shops; 11,014 practices → 11,002 geocoded, 12 unplaced (9 BT + 3 non-BT) |
+| `node scripts/validate-tessellation.mjs` | exit 0; 178 catchments; 1 empty cell (ni-r5); 0 slivers; sea leakage max 0.000478 deg²; coverage 100.00%; pairwise overlap **0.0060 deg²** (up from 0.0000 — FQ5-L1, Informational, no action; `.agents/qa.md`) |
+| `npm run build` ×2 | exit 0; **byte-identical**; dist = **200 `.html` shells** (1 index + 6 info + 192 hospice + 1 404), **199 `<loc>`** = 192 + 7 (prerender self-assert), **215 dist files** (202 prerendered + 13 static) |
+| `npm run check:layout` | exit 0, "check-map-layout: OK" |
+
+**Count-scripture note (Informational, no action).** The Cycle 4
+template counters carried in `qa.md` / `implementation.md` gate prose
+(169 shells / 177 pages / 193 loc / 171 files) disagree with the
+disk-verified landing truth (200 shells / 192 hospice pages / 199 loc /
+215 files). The gates themselves — build exit 0, prerender `<loc>`
+self-assert, double-build byte-identity — are unaffected and PASS; the
+discrepancy is a stale template carry-forward, not a build defect. This
+ops file cites the disk-verified numbers.
+
+**SHA pins (landing, full in `data/README.md`).**
+
+| File | SHA-256 |
+|---|---|
+| `data-raw/hospices-all.json` (merged, deduped 192) | `DACD44268FAA63BD455383028D38D4B7508052E5813CB49621BF0A3B6A086C0F` |
+| `data-raw/extracts/hospices-sc-normalised.json` (29 OSCAR) | `8f7485d2ff4a20acc71173753acacdb94866615ecd722ea019eb22a1cab791e0` |
+| `data-raw/extracts/scotland-oscar-hospices-latest.html` (Wayback 20260514160126, 17,723 B) | `D768069C85B5F716F4E34764970F7A1EFD820C3E92CEA8C8E7402F71121EE9DB` |
+| `data-raw/nhs-wales-hospices-2026-11.html` (live fetch, 61,852 B) | `8055D93604661A466551C5543ABD200E35102DA9A95280712A89C19A3941B3AB` |
+| `data-raw/uk-land.json` (land mask) | `b9b313ab7dac80c45c48aea900469cf61043f7b9a0665cde79dfec63e0075b55` — **unchanged** (G7 pin) |
+| `public/data/hospices.json` (192, 72,265 B) | `50B989CC24358AA21D1EB2041C686918AD571D6AE293908D60FDD56E7494FEC5` |
+| `public/data/hospices-sc.json` (34, 26,087 B) | `85474C85110946AAAB8511F9B074B6B2ABE910C6AFA9A633D5B438CCEA039D63` |
+
+Provenance record hygiene, done this pass: `data/README.md` tables
+were already landing-complete; the narrative was refreshed (header date
+→ 2026-11-08; Wales sentence → H5-1 verified-negative wording, ADR-0020)
+so the shipped provenance file is accurate before push.
+
+**Deploy posture.** The landing is **UNCOMMITTED on `e1fbc1b`**. The
+§7.1 pre-push standing chain is complete for this cycle (build-data ×2
+byte-identity, tessellation exit 0, build ×2 byte-identity,
+check:layout — the re-run chain above). Next action is **James's human
+gate: one commit (data assets + raw inputs + ADRs together, never
+split — §7.2 rule 5) + push → Cloudflare Pages auto-publishes
+`dist/`**. Rollback unchanged from §4 (git revert + push; deterministic
+build ⇒ byte-exact); live-site restore via Pages Deployments for
+immediate stop-the-bleed.
+
+**Post-publish smoke checks (Cycle 5, against `https://hospiceinfo.pages.dev`):**
+
+1. `GET /` → 200, "Hospice Finder UK".
+2. `GET /sitemap.xml` → **199 `<loc>`**; `GET /robots.txt` → 200, 75 bytes.
+3. **200 shell survey**: index, 6 info pages, **192 `hospice/*.html`**,
+   `404.html` all present; sample 2 new Scotland pages (e.g.
+   `sc-pcs-30`, `sc-pcs-58`) + a legacy England page → 200.
+4. Map smoke: Scotland count shows 34, Wales shows 0 (verified
+   zero-set), 178 catchment polygons render.
+
+**Definition of healthy — updated for Cycle 5.** 192 UK hospices
+(en 152, sc 34, ni 6, wales 0); 178 catchment polygons, coverage
+100.00%, pairwise overlap 0.0060 deg² (FQ5-L1 informational), 1 known
+empty cell (ni-r5), 0 slivers; 11,002 of 11,014 GP practices placed
+(12 unplaced = 9 OSM-gap BT + 3 non-BT); 138 charity shops, 0
+unresolved. All other entries in §7.4 (geocode wall-time, audit
+advisories, port 5173, `npm ci` rule) unchanged.
+
 ---
 *Stage 10 (Hindsight) — `docs/` (Stage 9, Docs) — will consume this
 file. The pre-push checklist (§3) is the single point of

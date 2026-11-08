@@ -117,3 +117,37 @@ provenance, and documentation. New terms are formatted in *italics*.
 - **first-load layer defaults**: both the charity-shop and GP-practice layers are off on a fresh load (`useState(false)`, in-memory only, not persisted) while catchment polygons remain visible (ADR-0025).
 - **muted GP layer**: the visual subordination of GP practice markers — 20 px slate `--hf-gp-fill` bucket divIcons and smaller, more transparent CircleMarkers (radius 4/6, base `fillOpacity` 0.55) — with shops ranked before GPs in controls, search sections, and legend (ADR-0026).
 - **design tokens**: the `--hf-*` CSS custom properties (`:root` = light set, `[data-bs-theme="dark"]` = dark set) that are the single source of truth for app colour; Bootstrap `--bs-*` variables are wired to them so any Designer concept lands as a token-value swap (ADR-0028).
+
+## Cycle 5 terms (Wales rewire, OSCAR Scotland, identity stability)
+
+- **H5-1 / H5-2**: the two Cycle 5 human-fetch gates, each with a single owner
+  (James) and a one-shot chat report: H5-1 = the Hospice Health Wales members
+  list (`data-raw/hospicehealth-wales-members-2026-11.csv`); H5-2 = the OSCAR
+  extract reconciled with the PPPC seed directory
+  (`data-raw/oscar-scotland-hospices-2026-11.csv`). They gate the final data
+  build (BUILD gates, chain green before the raws land) and the publication
+  (DATA gates): G3 zero-set tolerance keeps the chain green while the files
+  are in transit (`.agents/feature.md` lines 104–112; ADR-0031).
+- **HUMAN-FETCH**: a data source selected as authoritative that is
+  unreachable from this restricted-DNS environment (`curl: (6)` ENOTFOUND,
+  verified 2026-11-07); the operator fetches it on a full-DNS machine and the
+  lead pins it in `data/README.md` with source, fetch date, and SHA-256 from
+  `Get-FileHash` (ADR-0009).
+- **source-of-record row**: a hospice entry flowing through
+  `scripts/merge-hospices.mjs` with a stable id; the merge is the map's
+  identity boundary — every published hospice has exactly one source-of-record
+  row, and its id never changes between builds (curated England: `en-<cqcId>`
+  from `scripts/catchment-map.mjs`; register rows: `sc-<CSNumber>`,
+  `sc-oscar-<SC>`, `ni-r<n>`, `wales-r<n>` — ADR-0002, ADR-0031). The Cycle 5
+  Scotland APPEND-mode extractor keeps the 3 in-repo `sc-<CSNumber>` rows
+  byte-identical (ADR-0031).
+- **G3 zero-set tolerance**: absent raw source file → the extractor writes a
+  valid zero-set (`[]` for replace-mode; byte-identical re-write for
+  append-mode) and exits 0, so the chain stays green while HUMAN-FETCH files
+  are in transit; the first-run log states the human-fetch procedure
+  (ADR-0003, ADR-0020). `Wales: 0` / `Scotland: 3` are placeholders, not
+  errors.
+- **OSCAR**: the **O**nline **S**cotland **C**harity **R**egister
+  (`www.scotcharityregister.org.uk`) — Scotland's statutory charity register;
+  the authoritative primary source for the Scottish hospice population from
+  Cycle 5 (ADR-0031).

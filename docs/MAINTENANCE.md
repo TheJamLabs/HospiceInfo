@@ -5,8 +5,9 @@ Hospice Finder UK. Provenance detail per file:
 [`data/README.md`](data/README.md). Design rationales: [`docs/adr/`](docs/adr/).
 Vocabulary: [`GLOSSARY.md`](GLOSSARY.md).
 
-Cycle 3 (2026-10-29) — deterministic static prerendering, SEO surface
-(`sitemap.xml` + `robots.txt`) and hash-redirect guard.
+Cycle 5 (2026-11-08) — data landing: Scotland +2 (PalliativeCare Scotland
+directory append, `sc-pcs-30/58`, ADR-0032), Wales verified-negative 0
+final (ADR-0020), 192 hospices (en 152, sc 34, ni 6, wales 0).
 
 ## What you'll see
 
@@ -41,7 +42,7 @@ In a new terminal from the same folder:
 
 ```bat
 npm run build    :: tsc -b && vite build && node scripts/prerender.mjs → dist/
-                  :: emits 169 static shells + sitemap.xml + robots.txt (181 files total)
+                  :: emits 200 static shells + sitemap.xml + robots.txt (215 files total)
 ```
 
 To test the built app locally (the published site is the `main` build — see
@@ -113,7 +114,7 @@ The site is static: `npm run build` produces `dist/`. The Pages project
 `hospiceinfo` is git-connected to `main`: every James-approved push runs the
 build command `npm ci && npm run build` and publishes `dist/` (`pages_build_output_dir`
 in the repo's `wrangler.jsonc`). No local `wrangler login` or deploy command is
-needed — the approved push triggers a rebuild of 181 files and publishes them
+needed — the approved push triggers a rebuild of 215 files and publishes them
 automatically. `data-raw/` stays committed; it is excluded from the deployment
 by the output directory (only `dist/` ships). Branch previews for
 pre-promote checks: push the branch and open its preview URL in the Pages dashboard.
@@ -133,7 +134,7 @@ publish completes:
    - `application/ld+json` block with a `HealthCareBusiness` node;
    - title includes the hospice name and "Hospice Finder UK".
 3. `curl -s https://hospiceinfo.pages.dev/sitemap.xml` → 200; count of
-   `<loc>` entries is **168**.
+   `<loc>` entries is **199** (192 hospice pages + 7 others).
 4. `curl -s https://hospiceinfo.pages.dev/robots.txt` → 200; the 75-byte body
    matches gate C3-5.
 
@@ -189,12 +190,13 @@ publish. The site renders the log at `#corrections` (page-local fetch only).
 
 ## Sanity checks for a healthy build
 
-- `hospices: 161 (unplaced: 0)` and the per-nation counts in the modal.
+- `hospices: 192 (unplaced: 0)` and the per-nation counts in the modal
+  (en 152, sc 34, ni 6, wales 0).
 - `unassigned: 12` — see `data/README.md`; do not chase them in the geocoder.
 - `shops: 138, unresolved ids: 0`.
 - SHA-256 of the four `public/data/*.json` identical across two builds.
-- Validator: 100% coverage (the Basildon degenerate cell and "Wisdom
-  Hospice" sliver entries are known, accepted quirks).
+- Validator: 100% coverage, 0 slivers; 1 empty cell (ni-r5) is a known,
+  accepted quirk.
 - `npm run check:layout` exits 0 (styles.css keeps exactly 3
   `flex-direction`).
 
@@ -275,3 +277,45 @@ deployment stays up. Rollback is twofold:
 Post-publish smoke checks: ops.md §5 (169 pages/`hfuk-theme` shells, 168
 `<loc>`, `robots.txt` 75 bytes, three woff2 served at
 14,508 / 14,632 / 14,592 bytes).
+
+## Cycle 5 (2026-11-08) — Landing ops runbook
+
+Cycle 5 (2026-11-08) is a data-only landing pass: PalliativeCare Scotland
+directory append (`sc-pcs-30` Edinburgh, `sc-pcs-58` Dunfermline; id scheme
+per ADR-0031, equivalence-mapping dedupe per ADR-0032) — Scotland 32 → 34,
+total 161 → 192 (en 152, sc 34, ni 6, wales 0) — and the Wales final gate
+H5-1, resolved VERIFIED-NEGATIVE (live 2026-11-08 NHS Wales P&I fetch,
+SHA-256-pinned; list under review and absent, so 0 is the verified final
+value under ADR-0020 — re-poll when the review lifts). No UI, code, or
+config changes.
+
+The Cycle 3/4 sections above remain the base guide; where this section
+states larger counts (215 files, 200 shells, 199 `<loc>`), those are the
+current values. Full Cycle 5 ops detail:
+[.agents/ops.md](.agents/ops.md) — "Cycle 5 — Landing (2026-11-08)"
+supersedes the Cycle 4 file at that path.
+
+**Dist invariants** (re-asserted on every push; Cycle 5 values,
+disk-verified 2026-11-08):
+
+| Invariant | Check | Expectation |
+|---|---|---|
+| Physical files | Node walk of `dist/` | **215** (202 emitted: 200 `.html` shells — 1 index + 6 info + 192 hospice + 1 404 — + `sitemap.xml` + `robots.txt`; + 13 Vite-copied: 2 assets, 3 woff2, `logo.svg`, `manifest.webmanifest`, `og-image.png`, 5 `data/*.json`) |
+| Sitemap | `dist/sitemap.xml` | **199** `<loc>` (192 hospice + 7), 0 `<lastmod>` — asserted in `scripts/prerender.mjs`, non-zero exit on violation |
+| Boot snippet | grep `hfuk-theme` in all emitted shells | present in **200/200** HTML shells |
+| Data assets | double `npm run build-data` | byte-identical; SHA-256 pins in [`data/README.md`](data/README.md) |
+
+The standing pre-push chain (ops.md §7.1), the two-file rule for the
+theme-boot snippet, the data-refresh chain (ops.md §7.2), and the
+deploy & rollback story above all carry over unchanged.
+
+**Definition of healthy** (ops.md §7.4, Cycle 5 values): 192 hospices
+(unplaced 0); 178 catchment cells; 100.00% coverage, 0 slivers, 1 empty
+cell (ni-r5), pairwise overlap 0.0060 deg²; 138 shops (unresolved 0);
+11,014 practices (11,002 geocoded, 12 unplaced = 9 BT + 3 non-BT);
+20 curated rows.
+
+**Post-publish smoke checks** (Cycle 5): sitemap 199 `<loc>`; the 200-shell
+survey includes both new rows (`/hospice/sc-pcs-30.html`,
+`/hospice/sc-pcs-58.html`); map smoke: Scotland 34, Wales 0; `robots.txt`
+75 bytes; three woff2 served at 14,508 / 14,632 / 14,592 bytes.

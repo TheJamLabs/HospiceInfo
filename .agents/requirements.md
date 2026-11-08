@@ -1,3 +1,159 @@
+# Requirements — Cycle 5 (2026-11-07)
+
+Stage 4 (Product Manager), Cycle 5 — transcribed from `.agents/architecture.md` (Cycle 5, 2026-11-07; the spec), `.agents/review.md` (items A–I, findings C5-R1..R4, verdict PASS), `.agents/research.md` L1–360, ADR-0031, `GLOSSARY.md` `## Cycle 5 terms` (H5-1/H5-2, HUMAN-FETCH, source-of-record row, G3 zero-set tolerance, OSCAR — used verbatim). Not re-derived.
+
+Contract (same as Cycle 4): exhaustive per-item, per-step validation; a partial pass is a failed pass; no TODOs; no design changes; Coding updates `.agents/implementation.md` after each item; commands relative to repo root (Windows). Measured line numbers are current truth; QA re-derives every line cite against live files (C5-R1). The chain must be green with both raws absent (G3) before any fetch.
+
+## In scope (this cycle)
+
+W1 Wales rewire (HHW members CSV + R-1 dual-defect fix) · W2 new APPEND-mode OSCAR Scotland extractor · W3 merge two-prefix source lookup (C5-R3) · W4 G3 log naming for H5-1 + H5-2 · W5 `data/README.md` provenance pins at fetch time only · W6 chain-green verification (arch §5 items 1–7) · W7 constraints (no `src/`, no new deps, CIW skipped, NI stays 6).
+
+## Out of scope
+
+- No `src/` changes (data-only cycle): the two Cycle 4 UI defects (floating "Open list" button overlap on mobile; desktop footer overlap on long pages) are logged for the next bugfix cycle (`.tmp/...` screenshots in feature.md Out of scope).
+- No new runtime dependencies; no `package.json` change (ADR-0010/0030).
+- No NI extractor change: 6-in/6-out proven by the two-leg completeness proof (research §5.4; ADR-0031) — name filter = exactly 6, and `Service Type` / `Categories of Care` / `Conditions` each contain zero hospice values.
+- CIW skipped entirely; `data-raw/wales-hospices-2026-10.csv` is superseded, never fetched.
+- `scripts/extract-hospices-sc.mjs` (GIS) untouched — its 3 rows are kept for id stability (F-1); overlapping provenance is intended.
+- No "hospice" substring filter in the rewired Wales extractor or the OSCAR extractor (ADR-0031 — names like Tŷ Hafan / Y Rhoel lack the word); empty-name drop only.
+- No hard-coded hospice totals: ~215 post-fetch is an expectation, never a gate (arch §4 R-4); the prerender self-assert is the governing invariant.
+- No catchment assignment rule change (nearest-hospice haversine, ADR invariant); no England CQC / GP / shop data changes; no GIS CSV re-fetch.
+- Human fetches (H5-1 = HHW members list; H5-2 = OSCAR extract reconciled vs the PPPC seed) are owned by James on a full-DNS machine; this cycle's code keeps the chain green while the files are in transit (G3).
+- No base-plate exports, batch ops, or tooling outside the work list — no scope beyond the reviewed architecture.
+
+## Work items
+
+### W1 — Wales rewire: HHW members CSV + R-1 dual-defect fix (arch §1; research §5.2)
+(a) why: the CIW raw never arrived (G3 is the active branch since Cycle 3); the Hospice Health Wales members list is the source of record (14-row target, James 2026-11-07). The on-disk `||`-chain has TWO defects: falsy-`0` fall-through (name column at index 0 mis-binds) and truthy-`-1` short-circuit (no `service name` column kills the broader candidates) — the fix must cover both directions (review item A; arch §6 records the deliberate strengthening beyond research R-1).
+(b) files: `scripts/extract-hospices-wales.mjs` (76 lines; verified on disk: `RAW` L24, `||`-chain L59–62, guard L63–65, postcode L67, id map L69–72).
+(c) steps:
+1. `RAW` (L24) → `data-raw/hospicehealth-wales-members-2026-11.csv`. If H5-1 delivers the member list as a web page, the fallback raw is `data-raw/hospicehealth-wales-members-2026-11.html` (parsed text-only, cell-like rows, no scraping beyond the saved file), chosen ONLY when the CSV is absent; the first-run log states which mode ran (ADR-0003).
+2. Replace the `||`-chain (L59–62) with an explicit priority loop: candidates `['service name' exact, 'name' exact, contains 'name']` (lowercased, case-insensitive — headers already lowercased on disk), compute each `findIndex`, take the first `idx !== -1`; none → `console.error` the full header + `process.exit(1)` (the existing guard L63–65 is retained as the else-branch — fail-closed, unchanged).
+3. Postcode column (L67): exact `'postcode'` → first header **containing `post`**, case-insensitive (covers "Postcode" / "Post Code" / suffixed variants; HHW header wording is UNVERIFIED from this machine). Value normalisation unchanged (collapse whitespace, uppercase). Absent → `postcode: ''` retained: row kept on its name anchor, becomes unplaced → hidden (ADR-0012); first-run log reports how many rows carry a postcode — never silently dropped.
+4. Retain unchanged: empty-name drop (L70–75); NO "hospice" substring filter (load-bearing); ids `wales-r<n>` 1-based position among kept rows (ADR-0002 row-index fallback by design — row anchors UNVERIFIED); output shape `{id,name,postcode}`; UTF-8 read/write with no BOM and **no transcoding layer introduced** — Tŷ Hafan / Y Rhoel must survive byte-exact to `public/data/hospices.json`.
+5. G3 block (L45–48): raw absent → write `[]` + exit 0, unchanged; its log is updated per W4.
+(d) checks:
+- Fixture run, raw present with a name column at index 0 and a `Post code` header (arch §5.5 R-1 fixture): ids `wales-r1..` prove the `!== -1` sentinel in both directions (no mis-bind at index 0, no short-circuit).
+- Absent raw → `data-raw/hospices-wales.json` = `[]` + exit 0; log names the H5-1 procedure (W4).
+- UTF-8: fixture name `Tŷ Hafan` matches byte-exact in the output file (compare read bytes; no BOM introduced).
+- Row count: fetched HHW list is authoritative over the 14-row target — a different count is a finding to report, never silently filtered/padded (research §5.2.6).
+- C5-R1: re-derive all line cites against the live file before editing.
+
+### W2 — new APPEND-mode OSCAR extractor (arch §2; ADR-0031 D1–D6; research §5.3)
+(a) why: the pinned GIS CSV is provably capped at 3 (`CareService` vocabulary has no hospice category; the name filter yields exactly the 3 surviving rows, research §5.3.1); the ~40 real Scottish hospices come from OSCAR (H5-2, authoritative; ~40 is an expectation, never a gate). APPEND mode is load-bearing: the 3 `sc-CS<CSNumber>` rows survive by **parsed row-value identity** (C5-R2: values and order preserved, file re-serialised — NOT byte-for-byte; the pre-image SHA-256 makes the post-image check a machine diff).
+(b) files: `scripts/extract-hospices-sc-oscar.mjs` (NEW file); reads `data-raw/oscar-scotland-hospices-2026-11.csv` (H5-2; ~40 rows expected) and the existing `data-raw/hospices-sc.json`. `scripts/extract-hospices-sc.mjs` is untouched.
+(c) steps:
+1. G3: CSV absent → append 0 rows; `hospices-sc.json` re-written as the existing 3 rows re-serialised deterministically (`JSON.parse` → `JSON.stringify`, no formatters/timestamps); exit 0; log names the H5-2 procedure (W4).
+2. APPEND (load-bearing): new file = existing rows **verbatim** (parsed values unchanged, file order preserved) + appended OSCAR rows. The extractor writes no GIS row it did not read; it does not re-derive, re-order, or re-key them (sc-CS2014323454 / sc-CS2022000173 / sc-CS2023000094, all `curated: false`).
+3. Column mapping (by name, case-insensitive, tolerant — research §5.3.3): `name` ← OSCAR organisation-name column via candidates `['organisation', 'name']` using the same R-1 `!== -1` sentinel pattern (none → `console.error` full header + `process.exit(1)` — ADR-0003 first-run column discovery: log header + first data row before trusting columns); `id` ← `sc-oscar-<SC>` when the row carries a valid 6-digit Scottish Charity Number, else `sc-oscar-r<n>` (1-based position within the OSCAR body) — distinct namespace, ADR-0031 D3; `town` ← first header containing `town` (optional, blank allowed); `postcode` ← first header containing `post` (collapse + uppercase; blank rows KEPT and reported in the first-run log → become unplaced → hidden, ADR-0012 — never dropped); `address[]` ← OSCAR address lines emitted per row — stored in raw-row metadata, consumed for town derivation only (merge `townOf`), never exposed publicly (ADR-0031 D4; review item E wording).
+4. NO "hospice" substring filter (ADR-0031 — e.g. Tŷ Hafan / Y Rhoel-type Welsh names lack the word; same rule applies: filter only where the source is not already hospice-scoped — H5-2 is the reconciled, hospice-scoped extract, selection done at fetch time). Drop empty names only.
+5. First-run log: header + first data row, count of rows with usable postcodes, id fallback count (`sc-oscar-r<n>`).
+(d) checks:
+- No-op run (CSV absent): post-image = pre-image by parsed row-value identity — the 3 rows present, same order, ids/fields unchanged.
+- Fixture run (CSV present): post-image = pre-image + `sc-oscar-*` rows only; every appended row has a valid 6-digit SC id or `sc-oscar-r<n>`; blank-postcode rows present and reported, not dropped.
+- APPEND idempotence trap: running the append twice on the same CSV would duplicate ids — the merge unique-id assertion (`scripts/merge-hospices.mjs` L88–90, exit 1) is the backstop; verify it fires (do NOT weaken it).
+- Pre-image SHA-256 of `data-raw/hospices-sc.json` captured via `Get-FileHash` BEFORE the first append (lead-measured 2026-11-07: `13134F35F4B6B69DFA965F443670B1616C773990036027ACA0C8CBDB0E85B59D`; supersedes the stale `644E50C6…` prefix — feeds W5 step 2).
+
+### W3 — merge: two-prefix source lookup (C5-R3, Blocking-adjacent, MUST land; ADR-0031 D6; arch §2)
+(a) why: `merge-hospices.mjs` stamps every sc row with the stale `SOURCES.wales` CIW/B1 string and every sc row with the GIS string; after the rewire, `wales-r*` rows must carry the HHW source and `sc-oscar-*` rows the OSCAR source (ADR-0009 provenance discipline). Reviewer finding C5-R3: the design's one-line change covered only `sc-oscar*` — the lookup MUST extend to both prefixes.
+(b) files: `scripts/merge-hospices.mjs` (105 lines; `SOURCES` block L20–24; stale `SOURCES.wales` CIW/B1 string on disk; the dispatch's "L34" cite is superseded by the reviewer-measured L23 — C5-R1: re-derive against the live file).
+(c) steps:
+1. Extend the provenance stamp to a two-prefix source lookup at row-stamp time: id starts `sc-oscar-` → `source: "OSCAR — Scottish Charity Register (data-raw/oscar-scotland-hospices-2026-11.csv)"` (exact ADR-0031 D6 string); id starts `wales-r` → the HHW source string (Hospice Health Wales members list, pinned raw name); every other sc row keeps the GIS `SOURCES.sc` string; `en-*` / `ni-*` scoping unchanged.
+2. Change nothing else in the merge: `SOURCES` block otherwise intact; `townOf` (L42); sc map `town: h.town || townOf(h)` (L53); curated CQC regex (L67–69); `curatedCount !== 20` assertion (L83–84); unique-id assertion (L88–90) — all retained, none weakened.
+3. Delete/replace the stale `SOURCES.wales` CIW/B1 string so no row can be stamped with the superseded CIW provenance.
+(d) checks:
+- Fixture run with a `wales-r*` row, a `sc-oscar-*` row, an existing `sc-CS*` row: each carries the correct source string (grep the three distinct strings in `hospices-all.json`).
+- Grep `merge-hospices.mjs` for the CIW/B1 source string → 0 hits.
+- Negative fixture (duplicate id): merge exits 1 via the unique-id assertion; curated fixture unchanged → `curatedCount` stays 20.
+
+### W4 — G3 log naming for H5-1 + H5-2 (arch §1/§2; review item D)
+(a) why: G3 zero-set tolerance means an absent raw is not an error — the extractor writes a valid zero-set and exits 0; the log must name the specific raw file and the human-fetch gate (H5-1/H5-2), not stale text. Verified on disk: the Wales G3 log (L45–48, "until the CIW reply, B1" line) MUST change; arch §1/§2 each require the log to name the H5-1 / H5-2 procedure.
+(b) files: `scripts/extract-hospices-wales.mjs` (G3 block L45–48); `scripts/extract-hospices-sc-oscar.mjs` (new; absent-raw path — W2 step 1).
+(c) steps:
+1. Wales absent-raw block: replace the stale "CIW reply, B1" log with one naming `data-raw/hospicehealth-wales-members-2026-11.csv`, gate H5-1, and the HUMAN-FETCH procedure (Hospice Health Wales members list; `.html` fallback mode if that form arrives), stating the zero-set is a G3 placeholder, not an error.
+2. OSCAR absent-raw path: log names `data-raw/oscar-scotland-hospices-2026-11.csv`, gate H5-2, and the HUMAN-FETCH procedure (OSCAR extract reconciled vs the PPPC seed), stating the append-0-rows semantics (existing 3 rows re-serialised, unchanged).
+(d) checks:
+- Run both extractors with both raws absent (current state): each exits 0; its stdout names the exact raw file + gate id + procedure for its gate.
+- Grep both files for the "CIW reply, B1" string → 0 hits.
+
+### W5 — `data/README.md` provenance pins at fetch time only (ADR-0009; ADR-0031 Consequences; arch §4 human gates step 3, §5 item 7)
+(a) why: AC4 — every new/updated source pinned with URL, fetch procedure, fetch date, SHA-256 (`Get-FileHash`), licence, written at fetch time ONLY — "nothing before" (arch §5 item 7). The current README carries the superseded CIW B1 block (L129–164) + L27 placeholder row; both are superseded at H5-1; the stale CIW text persists until the fetch (review item D — acceptable, already planned).
+(b) files: `data/README.md` (the only documentation change this cycle).
+(c) steps (executed by the lead at fetch time; no `data/README.md` edit before the raws land):
+1. Pre-fetch: no `data/README.md` edits — diff stays empty through W1–W4.
+2. At H5-1 (HHW): supersede the CIW B1 block (L129–164) + L27 placeholder row with the HHW source-of-record row: members page URL (as James reported), fetch procedure, fetch date, SHA-256 of the pinned raw (CSV, or HTML if the fallback was used), licence/attribution notice if any.
+3. At H5-2 (OSCAR): add the OSCAR source-of-record row: search/extract URL(s), fetch date, row count fetched, SHA-256 of the pinned raw, and the OSCAR licence/attribution wording captured at fetch time (OQ-5 — if not captured, flag PENDING James, do not guess); also record the pre-image SHA-256 (full 64-char value, lead-measured 2026-11-07: `13134F35F4B6B69DFA965F443670B1616C773990036027ACA0C8CBDB0E85B59D`) of `data-raw/hospices-sc.json` captured via `Get-FileHash` BEFORE the first append so QA's post-image check is a machine diff (C5-R2).
+(d) checks:
+- Pre-fetch: `data/README.md` diff empty.
+- Post H5-1: HHW row carries all five pin fields; no row still names CIW/B1 as the Wales source.
+- Post H5-2: OSCAR row carries all five pin fields; pre-image SHA-256 row present.
+
+### W6 — Chain-green verification (arch §5 items 1–7)
+(a) why: the chain must be green before the raws land (G3 active) and again after; build-data fail-fast + byte-identity (ADR-0015/0030) means a red link is a cycle failure. Arch §5 items 1–7 are the mandatory demonstration.
+(b) files: none — verification runs only (chain: extractors → `scripts/merge-hospices.mjs` → `scripts/geocode-postcodes.mjs` → `npm run build-data` → `node scripts/validate-tessellation.mjs` → `npm run build`).
+(c) steps (W6-pre = raws absent, MUST be green before any fetch; W6-post = after fetch):
+1. W6-pre (raws absent): extractors (Wales `[]` exit 0; OSCAR no-op, 3 rows) → merge (161 = en152 + sc3 + ni6 + wales0 — record, never hard-code) → geocode (`postcode-geo.csv` resumable, no-op while postcodes unchanged) → `npm run build-data` → `node scripts/validate-tessellation.mjs` → `npm run build`: all green.
+2. Item 1: `npm run build-data` exits 0; re-run byte-identical (ADR-0030/0015).
+3. Item 2: `node scripts/validate-tessellation.mjs` exits 0 (ADR-0006; ~110 s — run in background, timeout ≥120 s).
+4. Item 3: `npm run build` green ×2, `dist/` byte-identical across runs; prerender self-assert (`scripts/prerender.mjs` L262–264: sitemap `<loc>` count = hospices.json count + 7) passes. ~215 post-fetch is an expectation only (R-4), never a hard gate.
+5. Item 4 — Identity (HARD): `hospices-all.json` shows exactly 20 `curated: true`, all `en-<cqcId>`; the 3 `sc-CS<CSNumber>` rows present with unchanged ids/fields; no id collisions (merge L83–84 / L88–90 assertions are the mechanism — must not be weakened).
+6. Item 5 — Wales: raw absent → `hospices-wales.json` = `[]`; raw present (R-1 fixture: name column at index 0, "Post code" header) → ids `wales-r1..` with `!== -1` sentinel behaviour proven, Welsh names byte-exact UTF-8.
+7. Item 6 — Scotland: pre-image rows identical by parsed row-value identity after a no-op run (raw absent; re-serialised file — C5-R2 — NOT byte-for-byte); post-image = pre-image + `sc-oscar-*` rows with correct `source` stamp.
+8. Item 7: no `src/` diff; no new packages in `package.json` (ADR-0010/0030); `data/README.md` gains the two H5-1/H5-2 provenance rows at fetch time, nothing before.
+9. W6-post (after H5-1/H5-2 + W5): re-run the full chain (items 1–4) against fetched raws; report the new total in chat for reconciliation (expectation ~215; a materially different count is a finding to report, never a silent accept).
+(d) checks:
+- W6-pre and W6-post: every chain command exits 0 in sequence; `dist/` byte-identical between the two build runs of each stage.
+- G3 state (raws absent): `data-raw/hospices-wales.json` = `[]`; `data-raw/hospices-sc.json` = pre-image 3 rows by parsed row-value identity (machine diff vs the pre-image SHA-256).
+- Any identity-item (5) failure — curated count ≠ 20, a non-`en-*` curated id, a changed/missing sc-CS row, or a dupe — is a Blocking finding.
+
+### W7 — Constraints (no `src/`, no new deps, CIW skipped, NI stays 6; arch §5 item 7)
+(a) why: cycle scope is data only; any `src/` or `package.json` change violates the reviewed architecture. The two Cycle 4 UI defects (floating "Open list" button overlap on mobile; desktop footer overlap on long pages) are logged for the next bugfix cycle. CIW is skipped entirely — superseded, never fetched. "NI stays 6" is proven, so no NI work is required (research §5.4; ADR-0031).
+(b) files: none — constraint and final diff checks only.
+(c) steps (continuous across W1–W6; final check last):
+1. No `src/` edits at any point — the two Cycle 4 UI defects stay untouched (deferred).
+2. No `package.json` change, no new runtime dependencies (ADR-0010/0030).
+3. CIW: no fetch, no code path; `data-raw/wales-hospices-2026-10.csv` is never fetched; the CIW/B1 source string is removed per W3 step 3 (no live CIW reference remains).
+4. NI: NI extractor and `data-raw/rqia-regulated-services-2026-06.xlsx` untouched; 6-rows state proven by the two-leg proof — name filter = exactly 6, and `Service Type` / `Categories of Care` / `Conditions` each contain zero hospice values.
+(d) checks:
+- Final `git diff --name-only` (pre-fetch) ⊆ {`scripts/extract-hospices-wales.mjs`, `scripts/extract-hospices-sc-oscar.mjs` (new), `scripts/merge-hospices.mjs`} — no `src/**`, no `package.json`, no `data/README.md` (pre-fetch).
+- Post-fetch diff additionally adds `data/README.md` + the two new `data-raw/` raws — still no `src/**`, no `package.json`.
+- Grep `data/` + `scripts/` for `wales-hospices-2026-10.csv` → 0 hits.
+- `hospices-all.json`: ni rows = 6, ids unchanged from baseline.
+
+## Sequencing
+
+1. W1 and W2 (independent; both must be individually green in G3 mode with their raws absent — W4 log wording is written into these files during the W1/W2 edits).
+2. W3 (merge; independent code change, but its checks need `wales-r*` / `sc-oscar-*` fixture rows → run after 1).
+3. W4 checks (log naming verified standalone after 1–2).
+4. W6-pre — the whole both-absent chain green (GATE 1: chain green BEFORE any fetch; arch §4 human gates step 1). Only then may James fetch.
+5. [HUMAN] H5-1 + H5-2 fetches by James (full-DNS machine) — out of the coder's scope; owned, one-shot reported in chat.
+6. W5 — provenance pins written at fetch time (per gate, in `data/README.md`).
+7. W6-post — full chain re-run + identity checks (GATE 2: before publish).
+8. W7 — constraints enforced continuously; final diff check is the last gate before QA handoff.
+
+## Ambiguities and open questions
+
+Reviewer findings — routing and disposition (review.md findings table; C5-R3 and C5-R4 MUST be surfaced here per review item I):
+- **C5-R1 (risk-accepted)** — architecture line-cite drift: §0/§1 cite the `||`-chain as L56–62, postcode L63, id map L70–75; on disk L59–62, L67, L69–72 (3-line drift). Routing: the work list cites the verified on-disk numbers (done in W1/W3); **QA re-derives every line cite against the live file before and after each edit.** No behavioural impact.
+- **C5-R2 (risk-accepted, design-level)** — "byte-for-byte" wording inaccurate: the real guarantee is **parsed row-value identity** (values + order preserved, file re-serialised). Pre-image integrity is enforced by verification item 4 (W6 step 5), NOT by the merge assertions (L83–84 does not cover the 3 non-curated sc rows). Routing: transcribed into W2/W6 (done); pre-image SHA-256 of `hospices-sc.json` (`13134F35F4B6B69DFA965F443670B1616C773990036027ACA0C8CBDB0E85B59D`, measured 2026-11-07, supersedes the stale `644E50C6…` prefix) recorded in `data/README.md` at H5-2 fetch time (W5 step 3) so QA's post-image check is a machine diff. No code change; chain stays fail-fast.
+- **C5-R3 (routed to Coding — Blocking-adjacent, MUST land)** — the one-line provenance change covered only `sc-oscar*`; the lookup MUST extend to both prefixes. Routing: W3 (two-prefix source lookup; stale `SOURCES.wales` CIW/B1 string deleted).
+- **C5-R4 (risk-accepted)** — feature.md AC2 calls the 3 surviving rows "curated Scottish IDs", but they are classified `curated: false` (ADR-0031 D5; non-curated register rows — merge sc map L54; curated match is the CQC regex L67–69). Assertions pass and ids survive; **documented here to avoid QA misread: QA must NOT expect the 3 sc-CS rows in `curatedCount` (the L83–84 `curatedCount !== 20` assertion) and must NOT treat "curated" in AC2 as the `curated: true` flag.**
+
+Open questions (PENDING James, non-blocking):
+- **OQ-4** — operator slugs `lonesome-hospice`, `george-cross-hospice-edinburgh`, `aintree-hospice-paisley` do not occur in the repo (verified); mapping to the 3 existing `sc-*` ids is operator knowledge only — confirm with James at H5-2 (if the in-app "Aintree" is register row `sc-CS2023000094` that is an operator-knowledge correction). SAFE DEFAULT (holds regardless of the answer): the 3 existing `sc-*` ids never change — merge guarantees this by construction.
+- **OQ-5** — OSCAR licence/attribution wording for the `data/README.md` provenance row is UNVERIFIED from this machine (site unreachable) — must be captured at fetch time (H5-2 item 3; W5 step 3). If James cannot obtain it, flag PENDING in chat and DO NOT guess the licence text.
+(Superseded/resolved for this cycle: OQ-1 id scheme → ADR-0031 D3 `sc-oscar-<SC>`; OQ-2 in research is absorbed by D3; OQ-3 `address[]` → ADR-0031 D4; OQ-6 ledger staleness is a lead action, not a coding item.)
+
+## Verification gate
+
+Cycle 5 passes when ALL of the following are demonstrated:
+1. W6-pre green: the whole chain exits 0 with both raws absent (G3); `hospices-all.json` = 161 (en152 + sc3 + ni6 + wales0) recorded, not hard-coded.
+2. Identity items hold in `hospices-all.json`: exactly 20 `curated: true` (all `en-<cqcId>`); 3 `sc-CS<CSNumber>` rows unchanged ids/fields; no id collisions; merge assertions not weakened.
+3. Post-fetch chain green ×2 with byte-identical `dist/`; prerender self-assert passes; Wales/Scotland fixtures behave per W6 items 5–6 (incl. parsed row-value identity for the sc pre-image vs its SHA-256).
+4. W7 final diff check passes: only `scripts/` (3 files) + `data/README.md` (fetch-time) + 2 new `data-raw/` raws; no `src/**`, no `package.json`; no CIW raw/string remains; NI stays 6.
+5. `data/README.md` carries both provenance rows with all five pin fields (URL, procedure, date, SHA-256, licence) plus the sc pre-image SHA-256.
+6. No Blocking findings open; C5-R1/R2/R4 documented as risk-accepted (this section); C5-R3 landed in W3.
+
 # Requirements — Cycle 4 (2026-10-30)
 
 Stage 4 (Product Manager), Cycle 4. Source spec: `.agents/architecture.md` (Cycle 4, 2026-10-30; ADR-0024…0028) — THE SPEC; transcribed, not re-derived. Human gate H4-1 resolved 2026-10-30: James picked the **BEACON** concept (`.agents/design.md` Concept 2) → rebrand items use BEACON values only. Glossary: `## Cycle 4 terms` (theme-boot snippet, Auto/Light/Dark theme, hfuk-theme, first-load layer defaults, muted GP layer, design tokens) — terms used verbatim.

@@ -4,9 +4,14 @@
 //
 // Inputs (all committed, produced by the item 6-9 extract scripts):
 //   data-raw/hospices-en.json    {id:'en-<cqcId>', cqcId, name, address[], postcode}
-//   data-raw/hospices-sc.json    {id:'sc-<CSNumber>', name, address[], town, postcode}
+//   data-raw/hospices-sc.json    {id:'sc-<CSNumber>' | 'sc-oscar-<SC>', name, address[], town, postcode}
 //   data-raw/hospices-ni.json    {id:'ni-r<n>',    name, postcode}        ([] until RQIA fetch, A3)
-//   data-raw/hospices-wales.json {id:'wales-<n>',  name, postcode}        ([] until CIW reply, B1)
+//   data-raw/hospices-wales.json {id:'wales-r<n>', name, postcode}        ([] until HHW fetch, gate H5-1, ADR-0031 D5)
+//
+// Provenance stamp (ADR-0009, two-prefix lookup, ADR-0031 D6):
+//   id starts 'sc-oscar-' -> SOURCES.scOscar (OSCAR register string)
+//   other sc rows         -> SOURCES.sc    (GIS register string)
+//   wales rows            -> SOURCES.wales (Hospice Health Wales string)
 //
 // Curated seeding: the 20 entries of scripts/catchment-map.mjs (read-only
 // provenance, ADR-0005) are identified by the CQC Location id embedded in
@@ -29,8 +34,11 @@ import { CATCHMENTS } from './catchment-map.mjs';
 const SOURCES = {
   en: 'CQC register (data-raw/cqc-directory-2026-10.csv, produced 14 Oct 2026)',
   sc: 'Care Inspectorate Scotland (data-raw/care-inspectorate-scotland-2026-08.csv, as at 31 Aug 2026)',
+  scOscar: 'OSCAR — Scottish Charity Register (data-raw/oscar-scotland-hospices-2026-11.csv)',
+  scPcs: 'PalliativeCare Scotland — Hospices and specialist units (data-raw/palliativecare-scotland-hospices-2026-11.html, Wayback pin 20260514160126)',
   ni: 'RQIA bulk export "All Registered Services" (data-raw/rqia-regulated-services-2026-06.xlsx, human-fetched 2026-10-27)',
-  wales: 'Care Inspectorate Wales (fetched list pending — B1 email, data/README.md)',
+  // Cycle 5 human re-designation (ADR-0031 D5 superseded); raw pinned 2026-11-08 — the section is under review and the hospice list is absent, so this lands as a valid zero-set per ADR-0020.
+  wales: 'NHS Wales Performance and Improvement network — Hospices and palliative care services (https://performanceandimprovement.nhs.wales/our-work/ow/peolc/hospices-and-palliative-care-services/)',
 };
 
 const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
@@ -51,7 +59,7 @@ const all = [
   })),
   ...sc.map((h) => ({
     id: h.id, name: h.name, town: h.town || townOf(h), postcode: h.postcode, nation: 'sc',
-    kind: 'approx', source: SOURCES.sc, website: '', cqcUrl: '', curated: false,
+    kind: 'approx', source: h.id.startsWith('sc-oscar-') ? SOURCES.scOscar : h.id.startsWith('sc-pcs-') ? SOURCES.scPcs : SOURCES.sc, website: '', cqcUrl: '', curated: false,
   })),
   ...ni.map((h) => ({
     id: h.id, name: h.name, town: '', postcode: h.postcode, nation: 'ni',

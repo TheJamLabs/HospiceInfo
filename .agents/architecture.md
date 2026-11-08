@@ -1,3 +1,101 @@
+# Architecture — Cycle 5 (2026-11-07)
+
+## 0. Scope, reads, writable set, standing invariants
+
+**Scope.** Cycle 5 (`.agents/feature.md`; research verified on disk 2026-11-07 — `.agents/research.md` L1–360): two data-source rewires and one new source; no UI or feature changes, so `src/` is untouched this cycle and the 10-stage pipeline runs unmodified.
+1. **Wales rewire (0 → ~14 incl. Hope House SY10).** Raw of record moves from `data-raw/wales-hospices-2026-10.csv` (CIW request B1, never arrived; file absent, G3 zero-set) to `data-raw/hospicehealth-wales-members-2026-11.csv` (Hospice Health Wales members list, H5-1 human fetch), with `.html` fallback if the list turns out to be page-only (research.md L71/77–85). R-1 fix in `scripts/extract-hospices-wales.mjs` (§1).
+2. **Scotland (3 → ~40, OSCAR primary).** New raw `data-raw/oscar-scotland-hospices-2026-11.csv` (H5-2 human fetch); new APPEND-mode extractor `scripts/extract-hospices-sc-oscar.mjs`; GIS extractor untouched — overlapping provenance is intended. ADR-0031.
+3. **NI stays at 6** by the two-leg completeness proof (research.md §5.4; ADR-0031 sets it). No change.
+4. **Identity stability (load-bearing).** Exactly 20 curated rows, all England `en-<cqcId>`; the 3 in-repo `sc-CS<CSNumber>` rows survive byte-for-byte; append mode + the merge unique-id assertion make breakage structurally impossible (§3).
+
+**Reads (verified on disk this pass, 2026-11-07).** `.agents/feature.md`; `.agents/research.md` L1–360 (H5-1/H5-2 fetch failures L23/24; Wales raw change L71/77–85; H5-1 procedure L97; OSCAR table/column mapping §5.3 L186–252; §5.6 glossary candidates L302–306; risks R-1..R-4 + findings F-1/F-2 L307+; OQ-1..OQ-6 L340–360); `GLOSSARY.md` (120 lines, no BOM); ADR-0002/-0003/-0004/-0005/-0006/-0009/-0010/-0012/-0015/-0020/-0029/-0030 (titles verified against `docs/adr/`); `docs/adr/0031-…md` (written this pass). Grounding scripts, with the exact lines this design cites: `scripts/extract-hospices-wales.mjs` (76 lines — G3 absent block, `||`-chain R-1 at L56–62, exact `'postcode'` match L63, `wales-r` id mapping L70–75); `scripts/extract-hospices-sc.mjs` (GIS raw; REPLACE mode; `sc-<CSNumber>` ids; name filter — untouched this cycle); `scripts/extract-hospices-ni.mjs` (RQIA; `ni-r<n>` ids; classification columns `Service Type`/`Categories of Care`/`Conditions`); `scripts/merge-hospices.mjs` (L42 `townOf`, L53 sc map `town: h.town || townOf(h)`, L69 curated CQC regex `location\/(1-\d+)`, L83–84 `curatedCount !== 20` assertion, L88–90 unique-id assertion); `scripts/build-data.mjs` (L33–35 `SLUG_TO_ID`, L117 `hospicesOut` — maps merge output which carries no `address` field, L225 `catchmentsOut = placed.map(...)` — every placed hospice of any nation, L260–266 shop resolution, L282 `process.exit(1)`, L293 writes); `scripts/geocode-postcodes.mjs` (L26–35 `FILES` = all four `gp-practices-*.json` + all four `hospices-*.json`; resumable via `postcode-geo.csv`; final missing-guard `process.exit(1)`); `scripts/catchment-map.mjs` (`CATCHMENTS` = exactly 20 England entries, each with `cqcUrl`); `scripts/prerender.mjs` (L262–264 sitemap self-assert); `data/README.md` (L24 current `hospices-sc.json` provenance row; columns `| File | Source | Fetched | Notes |`).
+
+**Writable (exactly three; nothing else).**
+- `.agents/architecture.md` — this section prepended above `# Architecture — Cycle 4 (2026-10-30)`; the existing 657 lines stay byte-identical (git diff verified: insertions only).
+- `GLOSSARY.md` — append `## Cycle 5 terms` (finalises the research.md §5.6 candidates, L302–306); all existing entries untouched (git diff: insertions only).
+- `docs/adr/0031-oscar-primary-scotland-source-and-id-scheme.md` — single new ADR (30 exist, 0001–0030).
+No `src/`, no `scripts/`, no `data-raw/`, no other docs.
+
+**Standing invariants (violations are design bugs):**
+- **ADR-0002** (`{nation}-{registerId}` ids): Cycle 5 adds one register family, `sc-oscar-<SC>`, and reuses `wales-r<n>` (ADR-0031). New ids are slugs compatible with ADR-0019's URL scheme.
+- **ADR-0003** (first-run column discovery): the rewired Wales extractor and the new OSCAR extractor both log the header + first data row before trusting columns; the absent-file paths log the human-fetch procedure.
+- **ADR-0004** (hash-derived colour, FNV-1a on id): `sc-oscar-*` / `wales-r*` ids colour themselves deterministically; the 3 existing sc rows keep today's colours — no colour code changes.
+- **ADR-0005** (20 curated): `scripts/catchment-map.mjs` stays the read-only seed of the 20 curated entries; merge L69 matches them by CQC-ID only (England regex `1-\d+`).
+- **ADR-0006** (land-mask Voronoi tessellation) + `scripts/validate-tessellation.mjs` exit 0: tessellation derives from the placed-hospice `lat/lon` set, so it absorbs grown input by construction — untouched code.
+- **ADR-0012 / ADR-0020 / ADR-0025 / ADR-0026** (hide-not-delete): unplaced rows (`lat/lon: null`) render nowhere (map, search, list, counts) and are never deleted.
+- **ADR-0015 / ADR-0030** (deterministic static pipeline): `npm run build-data` fail-fast + byte-identical re-run; `npm run build` (`tsc -b && vite build && node scripts/prerender.mjs`) green ×2, byte-identical; no API keys, no network at publish time.
+- **ADR-0009** (provenance discipline): every new raw row carries its source string; H5-1/H5-2 lands pinned in `data/README.md` with SHA-256 (`Get-FileHash`).
+- **No new runtime dependencies:** ADR-0010 ("no new dependencies") + ADR-0030 (zero-backend/static) — no npm change this cycle. (The dispatch shorthand "ADR-0004 = no new deps" does not match the on-disk titles: 0004 is hash-derived colour; 0005 is the 20-curated outcode retirement — this section cites the on-disk titles.)
+
+## 1. Wales rewire (R-1; id scheme in ADR-0031)
+
+**Raw of record.** `data-raw/hospicehealth-wales-members-2026-11.csv` (H5-1); if the members list arrives as a web page instead (research.md L71/77–85), the fallback raw is `data-raw/hospicehealth-wales-members-2026-11.html`, parsed text-only (cell-like rows; no scripts), chosen ONLY when the CSV is absent, and the first-run log must state which mode ran (ADR-0003). The prior raw `data-raw/wales-hospices-2026-10.csv` is superseded, not fetched.
+
+**R-1 fix (verified: `scripts/extract-hospices-wales.mjs` L56–62).** The current name-column chain:
+
+```js
+const iName =
+  header.findIndex((h) => h.toLowerCase() === 'service name')
+  || header.findIndex((h) => h.toLowerCase() === 'name')
+  || header.findIndex((h) => h.toLowerCase().includes('name'));
+```
+
+is broken in two ways, not one: (a) index `0` is falsy — when the first candidate *is* the name column the chain falls through to the broader candidates and mis-binds; (b) index `-1` is truthy — when `'service name'` is absent the chain short-circuits to `-1` and the broader candidates are never tried. The dispatch/research warns only of (a); the on-disk chain also exhibits (b). **Spec (both directions, exact pattern):** iterate the candidates `['service name' exact, 'name' exact, contains 'name']` in priority order, compute each index, take the first `idx !== -1`; if none, `console.error` the full header and `process.exit(1)` (the existing guard, retained). This is the one place this design is deliberately stronger than research.md's "e.g. explicit -1 sentinel" (see §6).
+
+**Postcode column (L63).** Current: exact `'postcode'` match. Change to **contains `post`, case-insensitive**, matching the name-column detection style. The HHW header wording is unverifiable from this machine (restricted DNS), so detection must be tolerant; `post` covers "Postcode", "Post Code", and suffixed variants. Absent → `postcode: ''` (retained behaviour): the row is kept on its name anchor and set unplaced → hidden per ADR-0012, and reported (first-run log lists how many rows have a postcode) — never silently dropped.
+
+**No name filter (load-bearing).** The existing `.filter((e) => e.name)` (drop blank names, L70–75) stays; the substring "hospice" filter is **not** applied: Welsh hospice names such as Tŷ Hafan and Y Rhoel do not contain the word, so the filter would delete real rows. The HHW members list is hospice-scoped by construction — the name filter applies only to broad registers (NI RQIA, GIS) where the source is not already hospice-only (ADR-0031 sets the rule: apply the filter only where the source is not already hospice-scoped).
+
+**G3 zero-set tolerance (unchanged, ADR-0020).** Absent raw → write `[]` to `data-raw/hospices-wales.json` and exit 0; the log names the H5-1 procedure. `Wales: 0` is a placeholder, not an error, until H5-1 lands.
+
+**Ids (ADR-0031): `wales-r<n>`** — 1-based position among kept rows (the existing L70–75 pattern). Row anchors UNVERIFIED → ADR-0002 row-index fallback by design; the pragma "do not reorder/insert rows into the raw between builds" is recorded in the `data/README.md` provenance row at fetch time.
+
+**Byte-exact UTF-8 Welsh orthography.** The extractor reads the raw as UTF-8 with no BOM stripping and writes `hospices-wales.json` as UTF-8, no BOM (the existing `fs` `'utf8'` reads/writes already do this — the design requirement is that the Coding pass **not** introduce any transcoding layer); Tŷ Hafan / Y Rhoel must survive to `hospices-all.json` byte-intact so names in `public/data/hospices.json` match the raw.
+
+## 2. Scotland: append-mode OSCAR source (ADR-0031)
+
+**New extractor `scripts/extract-hospices-sc-oscar.mjs`** (new file; the GIS extractor `scripts/extract-hospices-sc.mjs` is untouched — its 3 rows and provenance are preserved, overlapping provenance intended).
+- **APPEND mode (load-bearing).** Reads `data-raw/oscar-scotland-hospices-2026-11.csv` (H5-2) and reads the existing `data-raw/hospices-sc.json`; the new file = existing rows **verbatim** + appended OSCAR rows. The extractor writes no GIS row it did not read; it does not re-derive, re-order, or re-serialise the 3 existing rows (JSON-parsed and re-serialised deterministically — `JSON.stringify`, no formatters). If the raw is absent: G3 — leave `hospices-sc.json` byte-identical (re-write it in its exact current bytes), log the H5-2 procedure, exit 0.
+- **Column mapping (research.md §5.3.3, by name, case-insensitive, tolerant `post`/`town` detection as in §1):** `name` ← the OSCAR organisation-name column (name candidates `['organisation', 'name']` via the R-1 sentinel pattern); `charity name`/`name-contains` contexts per the research mapping; `id` ← `sc-oscar-<SC>` when the row carries a valid SC number (6-digit), else `sc-oscar-r<n>` 1-based position within the OSCAR body (OQ-2, ADR-0031); `town` ← first header containing `town`, **optional** (blank allowed); `postcode` ← first header containing `post` (kept-but-reported-when-blank: rows without a usable postcode stay in the set, list empty through the first-run log, become unplaced → hidden, ADR-0012); `address[]` ← the OSCAR address lines, emitted per row (OQ-3, ADR-0031 — drives `townOf` town fallback in the merge, L42/L53).
+- **No "hospice" name filter** (ADR-0031): the H5-2 raw is the reconciled, hospice-scoped extract (OSCAR selection done at fetch time); filtering here would drop real rows for the same Welsh-style name reason as Wales.
+- **G3 tolerance (unchanged)** as above; `Scotland` count stays 3 until H5-2 lands, grows to ~40 after.
+
+**Merge change (one-line, `scripts/merge-hospices.mjs`).** Provenance stamp: rows with id starting `sc-oscar-` carry `source: "OSCAR — Scottish Charity Register (data-raw/oscar-scotland-hospices-2026-11.csv)"`; all other sc rows keep the GIS `SOURCES.sc` string (ADR-0009). No other merge behaviour changes.
+
+## 3. Identity rule (load-bearing, `scripts/merge-hospices.mjs`)
+
+**Exactly 20 curated, all England, all `en-<cqcId>`.** The 20 curated identities are seeded from `scripts/catchment-map.mjs` `CATCHMENTS` — exactly 20 entries, all England, each with `cqcUrl: 'https://www.cqc.org.uk/location/1-<digits>'` — and the merge matches them by the regex at L69, which matches only `1-\d+` CQC ids; `sc-`/`sc-oscar-`/`ni-r`/`wales-r` ids can never satisfy it. So **"exactly 20 curated" is structurally England-only**: no Scottish identity can ever become curated, and the published 20 (build 2026-10-30, commit bbe4bde) is the complete curated set (ADR-0005: read-only seed).
+
+**The 3 in-repo sc rows are NOT curated.** `sc-CS2014323454`, `sc-CS2022000173`, `sc-CS2023000094` are register rows with `curated: false`; their stability is guaranteed **by construction**: `hospices-sc.json` is append-only (the GIS extractor's replace-mode run is a one-shot historical artefact, not re-run in Cycle 5), and the new extractor only appends. Altering a row is not expressible in append mode; duplicating one is caught by the merge unique-id assertion (L88–90, exit 1) before it can reach the map; the L83–84 `curatedCount !== 20` assertion guards the curated boundary.
+
+**Consequence for R-2 (see §4):** because curated set and England set coincide, and non-England ids can never enter the curated set nor the shop key space, the two-tier CATCHMENTS guard below closes the risk with no new code path beyond the existing assertions plus the build-data fail-fast.
+
+## 4. Cross-cutting (R-2 .. R-4, human gates H5-1/H5-2)
+
+**R-2 — CATCHMENTS scope guard (two-tier).** Shop rows key their `hospiceId` to catchment slugs. Tier 1 (structural): `CATCHMENTS` has exactly 20 England entries and the curated set is exactly those 20 (`merge-hospices.mjs` L83–84), so the key space is England-only. Tier 2 (fail-fast): `build-data.mjs` resolves every shop via `SLUG_TO_ID` (L33–35, built from `CATCHMENTS` — England-only by construction); an id keyed to a non-England sc/wales/ni row is unresolvable → `shopsUnresolved++` (L265–266) → `process.exit(1)` (L282). Any accidental non-England shop key therefore trips the build, never the map.
+
+**R-3 — geocoding auto-coverage (no change).** `scripts/geocode-postcodes.mjs` `FILES` (L26–35) already lists all four `hospices-{en,sc,ni,wales}.json` plus all four `gp-practices-*.json`, so the ~54 new sc/wales postcodes (plus the ~40 sc-oscar rows' postcodes) are covered on the next resumable pass with zero script edits; the `postcode-geo.csv` cache + final missing-guard exit-1 are unchanged (ADR-0029 keyless Nominatim, 1 req/s). Rows the geocoder cannot place land as `lat/lon: null` → no catchment polygon, no practices, hidden everywhere (hide-not-delete, ADR-0012/0025/0026) — never deleted; the manual-pin escape hatch (ADR-0021) remains available if a strategic row stays unplaced.
+
+**R-4 — counts (161 → ~215 expected; never hard-coded).** No build script may hard-code a hospice total. The governing invariant remains the prerender self-assert (`scripts/prerender.mjs` L262–264): sitemap `<loc>` count = `hospices.json` count + the 7 fixed pages, else fail. ~215 is an expectation for the human-gate reconciliation, not a gate (ADR-0031).
+
+**Human gates H5-1 / H5-2: BUILD gates on the final data build (chain green before the raws land), DATA gates on publication.** Procedure: (1) the Cycle 5 chain — `npm run build-data` (fail-fast, byte-identical re-run), `node scripts/geocode-postcodes.mjs` (no-op pass while raws are absent), `node scripts/validate-tessellation.mjs` (exit 0), `npm run build` ×2 (byte-identical) — runs green **before** the raw files land (G3 zero-set keeps Wales at 0 and Scotland at 3 in the interim); (2) James fetches the two raws on a full-DNS machine (H5-1 = `data-raw/hospicehealth-wales-members-2026-11.csv` + `.html` fallback; H5-2 = `data-raw/oscar-scotland-hospices-2026-11.csv`, reconciled against the PPPC seed, plus the OSCAR licence/attribution wording — OQ-5); (3) the lead records each in `data/README.md` with source URL, fetch date, and SHA-256 via `Get-FileHash` (ADR-0009); (4) the extractors re-run, geocode pass picks up the new postcodes, and the full §4 verification chain of ADR-0030 runs again before publish. The gates are ordered, owned, and one-shot reported in chat; they do not block the Chain-green definition.
+
+## 5. Invariants and verification (what Coding must show)
+
+1. `npm run build-data` exits 0; re-run is byte-identical (ADR-0030/0015).
+2. `node scripts/validate-tessellation.mjs` exits 0 (ADR-0006).
+3. `npm run build` green ×2, `dist/` byte-identical across runs; prerender sitemap self-assert (L262–264) passes.
+4. Identity: `hospices-all.json` shows exactly 20 `curated: true`, all `en-<cqcId>`; the 3 `sc-CS<CSNumber>` rows present with unchanged ids/fields; no id collisions (the merge L83–84/L88–90 assertions are the mechanism — they must not be weakened).
+5. Wales rewire: raw absent → `hospices-wales.json` = `[]`; raw present (test fixture with a name column at index 0 and a "Post code" header, per R-1) → ids `wales-r1..` with `!== -1` sentinel behaviour proven, Welsh names byte-exact UTF-8.
+6. Scotland append: pre-image rows byte-identical after a no-op run (raw absent); post-image = pre-image + `sc-oscar-*` rows with correct `source` stamp.
+7. No `src/` diff; no new packages in `package.json` (ADR-0010/0030); `data/README.md` gains the two H5-1/H5-2 provenance rows at fetch time, nothing before.
+
+## 6. Deviations from research.md (record)
+
+One, deliberate, and local: research.md R-1 describes the `||`-chain defect as the falsy-0 fall-through and recommends "e.g. explicit -1 sentinel"; the on-disk chain (L56–62) is also broken by truthy `-1` short-circuit, so this architecture specifies the full explicit `!== -1` candidate loop (takes the first non-`-1` across all three candidates). Same spirit, strictly more coverage; no other line of research.md is re-derived or overridden.
+
+The dispatch's ADR-number shorthand ("ADR-0004 no new runtime deps", "ADR-0005 curated seeds read-only") does not match the on-disk titles (0004 = hash-derived colour; 0005 = retire outcode assignment for the 20 curated); this section cites the on-disk titles — ADR-0010/0030 for no-new-deps, ADR-0005 for the 20-curated read-only seed — with no change to the invariants themselves.
+
 # Architecture — Cycle 4 (2026-10-30)
 
 ## 0. Scope, reads, writable set, standing invariants
