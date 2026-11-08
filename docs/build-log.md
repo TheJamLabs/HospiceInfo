@@ -1,6 +1,7 @@
 2 2026-10-26 dc261185 e11322ba 2a87a374 5628d8f7
 3 2026-10-29 65818ace cc096f17 f7df12fd dd19e8ae
 4 2026-10-30 bbe4bde
+5 2026-11-08 416d28a
 
 ## Cycle 4 (2026-10-30)
 
@@ -81,6 +82,7 @@ ADR-0012 policy), SEC5-L3 (Nominatim header in build-data.mjs), SEC5-L4
 (land-mask reuse), SEC5-L5 (scratch hygiene) — all Informational. Carried:
 SEC-4-02 (scratch dirs), SEC-4-03 (dark-tile debt, ADR-0027).
 
-Landing commit: UNCOMMITTED as of 2026-11-08 (worktree on `e1fbc1b`;
-commit/push are the operator's human gate) — no top-table commit row until
-the landing lands.
+Landing commit: **`416d28a`** (2026-11-08) — one commit (36 files,
++26,579/−146), pushed to `origin/main`, auto-published by Cloudflare
+Pages (ADR-0014). Rollback = `git revert 416d28a` + push (byte-exact
+deterministic build).

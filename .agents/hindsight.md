@@ -313,11 +313,13 @@ performed the ingest post-stage)
   (Typography section) — add future fonts only with the same attribution
   pattern.
 
-## Cycle 5 Hindsight — Landing pass completed 2026-11-08 (Scotland PCS append 2 + Wales final-gate resolution; publish PENDING James's human gate)
+## Cycle 5 Hindsight — Landing pass completed 2026-11-08 (Scotland PCS append 2 + Wales final-gate resolution; PUBLISHED at commit `416d28a`)
 
 **Landed on** `e1fbc1b` (28 uncommitted `git status` entries as of
-2026-11-08). One commit + push to `main` auto-publishes (ADR-0014);
-rollback = `git revert` + push (byte-exact deterministic build).
+2026-11-08); **PUBLISHED 2026-11-08** at ship commit **`416d28a`**
+(36 files, +26,579/−146), pushed to `main` → Cloudflare Pages
+auto-deploy of `dist/` (ADR-0014). Rollback = `git revert 416d28a` +
+push (byte-exact deterministic build).
 
 ### What changed (landing — all figures disk-verified 2026-11-08)
 
@@ -401,11 +403,19 @@ lead performed the bank ingest after the stage, C4 pattern)
   what the bank said (or didn't), what is true now (192; Scotland 34;
   Wales 0 verified-negative; 215/200/199 dist; uncommitted on
   `e1fbc1b`), and the evidence (RQ-1 marker sweep 2026-11-08).
+- **Repeat ingest DONE (lead, 2026-11-08 — after James's gate, per
+  "Commit and push, repeat hindsight")**: `hindsight_ingest_document`
+  correction page "Correction: HospiceInfo Cycle 5 PUBLISHED state
+  (2026-11-08)" (doc_id
+  `correction-hospiceinfo-cycle-5-published-2026-11-08`) — supersedes
+  the "uncommitted on `e1fbc1b`" line above: the landing is published
+  at ship commit `416d28a` (pushed to `main`, Cloudflare Pages
+  auto-deployed `dist/`), build-log.md row 5 = `416d28a`.
 
 ### Remember for next time
 
-- **Publish PENDING**: landing uncommitted on `e1fbc1b` until James's
-  human gate (one commit + push → auto-publish, ADR-0014). Post-publish
+- **Publish DONE (2026-11-08)**: James's human gate ran — landed at
+  `416d28a`, pushed to `main` → auto-published (ADR-0014). Post-publish
   smoke checks: 199 `<loc>`; 200-shell survey incl. `sc-pcs-30` /
   `sc-pcs-58`; Scotland 34 / Wales 0 in data; robots 75 B; 3 woff2
   14,508/14,632/14,592 B.
