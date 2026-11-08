@@ -131,6 +131,46 @@ function parseHTMLTable(html) {
   return rows;
 }
 
+// Primary path: all five regional pins -> parse mapPlots, scope-filter.
+function extractRegionals() {
+  const kept = [];
+  const excluded = [];
+  for (const r of REGIONAL_RAW) {
+    const plots = parseMapPlots(fs.readFileSync(r.path, 'utf8'), r.path);
+    console.log(`${r.region}: ${plots.length} entries; first: ${plots[0].title} — ${plots[0].postcode}`);
+    for (const p of plots) {
+      const name = String(p.title || '').trim();
+      if (!name) continue; // empty names are the only rows dropped
+      if (EXCLUDE_TOKENS.test(name)) {
+        excluded.push(`${name} (${String(p.postcode || '').replace(/\s+/g, ' ').toUpperCase()})`);
+        continue;
+      }
+      kept.push({ name, postcode: String(p.postcode || '').replace(/\s+/g, ' ').toUpperCase() });
+    }
+  }
+  if (kept.length === 0) {
+    console.error('Wales regional raws: zero hospice rows after scope filter — pins stale?');
+    process.exit(1);
+  }
+  console.log(`Wales scope: ${kept.length} kept, ${excluded.length} excluded (hospital-based services)`);
+  kept.forEach((e, i) => console.log(`  wales-r${i + 1}: ${e.name} — ${e.postcode}`));
+  excluded.forEach((e) => console.log(`  excluded: ${e}`));
+  return kept.map((e, i) => ({ id: `wales-r${i + 1}`, ...e }));
+}
+
+const presentRegional = REGIONAL_RAW.filter((r) => fs.existsSync(r.path)).length;
+if (presentRegional > 0) {
+  if (presentRegional !== REGIONAL_RAW.length) {
+    const missing = REGIONAL_RAW.filter((r) => !fs.existsSync(r.path)).map((r) => r.path);
+    console.error(`Wales raw: partial regional pin set (${presentRegional}/${REGIONAL_RAW.length}) — missing: ${missing.join(', ')}`);
+    process.exit(1);
+  }
+  const out = extractRegionals();
+  fs.writeFileSync('data-raw/hospices-wales.json', JSON.stringify(out));
+  console.log(`Wales hospices: ${out.length} (with postcode: ${out.filter((e) => e.postcode).length})`);
+  process.exit(0);
+}
+// Legacy chain (0/5 regional pins): parent pin -> HHW CSV -> HHW HTML.
 let rows = null;
 let mode = null;
 let rawPath = null;

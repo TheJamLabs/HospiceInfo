@@ -6,12 +6,12 @@
 //   data-raw/hospices-en.json    {id:'en-<cqcId>', cqcId, name, address[], postcode}
 //   data-raw/hospices-sc.json    {id:'sc-<CSNumber>' | 'sc-oscar-<SC>', name, address[], town, postcode}
 //   data-raw/hospices-ni.json    {id:'ni-r<n>',    name, postcode}        ([] until RQIA fetch, A3)
-//   data-raw/hospices-wales.json {id:'wales-r<n>', name, postcode}        ([] until HHW fetch, gate H5-1, ADR-0031 D5)
+//   data-raw/hospices-wales.json {id:'wales-r<n>', name, postcode}        (17 hospices, NHS Wales P&I regional pages, ADR-0033)
 //
 // Provenance stamp (ADR-0009, two-prefix lookup, ADR-0031 D6):
 //   id starts 'sc-oscar-' -> SOURCES.scOscar (OSCAR register string)
 //   other sc rows         -> SOURCES.sc    (GIS register string)
-//   wales rows            -> SOURCES.wales (Hospice Health Wales string)
+//   wales rows            -> SOURCES.wales (NHS Wales P&I regional pages string)
 //
 // Curated seeding: the 20 entries of scripts/catchment-map.mjs (read-only
 // provenance, ADR-0005) are identified by the CQC Location id embedded in
@@ -37,8 +37,8 @@ const SOURCES = {
   scOscar: 'OSCAR — Scottish Charity Register (data-raw/oscar-scotland-hospices-2026-11.csv)',
   scPcs: 'PalliativeCare Scotland — Hospices and specialist units (data-raw/palliativecare-scotland-hospices-2026-11.html, Wayback pin 20260514160126)',
   ni: 'RQIA bulk export "All Registered Services" (data-raw/rqia-regulated-services-2026-06.xlsx, human-fetched 2026-10-27)',
-  // Cycle 5 human re-designation (ADR-0031 D5 superseded); raw pinned 2026-11-08 — the section is under review and the hospice list is absent, so this lands as a valid zero-set per ADR-0020.
-  wales: 'NHS Wales Performance and Improvement network — Hospices and palliative care services (https://performanceandimprovement.nhs.wales/our-work/ow/peolc/hospices-and-palliative-care-services/)',
+  // Cycle 5: five NHS Wales P&I regional sub-pages, pinned 2026-11-08 (ADR-0033), hospices-only scope.
+  wales: 'NHS Wales Performance and Improvement network — Hospices and palliative care services, five regional sub-pages (data-raw/nhs-wales-hospices-2026-11-{north-wales, mid-and-west-wales, south-wales-west, south-wales-central, south-wales-east}.html)',
 };
 
 const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
