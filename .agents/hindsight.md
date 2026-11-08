@@ -407,7 +407,7 @@ lead performed the bank ingest after the stage, C4 pattern)
   "Commit and push, repeat hindsight")**: `hindsight_ingest_document`
   correction page "Correction: HospiceInfo Cycle 5 PUBLISHED state
   (2026-11-08)" (doc_id
-  `correction-hospiceinfo-cycle-5-published-2026-11-08`) — supersedes
+  `correction-hospiceinfo-cycle-5-published-state-2026-11-08`) — supersedes
   the "uncommitted on `e1fbc1b`" line above: the landing is published
   at ship commit `416d28a` (pushed to `main`, Cloudflare Pages
   auto-deployed `dist/`), build-log.md row 5 = `416d28a`.
