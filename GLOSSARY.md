@@ -151,3 +151,24 @@ provenance, and documentation. New terms are formatted in *italics*.
   (`www.scotcharityregister.org.uk`) — Scotland's statutory charity register;
   the authoritative primary source for the Scottish hospice population from
   Cycle 5 (ADR-0031).
+
+## Cycle 6 terms (finalised 2026-11-08)
+
+- **admin ring**: the OSM admin-boundary polygon for a nation — here the
+  Northern Ireland ring, OSM relation 156393 "Northern Ireland / Tuaisceart
+  Éireann" (admin_level 4, 929 way members, single closed outer ring),
+  committed as `data-raw/roi-border.json` (ODbL); NI catchments are clipped to
+  it **after** the land clip, guarded by `id.startsWith('ni')` (ADR-0034).
+- **spill**: the area of a catchment cell falling **outside** its admin ring
+  (NI: the ROI/sea portion of the island that survives the land clip);
+  validator invariant 5 bounds it at `< 1e-9 deg²` per NI cell, and the
+  total `roiSpill` gates the validator exit (ADR-0034).
+- **sliver**: a non-empty cell below `0.0002 deg²` (validator warning class;
+  e.g. Wisdom's `0.000186` clip seam) — distinct from a *degenerate cell*
+  (`polygons: []`).
+- **JITTER nudge**: the deterministic offset applied to co-located seed points
+  **before** the Voronoi pass so the Delaunay triangulation stays
+  non-degenerate — label-ordered 8-direction spiral, `toFixed(6)`
+  co-location buckets, base `1e-5` deg; Cycle 6 keeps the mechanism unchanged
+  and reduces the base constant only, until invariant 6 is green (0 empty SC
+  cells, every SC×SC pair `< 1e-6 deg²`) (ADR-0034).

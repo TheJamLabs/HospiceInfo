@@ -42,18 +42,49 @@ export default function App() {
   // wm W11: the start-here landing card is open on first load; dismissing it
   // leaves a "Start here" pill in the panel header to re-open it.
   const [startHereOpen, setStartHereOpen] = useState(true);
+  // C6-4 (ADR-0035): the children's view. Adults are the default; the toggle
+  // REPLACES the adult view (the two kinds are completely separate, with
+  // separate catchments — they are never overlaid). The four datasets are
+  // filtered here, so components receive only the active kind's data and
+  // their prop APIs are unchanged.
+  const [childrenMode, setChildrenMode] = useState(false);
+  const toggleKind = (children: boolean) => {
+    setChildrenMode(children);
+    setSelectedId(null);
+  };
 
   const error = hospicesError || practicesError || catchmentsError || shopsError;
   const loading = !error && (!hospices || !practices || !catchments || !shops);
 
+  // C6-4 (ADR-0035): filter the four datasets by the active kind BEFORE they
+  // reach any component, so the children's view replaces the adult view
+  // entirely (catchment areas tessellate separately — build-data.mjs).
+  const kindHospices = useMemo(
+    () => (hospices ? hospices.filter((h) => h.children === childrenMode) : []),
+    [hospices, childrenMode]
+  );
+  const kindSet = useMemo(() => new Set(kindHospices.map((h) => h.id)), [kindHospices]);
+  const kindCatchments = useMemo(
+    () => (catchments ? catchments.filter((c) => c.children === childrenMode) : []),
+    [catchments, childrenMode]
+  );
+  const kindPractices = useMemo(
+    () => (practices ? practices.filter((p) => p.hospiceId !== null && kindSet.has(p.hospiceId)) : []),
+    [practices, kindSet]
+  );
+  const kindShops = useMemo(
+    () => (shops ? shops.filter((s) => kindSet.has(s.hospiceId)) : []),
+    [shops, kindSet]
+  );
+
   const selected = useMemo(
-    () => (hospices && selectedId ? hospices.find((h) => h.id === selectedId) ?? null : null),
-    [hospices, selectedId]
+    () => (kindHospices.length && selectedId ? kindHospices.find((h) => h.id === selectedId) ?? null : null),
+    [kindHospices, selectedId]
   );
 
   const selectedShops = useMemo(
-    () => (shops && selectedId ? shops.filter((s) => s.hospiceId === selectedId) : []),
-    [shops, selectedId]
+    () => (selectedId ? kindShops.filter((s) => s.hospiceId === selectedId) : []),
+    [kindShops, selectedId]
   );
 
   // Non-map routes carry no map data requirements and load independently of
@@ -111,6 +142,19 @@ export default function App() {
             />
             <span className="form-check-label small ms-1">GP practices</span>
           </label>
+          <label
+            className="form-check form-switch m-0"
+            title="Show children's hospices instead of adult hospices — the two sets, and their catchment areas, are completely separate"
+          >
+            <input
+              className="form-check-input"
+              id="childrenToggle"
+              type="checkbox"
+              checked={childrenMode}
+              onChange={(e) => toggleKind(e.target.checked)}
+            />
+            <span className="form-check-label small ms-1">Children's</span>
+          </label>
           <button
             className="btn btn-outline-secondary btn-sm"
             type="button"
@@ -125,10 +169,10 @@ export default function App() {
       <div className={`app${sheetOpen ? ' app-sheet-open' : ''}`}>
         <aside className="app-panel" id="appPanel" aria-label="Hospice list">
           <HospicePanel
-            hospices={hospices!}
-            catchments={catchments!}
-            practices={practices!}
-            shops={shops!}
+            hospices={kindHospices}
+            catchments={kindCatchments}
+            practices={kindPractices}
+            shops={kindShops}
             selectedId={selectedId}
             onSelect={select}
             query={query}
@@ -186,8 +230,8 @@ export default function App() {
         )}
         {startHereOpen && (
           <StartHere
-            practices={practices!}
-            hospices={hospices!}
+            practices={kindPractices}
+            hospices={kindHospices}
             onOpenHospice={select}
             onOpenShopSearch={select}
             onSearchList={setQuery}
@@ -195,10 +239,10 @@ export default function App() {
           />
         )}
         <MapView
-          hospices={hospices!}
-          practices={practices!}
-          catchments={catchments!}
-          shops={shops!}
+          hospices={kindHospices}
+          practices={kindPractices}
+          catchments={kindCatchments}
+          shops={kindShops}
           showShops={showShops}
           showGps={showGps}
           selectedId={selectedId}

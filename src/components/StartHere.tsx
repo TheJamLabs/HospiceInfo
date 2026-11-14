@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { Hospice, Practice } from '../lib/types';
 import { feedbackMailto } from '../lib/feedback';
+import { normalisePostcode } from '../lib/postcodes';
 
 // wm W11 (ADR-0012): landing card on the map — postcode → practice → catchment
 // → hospice. Not-found wording is neutral and greppable; the card never
@@ -16,10 +17,6 @@ interface Props {
   onOpenShopSearch: (id: string) => void;
   onSearchList: (text: string) => void;
   onDismiss: () => void;
-}
-
-function normalisePostcode(s: string): string {
-  return s.replace(/[^a-z0-9]/gi, '').toUpperCase();
 }
 
 export default function StartHere({
@@ -86,8 +83,8 @@ export default function StartHere({
             placeholder="e.g. CF11 9HD"
             value={postcode}
             onChange={(e) => setPostcode(e.target.value.toUpperCase())}
-            pattern="[A-Z0-9 ]{5,7}"
-            maxLength={7}
+            pattern="[A-Z0-9 ]{5,8}"
+            maxLength={8}
             autoComplete="off"
             required
           />

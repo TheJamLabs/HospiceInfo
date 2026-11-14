@@ -279,3 +279,82 @@ requirement and it passes. Not a finding.
     ever missing.
 
 **QA verdict: 0 Blocking, 1 Risk-accepted (pre-existing, carried). All 9 invariants PASS; full 5-step chain re-run green (exit-1 at step 2 by design). Stage 6 CLOSED for the 2026-11-08 landing pass; rework rounds consumed: 0.**
+
+---
+
+# QA — Stage 6/10 (Cycle 6)
+
+Date: 2026-11-10. FRESH pass on the C6-1 + C6-2 state (NI clip ring,
+invariant-2 UK-land amendment, edge-merge hardening + C62_DBG trace).
+QA ran strictly read-only: analysis harnesses in `.qwen/tmp/`
+(`c62-repro.mjs`, `c62-classify.mjs`, `c62-trace.txt`); nothing production
+touched, nothing committed. The `mergeTwo` slice of
+`scripts/build-data.mjs` was executed in a `vm` sandbox with the
+debug hooks intercepted — no source modification.
+
+## VERDICT: **PASS** — 0 Blocking findings
+
+2 Risk-accepted (data-level, carried) + 1 Informational. No code change
+is required for any of the three reproduced anomalies; the edge-merge
+hardening (adjacent-only cleanup rule) is verified correct and stays.
+
+## Findings
+
+| ID | Severity | Description |
+|----|----------|-------------|
+| Q6-1 (C6-2, T1) | Risk-accepted | **Data-level degeneracy at an L/L corner intersection (easting 49–53e4, northing 54–56e4), not an algorithm defect.** The two L-shaped source rings (grassroots-L `[49,54 49,56 51,56 51,54 51,54.001 49.0001,54.001 49.0001,54]` and L `[51,54 53,54 53,56 51,56 51,54.001 51.0001,54.001 51.0001,54]`) meet at the corner (51,54); their shared seam edges exist as **duplicated primitives** in the edge stack (seam `(51,54)→(51,54.001)` ×4 kept, `(51,54.001)→(51,54)` ×2 `inL=2`, `(51,54)→(51.0001,54)` ×2 `inR/inL=2`). All pass the pure adjacency rule (identical-pattern duplicates are *consistent*, so the rule correctly does not clean them). Full pre-cleanup classification (27 primitives, `c62-classify.mjs`): 16 kept. Chain #1 consumes exactly 11 edges and traces the composite outer boundary of the union: `[49,54 49.0001,54 49.0001,54.001 51,54.001 51,54 51.0001,54 52.2,54 52.2,54.001 53,54.001 53,56 51,56 49,56]`; `|area|/2 = 3.9986 ≈ 4.00` — the observed "single 4.00-area ring" is the geometrically **correct** composite-boundary result of this degenerate input (rsq `[51,54 52.2,54 52.2,55.2 51,55.2]` is cancelled: its left/top edges drop by neighbors, its bottom/right survive as the E→F→G→H→I detour at y=54.001). The 4 leftover duplicate primitives chain into a 3-vertex sliver `D-E-F` (area ≈ 5e-8) in chain #2, which the caller's 1e-6 area filter (`build-data.mjs` ACCEPT path, not `mergeTwo`) discards. **Consequence:** one catchment cell carries a slightly squarer-than-true boundary; cosmetic, localized, no overlap/coverage effect. Root cause is the CSI/sliver input data at the corner, not the merge rule. |
+| Q6-2 (C6-2, T2) | Informational | **Outside L/L junction; rule-invisible stubs.** At (50.407, 54.2607) the two rings on each side of the vertical stub edges rotate the **same** way (o=1), so no stub edge has a neighbour in the kept set — the adjacency rule (by design, one-sided per edge) cannot see across the seam. Four 1e-3-scale stub vertices survive in the final mesh. Area is unchanged; mesh remains a valid simple polygon. Fixing it would require a cross-seam (two-sided) visibility check on top of the adjacency rule; not worth the added complexity for a cosmetic 1e-3 artifact. |
+| Q6-3 (C6-1, T3) | Risk-accepted | **Ring self-intersection + coast crossing at (51.6559, 54.0774).** The Voronoi ring synthesized for an **unplaced** source row self-intersects (negative signed area in the pre-merge trace, `/G` category, cached in harness) and crosses the coast. It is **not** a published catchment (unplaced rows are hidden per ADR-0012 / the ADR-0033 chain) — no visible impact on the map. Carried, no action. |
+
+Known non-regressions re-confirmed (baselines, not C6 findings): 9 BT
+postcodes; 12 practice geocode misses; 3 empty cells (incl. ni-r5);
+dark OSM tiles (ADR-0027; residual en/wales ROI spill 3.5658/0.3100
+deg² — USER DECISION 2026-11-10 Option A debt).
+
+## Verification gates (this pass, 2026-11-10)
+
+| # | Check | Result | Evidence |
+|---|-------|--------|----------|
+| 1 | C6-2 anomaly reproduction | **REPRODUCED + ROOT-CAUSED** | `c62-repro.mjs` (vm sandbox over the `mergeTwo` slice, debug hooks intercepted): T1 `AREA=7.9972001 rings=1` (\|area\|/2 = 3.9986 ≈ 4.00, the single 4.00-area ring); `c62-classify.mjs` full pre-cleanup edge table (27 primitives with inL/inR) + final kept set (16) — proof that **no collapsing cleanup is needed** (every classified primitive's in/out counts equal its neighbour set, i.e. the adjacency rule fires exactly where it should and the duplicates are consistent) |
+| 2 | Adjacent-only rule preserves valid rings | **PASS** | Repro T1: the kept chain traces one closed ring with 16 kept primitives, `kept=16`, chain #2 is the 3-vertex sliver discarded by the caller area filter — no ring is broken, no valid edge is dropped |
+| 3 | T2 stubs | **ANALYSED** | Same harness: four o=1 stub edges (1e-3 scale) at (50.407, 54.2607) survive because both flanking rings rotate the same way — adjacency rule is one-sided per edge; stubs are cosmetic (Q6-2) |
+| 4 | T3 self-intersection | **ANALYSED** | Trace (`c62-trace.txt`, `/G`): ring at (51.6559, 54.0774) self-intersects (negative signed area); unplaced-row Voronoi ring, unpublishable by design (Q6-3) |
+
+**QA verdict: 0 Blocking, 2 Risk-accepted (Q6-1, Q6-3 — data-level,
+carried), 1 Informational (Q6-2). No code change required from QA for
+C6-1/C6-2 — the hardening stands. Stage 6 CLOSED; rework rounds
+consumed: 0.**
+
+---
+
+# QA — Stage 6/10 (Cycle 6) — C62-V2 round 2/2 (2026-11-14)
+
+Post-fix verification of the owner-decided C62-V2 pair (land-mask closing-point
+dedup in `scripts/land-mask.mjs`; children `ni` → ROI-land clip in
+`scripts/build-data.mjs`; per-kind invariant-2/5 amendment in
+`scripts/validate-tessellation.mjs`, ADR 0036). QA ran the project's own
+validator on the rebuilt `public/data/*.json`
+(`.qwen/tmp/validate-c62v2-b.log`, disk-verified, exit 1).
+
+## Findings
+
+| ID | Severity | Description |
+|----|----------|-------------|
+| Q6-4 (C6-2, inv-6) | **BLOCKING** | **Scottish overlap gate fails:** worst SC×SC pair `Hospice at Home vs Strathcarron Hospice = 0.001983171 deg²` ≥ the 1e-6 deg² gate (≈24 km²; 19 SC cells, empty=0). Evidence: `.qwen/tmp/validate-c62v2-b.log` L12–13 (`scottland: 19 cells, empty=0 worst SC×SC overlap=0.001983171 deg^2 (must be < 1e-6)`; `ERROR: Scottish overlap >= 1e-6 deg^2 (C6-2): ...`). **Pre-existing, not introduced by this fix:** the 2026-11-08 baseline already carried worst-SC pairwise overlap 0.0136 deg² *before the C6-2 gate existed*; earlier validator runs aborted at invariant 2, so invariant 6 had never executed to completion. NOT covered by the 2026-11-14 children's risk-acceptance (that decision scopes invariants 2/5, not SC×SC overlap). |
+
+Per-invariant state after the C62-V2 fixes (same log, disk-verified):
+invariant 2 adults **100.49% PASS** (33.9175/33.7526 deg², strict 99.0–101.0%
+gate) — the C62-V2 target; invariant 2 children 100.00% RISK-ACCEPTED
+(ADR-0036); invariant 5 adults 0.000000000 deg² PASS, children 0.0006 deg²
+warning-only (risk-accepted by design); invariant 1 0.000975 deg² advisory;
+invariant 3 11.2330 deg² advisory (per-kind double-tiling, expected);
+invariant 4 empty=0, slivers=0.
+
+**QA verdict: 1 BLOCKING (Q6-4, invariant 6 / C6-2), 0 other open findings
+for this pass. Rework cap (2 rounds) EXHAUSTED → per the pipeline
+rework-loop rule the loop STOPS: a "HUMAN DECISION REQUIRED" section is
+written to `.agents/pipeline.md` (options: (1) risk-accept the C6-2 pair
+overlap, (2) targeted SC×SC fix pass under a fresh loop, (3) fresh C62
+root-cause cycle). Stage 6 NOT passed for C62-V2 until Q6-4 is resolved.
+Nothing committed (James's ship gate); the paused DevOps subagent was left
+untouched.**

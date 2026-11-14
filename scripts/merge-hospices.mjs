@@ -22,11 +22,14 @@
 //
 // Output: data-raw/hospices-all.json — [{
 //   id, name, town, postcode, nation: 'en'|'sc'|'wales'|'ni',
-//   kind: 'published'|'approx', source, website, cqcUrl, curated: bool
+//   kind: 'published'|'approx', source, website, cqcUrl, curated: bool,
+//   children: bool (Cycle 6 C6-4 children's-mode designation; the frontend
+//   derives both mode views from it, ADR-0035)
 // }]
 //
 // Assertions (exit 1 on failure): exactly 20 `curated: true`; ids globally
-// unique; all 20 curated CQC ids present.
+// unique; all 20 curated CQC ids present; exactly 20 `children: true` (C6-4);
+// sc-oscar-019724 (CHAS umbrella) absent (C6-4, gate 4 resolved 2026-11-08).
 
 import fs from 'node:fs';
 import { CATCHMENTS } from './catchment-map.mjs';
@@ -41,9 +44,21 @@ const SOURCES = {
   wales: 'NHS Wales Performance and Improvement network — Hospices and palliative care services, five regional sub-pages (data-raw/nhs-wales-hospices-2026-11-{north-wales, mid-and-west-wales, south-wales-west, south-wales-central, south-wales-east}.html)',
 };
 
+// Cycle 6 (C6-4): the children's roster — 20 rows confirmed by James in
+// .agents/feature.md (name match /children/i, verified against the merged
+// list; St Andrew's en-1-119796870 is dual-listed in both modes).
+const CHILDREN_IDS = new Set([
+  'en-1-117648999', 'en-1-116772470', 'en-1-110304719', 'en-1-119796870',
+  'en-1-120599968', 'en-1-122038149', 'en-1-129536667', 'en-1-442758792',
+  'en-1-119107844', 'en-1-3969537495', 'en-1-111584886', 'en-1-112108967',
+  'en-1-116804848', 'en-1-113884204', 'en-1-8209602845', 'en-1-125645846',
+  'en-1-114396298', 'sc-oscar-r28', 'sc-oscar-r29', 'ni-r3',
+]);
+
 const read = (p) => JSON.parse(fs.readFileSync(p, 'utf8'));
 const en = read('data-raw/hospices-en.json');
-const sc = read('data-raw/hospices-sc.json');
+// C6-4: CHAS umbrella org is removed, not a hospice (gate 4, 2026-11-08).
+const sc = read('data-raw/hospices-sc.json').filter((h) => h.id !== 'sc-oscar-019724');
 const ni = read('data-raw/hospices-ni.json');
 const wales = read('data-raw/hospices-wales.json');
 
@@ -87,6 +102,9 @@ for (const [cqcId, c] of curatedIds) {
   if (i >= 0) all.splice(i, 1); // curated identity wins over the register row
 }
 
+// C6-4: stamp the children's designation
+for (const h of all) h.children = CHILDREN_IDS.has(h.id);
+
 // assertions
 const curatedCount = all.filter((h) => h.curated).length;
 if (curatedCount !== 20) {
@@ -104,6 +122,15 @@ for (const cqcId of curatedIds.keys()) {
     console.error(`curated id missing from merged output: en-${cqcId}`);
     process.exit(1);
   }
+}
+const childrenCount = all.filter((h) => h.children).length;
+if (childrenCount !== 20) {
+  console.error(`expected 20 children's hospices, found ${childrenCount}`);
+  process.exit(1);
+}
+if (all.some((h) => h.id === 'sc-oscar-019724')) {
+  console.error('CHAS umbrella sc-oscar-019724 is still present (must be removed)');
+  process.exit(1);
 }
 
 fs.writeFileSync('data-raw/hospices-all.json', JSON.stringify(all));

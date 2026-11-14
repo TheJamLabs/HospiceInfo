@@ -12,16 +12,22 @@ the session acting as Engineering Lead dispatches them per
 
 | # | Stage | Artifact | Model |
 |---|-------|----------|-------|
-| 1 | Research | `.agents/research.md` | qwen-coding |
-| 2 | Architect | `.agents/architecture.md` | qwen-coding |
-| 3 | Reviewer | `.agents/review.md` | qwen-coding |
-| 4 | Product Manager | `.agents/requirements.md` (exhaustive work list) | qwen-coding-small |
-| 5 | Coding | `.agents/implementation.md` | qwen-coding |
-| 6 | QA | `.agents/qa.md` | qwen-coding |
-| 7 | Security | `.agents/security.md` | qwen-coding |
-| 8 | DevOps | `.agents/ops.md` | qwen-coding |
-| 9 | Documentation | `docs/` | qwen-coding-small |
-| 10 | Hindsight | `.agents/hindsight.md` | qwen-coding-small |
+| 1 | Research | `.agents/research.md` | qwen-flash |
+| 2 | Architect | `.agents/architecture.md` | qwen-dense |
+| 3 | Reviewer | `.agents/review.md` | qwen-dense |
+| 4 | Product Manager | `.agents/requirements.md` (exhaustive work list) | qwen-dense |
+| 5 | Coding | `.agents/implementation.md` | qwen-dense |
+| 6 | QA | `.agents/qa.md` | qwen-dense |
+| 7 | Security | `.agents/security.md` | qwen-dense |
+| 8 | DevOps | `.agents/ops.md` | qwen-dense |
+| 9 | Documentation | `docs/` | qwen-flash |
+| 10 | Hindsight | `.agents/hindsight.md` | qwen-flash |
+
+`qwen-dense` (27B, 82K context, ~62 tok/s) is the default; `qwen-flash`
+(131K context, ~22 tok/s) is for stages whose input is the bulk of the
+work — repo-wide reading and documentation sweeps — where the larger
+window matters more than throughput. It is *not* the cheap/fast model.
+Switch a stage to `qwen-flash` only when it is hitting the 82K wall.
 
 Terminal (read-only, no artifact): Reporter delivers a one-screen
 status report in chat only. Stage 6 and 7 may run in parallel after

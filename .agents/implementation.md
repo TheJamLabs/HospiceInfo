@@ -50,6 +50,8 @@ human-gated raws). Next stage: QA (Stage 6).
 
 **Deviations (QA/Reporter):** Scotland 34 vs ~40 expectation (expectation, never a gate — ADR-0031/0032). Wales 0 vs 14 (G3, ADR-0020).
 
+**Wales regional re-landing (H5-1 cleared, ADR-0033):** James supplied the five live NHS Wales P&I regional sub-pages; `extract-hospices-wales.mjs` now reads five pinned regional raws — `data-raw/nhs-wales-hospices-2026-11-{north-wales,mid-and-west-wales,south-wales-west,south-wales-central,south-wales-east}.html` (79,154 B / 38D610AB2BE9F44D8783DCE1426C45192100AFBE926C6C1AA0C6733F76722793; 77,664 B / 1B0076573A4D669495D774D805E6C26861B38296436936ED7712AAA2EEE8C040; 75,931 B / B9EFE1CEB37A241893C9AC5739C7CA7D8A1040AFD90A978DBB8DD2F8ABE66BB1; 72,762 B / 1B77130A5AD5A3F490FADC83F3B5E05FFB908959F80F6FEC1C9619D77708DD4F; 84,644 B / 24694D6B6D1BC878ABBBE51BF332B05D6818DD62DD7FFEE3BE83F835FE2372E9; entry counts 7/6/5/3/10 = 31). Each page embeds its data as `var mapPlots = '<JSON>';` (an array of `{id, postcode, title, url}`), not an HTML table. Scope is hospices only (ADR-0033, James's "Hospices only (~18)" decision): additive-negative `EXCLUDE_TOKENS = /hospital|ysbyty|spct|unit/i` on the full title — no "hospice" substring whitelist, so Tŷ Hafan, Y Rhosyn, Hosbis Hafren, Ty Bryngwyn and Paul Sartori House survive; 14 of the 31 parsed rows are excluded as hospital-based (SPCTs, acute hospitals, named units). Gate matrix: 0/5 regional pins present → legacy parent-pin chain (G3 zero-set, ADR-0020, exit 0); 1–4 present → exit 1 (partial = stale pin, fail-fast); 5/5 present → parse each (missing mapPlots / invalid JSON / empty array → exit 1; 0 kept after the filter → exit 1). Result: 31 parsed → **17 kept / 14 excluded** (south-wales-central contributes 0 kept; HR1 4HA kept as published) → `hospices-wales.json` rows `wales-r1`–`r17` in fixed regional order (north → midwest → swwest → swcentral → sweast). Chain: merge 209 total (en 152, sc 34, ni 6, wales 17; curated 20) — supersedes the 192-row state `DACD4426…C0F`. Geocode fifth pass (2026-11-08): 15 new Wales units + 1 already cached, 0 throttled; 9,125 of the 9,134 in-scope postcodes resolved — the 9 BT practice gaps (documented debt) unchanged. build-data: 209 hospices, **all 17 Wales placed**; 14 unplaced rows = the pre-existing no-postcode Scotland set; practices 11,002 assigned / 12 null (all 9 BT postcodes) — unchanged. validate-tessellation: PASS (195 catchments, 3 empty cells, 0 slivers; sea leak 0.000682 deg², worst cell Hosbis Hafren 0.000135 deg²; coverage 100.00%; worst pairwise overlap St Michael's Hospice vs St Michaels Hospice 0.0136). npm run build ×2: byte-identical (232 dist files compared by whole-dist SHA-256 manifest; 171 prerendered files; 209 hospice pages). `data/README.md` and the `.agents/pipeline.md` ledger updated to match. **Landing state (2026-11-08): UNCOMMITTED — Wales 0 → 17, total 192 → 209; publish gate = James's commit + push, NOT triggered in this session.**
+
 # Implementation — Cycle 4 (2026-10-30)
 
 Stage 5/10 — Coding. Source of truth: `.agents/requirements.md` (Cycle 4,
@@ -347,3 +349,164 @@ pass (both WF-1/WF-2 edits in `scripts/prerender.mjs`, the work-list table,
 the WF-1/WF-2 sections with the all-green 5-point suite, and the dist
 invariants: 169 HTML files, 338/338 script balance, 0 mismatches, 168
 sitemap locs, robots.txt verbatim, LF-only with single trailing newline).
+
+## Cycle 6 (in progress, 2026-11-10)
+
+### C6-1 — NI catchment clip ring (`data-raw/roi-border.json`) — DONE
+
+**Artifact.** `data-raw/roi-border.json`, produced from OSM relation 156393
+(admin_level 4 "Northern Ireland / Tuaisceart Éireann") via Overpass
+(`overpass-api.de`), assembled into a single closed outer ring by a degree-2
+ring walk over the 929 member ways. On-disk fields (all read back from the
+file, RQ-1): `relationId "156393"`, `adminLevel 4`, `licence "ODbL v1.0, ©
+OpenStreetMap contributors"`, `fetchDate 2026-11-10`, `fetchedAt
+2026-11-10T08:45:56.638Z`, `memberWays 929 / fetchedWays 929 / vanishedWays
+0`, `ringNodes 18422`, `areaDeg2 2.685914`, `bbox
+[-8.1775099,53.8701701,-5.0777816,55.4435849]`, ring closed (18,423 pts,
+first = last = `[-7.5207106,54.1305376]`). SHA-256
+`b34313501e28bd6429857646b48da6136309c057685b606e7378ed27572f98c6`
+(878,999 B). The architecture's earlier "areaDeg2 ≈ 5.54 / ringNodes 665"
+were acknowledged doc estimates; measured geometry is the truth.
+
+**Consumer guard calibration (lead-approved 2026-11-10).** The one-off fetch
+consumer's NI bbox guard rejected the genuine relation because 156393 closes
+out to sea (offshore west cap; east edge lon ≈ −5.08; south lat ≈ 53.87).
+Only the two bbox guard thresholds were loosened (`lonMax < −5.0`,
+`latMin > 53.8`); ring-walk logic + input schema unchanged.
+
+**Invariant-5 direction fix (lead-approved 2026-11-10).** The shipped
+validator invariant 5 computed spill as `area(intersection(cell, ring))`,
+which is structurally red because the build clips NI cells INTO the ring
+(relation 156393 = the keep-inside NI polygon) — a correctly-clipped cell
+is fully inside, so intersection = the whole cell (measured 6.3678 deg²).
+Corrected to `area(difference(cell, ring))` (cell area OUTSIDE the ring =
+spill past the NI–ROI border), matching the gate's own stated intent;
+threshold/ring/build-clip unchanged. See ADR-0034 Amendment. Measured NI
+spill after fix = **0.000000 (GREEN)**.
+
+**Verification (real-ring build, this pass).**
+- Invariant 5 standalone (mirrors corrected validator): NI spill total
+  0.000000000 deg² across all 6 NI cells (incl. children cell ni-r3),
+  each cell fully inside the ring. **GREEN.**
+- Ring-isolation proof (`.qwen/tmp/c6-ring-isolation.mjs`, decoy swap):
+  swapping roi-border.json for a far-offshore decoy changes ONLY `ni*`
+  catchment entries; `en`/`sc`/`wales` byte-identical A==B; double-build with
+  the real ring byte-identical (A==C) — determinism + id-guard holds.
+- Consumer log: `roi border: relation 156393 (Northern Ireland / Tuaisceart
+  Éireann), 18423 ring points, fetched 2026-11-10`.
+
+**Full-validator note.** `node scripts/validate-tessellation.mjs` still exits
+1 at invariant 2 (coverage 88.59%) BEFORE reaching invariant 5, so invariant
+5 must be read standalone until coverage is green. CORRECTION (2026-11-10):
+the coverage gap IS a C6-1 effect, not C6-4 — the inv-2 target
+`area(land∩box)` includes Republic of Ireland (ROI) land, which the C6-1 NI
+clip correctly excludes (ROI∩box = 8.3707 deg² = 19.88% of the 42.1090 deg²
+target; ni∩ROI∩box = 0.0000, en/wales residual ROI spill = 3.5658/0.3100
+deg²). Restricting numerator+denominator to UK land gives ~100.00% with no
+build change; the gate-fix decision (options A/B/C) is recorded PENDING USER
+DECISION in `.agents/pipeline.md`. C6-1 geometry itself remains clean
+(id-guarded, NI-only, deterministic).
+
+**Provenance.** `data/README.md` raw-inputs table gained the `roi-border.json`
+row (SHA-256 pinned + inline ODbL licence line, following the `uk-land.json`
+pattern); the row states explicitly that the file holds the NI admin polygon
+(keep-inside), not the ROI polygon.
+
+### C6-2 — edge-merge C62 fix: 2-edge sliver-drop gate — FIX APPLIED, validation RED (2026-11-14)
+
+**Fix applied (kept in `mergeTwo`).** The C62 root-cause fix is the 2-edge
+sliver-drop gate: a 2-edge chain is dropped when both endpoints have
+`freeAt==0` non-chain kept free edges AND the mid-vertex sagitta is
+≤ 2e-4×S (S = 1e8 scale); otherwise the gate throws. This IS the fix, not
+instrumentation. All 8 TEMP C62 debug blocks (`C62_STAGE` env-gated logs,
+`.qwen/tmp/c62-*` dumps) were removed from `scripts/build-data.mjs`
+(→ 1,058 lines, 0 `c62` references) and the debug probe files were deleted;
+`node --check` exits 0.
+
+**Validation (this pass).** `node scripts/validate-tessellation.mjs` →
+**RED, exit 1 at invariant 2: coverage 162.70% = 54.9139/33.7526**, before
+invariants 3/5/6 are reached. Honest result — the C62 gate does not change
+coverage (removing the instrumentation left the numerics untouched).
+
+**Root-cause classification** (probes `.qwen/tmp/c6-coverage-probe.mjs`,
+`c6-coverage-sample.mjs`, `c6-gap-localise.mjs`, `c6-scotland-percell.mjs`):
+
+1. **Validator-side** — invariant 2's numerator sums ALL 194 catchment
+   cells. C6-4 / ADR-0035 per-kind tessellation runs two independent
+   `tessellate()` passes, each tiling the FULL UK land → the numerator
+   double-counts land (adults ∩ UK 33.6075 deg² + children ∩ UK 23.4779
+   deg² ≈ 1.6× the 33.7526 deg² target). The ledger's "Option A =
+   100.00%" (33.7391/33.7383) was measured BEFORE per-kind tessellation
+   existed; the single-tiling premise is stale.
+2. **Data-side** — the children tiling covers only **≈69.5%** of UK land ∩
+   box (33.7526 deg²), by two independent methods: per-cell area sum
+   23.4779 deg² (= 69.5%) and 1/30° point-sampling 69.50% (30,373 land
+   points). The uncovered gap ≈ 10.21 deg² (30.30% of samples) is
+   **CONCENTRATED in central/western Scotland**: 9.16 deg² of the gap
+   (lat 54–58, lon −6..−2); children cover only 3.4745 of the 13.5896 deg²
+   Scotland-box ∩ UK land = **25.6%**; **15 of 18 children cells have zero
+   Scotland area** (the 3 that touch: 1.5037 / 1.1830 / 0.7879 deg²).
+   Signature = a large dropped arc/segment in a specific children
+   `mergeTwo` path, NOT scattered sliver accumulation.
+3. Residual between the probe cell-sum (57.0854) and the validator
+   numerator (54.9139) = 2.17 deg², attributable to the two en cells with
+   known polygon-clipping advisory clip-failures (en-1-116804848,
+   en-1-20401284082).
+
+**Status.** C62 fix: **applied** (gate kept in `mergeTwo`, clean syntax,
+byte-stable rebuild). Invariant 2: **RED** for the two distinct causes
+above; the C62 gate is orthogonal and not the cause. Disposition PENDING in
+the Cycle 6 ledger (`.agents/pipeline.md`): (i) validator-side amendment of
+invariant 2 to per-kind coverage (each tiling ≈100%) — necessary but NOT
+sufficient on its own; (ii) the concentrated Scotland children gap is a
+Blocking data-level finding requiring a Coding fix loop (rework round
+1/2 consumed) or HUMAN DECISION / risk-acceptance. Nothing committed
+(James's ship gate).
+
+### C62-V2 round 2/2 (2026-11-14) — owner decision "risk-accept children's gap": applied, verified GREEN for its target, full run RED at a NEW blocker
+
+**Applied (per owner decision 2026-11-14; ADR 0036):**
+1. `scripts/land-mask.mjs` — `lm()` removes a ring's duplicated closing point
+   (a closing dup carries no geometry; verified no zero-length closing edges
+   in the file's own rings).
+2. `scripts/build-data.mjs` — children pass: `ni` cells clip to **ROI land**
+   (Ireland − NI ring) instead of the NI ring, restoring pre-C6 Scottish
+   reach (children ni cells keep their large Scottish polygons; the 2026-11-07
+   probe `c6-clip-impact.mjs` showed ROI land changes essentially
+   nothing for children, NI-ring clip cut ≈68% of area).
+3. `scripts/validate-tessellation.mjs` — invariant 2 is **per-kind coverage**:
+   each kind unioned against (UK land ∩ box − ROI); **adults HARD gate
+   99.0–101.0% (exit 1)**, **children RISK-ACCEPTED non-fatal** (root cause:
+   18 children's sites cannot tile 33.7526 deg²; remediation: a future data
+   cycle with more children's sites). Degenerate cells (empty union /
+   intersection throwing) are advisory, not fatal. Pre-`union`ing each cell's
+   rings before `intersection` fixes the polygon-clipping
+   "Unable to find segment #N" crash on large self-overlapping multi-ring
+   input (Milton 253 rings, Priscilla Bacon 136 rings; closing-point dedup
+   alone refuted by probe — no consecutive dup vertices). Invariant 5:
+   children spill now warning-only (RISK-ACCEPTED, design), adults strict
+   `< 1e-9` unchanged.
+4. **C62 2-edge sliver-drop gate in `mergeTwo` UNCHANGED.** `build-data.mjs`
+   rebuilt `public/data/*.json`; `node --check` clean on both scripts.
+
+**Validation (`.qwen/tmp/validate-c62v2-b.log`, disk-verified, exit 1):**
+invariant 2 adults **100.49% PASS** (33.9175/33.7526 deg², inside the strict
+gate) — **the C62-V2 target is GREEN**; invariant 2 children 100.00%
+RISK-ACCEPTED; invariant 5 adults 0.000000000 deg² PASS, children 0.0006
+deg² warning-only; invariant 1 outside-land 0.000975 deg² advisory;
+invariant 3 pairwise 11.2330 deg² advisory (per-kind double-tiling, expected);
+invariant 4 empty=0, slivers=0. **NEW BLOCKING: invariant 6 (C6-2 Scottish
+overlap) fails — `Hospice at Home vs Strathcarron Hospice = 0.001983171 deg²`
+≥ 1e-6 → exit 1** (19 SC cells, empty=0). Pre-existing in the built
+catchments (2026-11-08 baseline carried worst-SC pairwise 0.0136 deg² before
+the C6-2 gate existed; prior runs aborted at invariant 2). Not covered by the
+children's risk-acceptance (that decision scopes invariants 2/5).
+
+**Status.** C62-V2: **applied & verified GREEN for its own target** (invariant
+2 adults strict gate PASS; ADR 0036; ledger: `.agents/pipeline.md` C6, round
+2/2). Overall validation: **RED — exit 1 at invariant 6 (C6-2 Scottish
+overlap)**, a pre-existing defect. Rework cap (2 rounds) **exhausted** → the
+Cycle 6 ledger carries a **HUMAN DECISION REQUIRED** section (options:
+(1) risk-accept the C6-2 pair overlap, (2) targeted SC×SC fix pass under a
+fresh loop, (3) fresh C62 root-cause loop). Nothing committed (James's ship
+gate); paused DevOps subagent left untouched.

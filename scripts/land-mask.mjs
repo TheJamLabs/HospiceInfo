@@ -94,7 +94,14 @@ function simplifyRing(ring, tol) {
   const open = [...pts.slice(pivot + 1), ...pts.slice(0, pivot + 1)];
   const simp = simplifyOpen(open, tol2);
   if (simp.length < 3) return null;
-  return [...simp, simp[0]];
+  // C62-V2 (ADR-0036): duplicate raw vertices can leave last and first
+  // coincident after simplification — appending the closing point again would
+  // add a zero-length closing edge, which crashed polygon-clipping's SweepLine
+  // ("Unable to find segment #N"). Consumers expect closed rings, so return
+  // the already-closed ring as-is.
+  const last = simp[simp.length - 1];
+  const closed = last[0] === simp[0][0] && last[1] === simp[0][1];
+  return closed ? simp : [...simp, simp[0]];
 }
 
 const cache = new Map();

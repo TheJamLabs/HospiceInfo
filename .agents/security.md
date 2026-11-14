@@ -233,3 +233,89 @@ Date: 2026-11-08. FRESH security pass on the landed Cycle 5 state (Scotland H5-2
 Design-level note: no new trust boundaries, authentication, or data-flow changes were introduced — the cycle is strictly extract-merge-build over pinned local files, so no Architect rework is routed.
 
 **Security verdict: 0 Blocking, 0 Risk-accepted (new). Stage 7 CLOSED for the 2026-11-08 landing pass (rework rounds consumed: 0).**
+
+## Cycle 6 — FULL AUDIT (2026-11-10)
+
+- **Stage**: 7 of 10 (Security engineer)
+- **Date**: 2026-11-10
+- **Cycle**: 6 — NI catchment clipped into the NI admin ring, SC jitter, per-kind tessellation / children's mode, postcode normaliser, and a new SHA-pinned OSM ring input.
+- **Pass type**: **FULL AUDIT** — no unresolved Blocking findings in the prior report (Cycle 5 landing pass closed 2026-11-08 with 0 Blocking).
+- **Scope**: working tree at HEAD `f141a71` + Cycle 6 delta (21 tracked modified, 5 new untracked): `scripts/build-data.mjs`, `scripts/validate-tessellation.mjs`, `scripts/merge-hospices.mjs`, `data-raw/roi-border.json` (new, 878,999 B), `data/README.md`, `docs/adr/0034-…` (new, with Amendment 2), `docs/adr/0035-…` (new), `src/lib/postcodes.ts` (new), `tests/` (new), `package.json`, `src/App.tsx`, `src/components/StartHere.tsx`, `src/lib/types.ts`, `data-raw/hospices-all.json`, `public/data/*.json` (rebuilt). Out of scope: Azure static / Front Door bicep + servers, `website/` copy edits (non-code documentation), `.agents/` pipeline ledgers.
+- **Method**: read-only RQ-1 disk verification; full reads of both changed scripts; head / size / JSON-parse / secret grep on the new ring file; `npm audit` (prod + dev); dependency diff; grep-based SAST (semgrep unavailable on this host); SHA-256 recompute; `.gitignore` check.
+- **Trust model**: ADR-0030 chain unchanged: pinned offline `data-raw/` → deterministic Node build → `public/data/*.json` → prerendered static HTML; no secrets, no network at publish time; runtime egress = keyless OSM tiles; sole user egress action = `mailto:`. **Delta**: one new pinned raw input (`roi-border.json`, ODbL) and one new pure client function (`normalisePostcode`) — neither extends trust-boundary components.
+
+### Verdict
+
+**PASS — 0 Blocking.** 1 new risk-accepted (SEC6-01, MEDIUM — dev-only vulnerable dependencies; no runtime/network vector), 3 Info (SEC6-02/03/04), 0 new design-level. **SEC-4-01 CLOSED** — OFL attribution for all three fonts verified on disk at `src/pages/LegalPage.tsx:79-93` in this pass (note: the `src/vite/LICENSE.txt` location cited in the Cycle 5 report's resolution text does not exist — the cited location was stale; the real attribution is in LegalPage). SEC-4-02/03, SEC-4-D1/D2/D3, SEC5-L1..L5 carried as noted below.
+
+### Findings
+
+| ID | Severity | Area | Description |
+|---|---|---|---|
+| SEC6-01 | MEDIUM — RISK-ACCEPTED | supply chain | `npm audit` (dev tree): `xlsx@0.18.5` HIGH (GHSA-4r6h-8v6p-xvw6 prototype pollution; GHSA-5pgg-2g8v-p4x9 ReDoS; no upstream fix) + `esbuild<=0.24.2` MEDIUM (via `vite`). Both are **dev-only** — `npm audit --omit=dev` → 0 vulnerabilities. Build tooling runs offline on the trusted operator machine; ADR-0030's fresh-clone reproducibility bounds the blast radius (exploitation requires prior compromise of that machine); no shipped runtime dependency is affected. Carried as accepted debt; next cycle that permits dependency changes (ADR-0008): remove/downgrade `xlsx`, upgrade `vite` past 0.24.2. |
+| SEC6-02 | INFO | documentation alignment | The provider brief for C6-1 referenced a "relaxed bbox guard (lonMax < -5.0, latMin > 53.8)" and an "upper-left-anchor touch test"; neither exists in the code (grep across `scripts/` → 0 hits). What is implemented, per ADR-0034 Amendment 2, is (a) the ring fail-fast in both scripts (`build-data.mjs:116-126`, `validate-tessellation.mjs:41-54`) and (b) Ireland-polygon identification via the Dublin interior point `pointInRing(-6.26,53.35,ring)` (`validate-tessellation.mjs:57-78`). The safety property is preserved (mismatched / wrong ring → build and validator exit 1). Lead to align brief wording with the implementation; no code change required. |
+| SEC6-03 | INFO | geometry (ADR-0034 Amendment 2) | Option A residual: `en` 3.5658 deg² / `wales` 0.3100 deg² of NI–ROI sea-border spill past the straight-line geometric boundary, part of which is Belfast Lough ROI-side. Documented and accepted in the ADR; geometry-only, no code surface; QA6 PASS. Carried as accepted risk. |
+| SEC6-04 | INFO | repo hygiene (SEC-4-02 successor) | `C62_STAGE` debug output to `.qwen/tmp/c62-stages.json` (`build-data.mjs:846,866,972`) — env-gated (off by default), `.qwen/` gitignored (`.gitignore:9`), absent from `git status` → untracked, not publishable. SEC-4-02's condition (untracked scratch ≠ deploy target) carried. |
+
+### Per-area conclusions (7 areas)
+
+1. **C6-1 NI clip + ring input (ADR-0034)** — ring load `build-data.mjs:116-126` (`roi=JSON.parse(readFileSync(...))`; `!Array.isArray(roi.ring)||roi.ring.length<3 → process.exit(1)`; `catch → console.error + exit 1`; logs relationId/name/node count/fetchDate on load); mirrored fail-fast `validate-tessellation.mjs:41-54`; clip `build-data.mjs:860-861` `if (id.startsWith('ni') && clipped.length) clipped = intersection(clipped, roiRingPoly)` (NI cells only, keep-inside); validator invariant 2 `ukLandInBox = difference(landInBox, roiInBox)` with `roiInBox = intersection(difference([ireland], roiPoly), boxPoly)` (`validate-tessellation.mjs:124-125`) — Ireland identified by the Dublin point, so the UK-land target excludes ROI land; invariant-5 `spill = area(difference(cell, roiPoly)); spill >= 1e-9 → exit(1)` (`:191-200`) — the `difference` direction is Amendment 2's fix and is correct (measures NI-cell area outside the ring; `difference(cell⊆ring, ring) = ∅` by construction). `data-raw/roi-border.json`: valid JSON (ring 18423 pts = 18422 nodes + closure), SHA-256 `b3431350…f98c6` == `data/README.md:44` pin (recomputed), size 878,999 B == pin, header fields consistent (OSM relation 156393, adminLevel 4, 929/929 ways, 0 vanished, ODbL v1.0, fetchDate 2026-11-10), secret-pattern grep → 0 hits. **Clean.**
+2. **C6-2 SC jitter (ADR-0034)** — bounded constant nudges (co-located SC seeds +1e-4 deg, all others +1e-5 deg; `build-data.mjs` header L8); no host/URL/identity-derived inputs; validator invariant 6 enforces `SC×SC overlap < 1e-6`; QA6 PASS (geometry-only delta). **Clean.**
+3. **C6-3 postcode normaliser** — `src/lib/postcodes.ts` is pure regex (strip non-alphanumerics, uppercase): no sinks, no storage, no network. `tests/postcodes.test.mjs` (node:test) reads committed `public/data/practices.json`; no network. New `npm test` script is dev-time only (SEC6-01 context). **Clean.**
+4. **C6-4 per-kind children's mode (ADR-0035)** — `src/App.tsx` (+72): local `childrenMode` state, `useMemo` filter over same-origin data, `#childrenToggle`; no `innerHTML`, no new external URLs, no new storage keys (grep `localStorage|sessionStorage` in `src/` → `theme.ts` only, unchanged). `merge-hospices.mjs` (+33): static `CHILDREN_IDS` set of 20 IDs, CHAS umbrella excluded, `children` flag stamped, count-mismatch → exit 1 (build-time data hygiene, no network). `src/lib/types.ts` +2 (type-only). **Clean.**
+5. **Provenance / attribution** — `data/README.md:44` has the complete provenance row for `roi-border.json` (SHA-256, size, 929 ways, 18422 nodes, areaDeg2, bbox, ODbL v1.0 + OSM attribution, fetch date, explicit "NI ≠ ROI" disambiguation, fail-fast note). The app-side ODbL attribution (LegalPage / siteConfig / MapView) covers the new file generically. ADR-0034 records the Option A decision + residual spill (SEC6-03). **Clean.**
+6. **Dependencies / supply chain** — `package.json` diff = the `"test": "node --test"` script addition only; no dependency version changes (ADR-0008 upheld); `package-lock.json` present (67,443 B), unmodified this cycle. `npm audit --omit=dev` → 0; full audit → SEC6-01 (dev-only). Audited scripts import only `node:fs`, `polygon-clipping`, `./land-mask.mjs`; grep `fetch(|http|net|dgram` across `scripts/{build-data,validate-tessellation,land-mask}.mjs` → 0 hits. **Clean except SEC6-01.**
+7. **Sinks / rendering / data flow (SAST)** — semgrep unavailable → grep sweep `eval|new Function|innerWS?HTML|document.write|WebSocket|prompt(|child_process|execSync|spawnSync|localStorage|sessionStorage` across `scripts/ src/ tests/`: only pre-existing hits — `scripts/add-correction.mjs` (execFileSync of the local validator; pre-existing operator CLI, unchanged this cycle), `src/lib/theme.ts` (SEC-4-D1), `scripts/prerender.mjs` (frozen boot snippet, SEC-4-D3). **0 new sinks across the 21 changed files.** `src/lib/feedback.ts` re-verified: mailto subject + body `encodeURIComponent`-ed, static operator email from `siteConfig`. **Clean.**
+
+### Design-level findings
+
+None new in Cycle 6. The new ring input lands inside the existing `data-raw/` trust set defined by ADR-0029/0030 (SHA-pinned, ODbL-attributed, fail-fast load) and `normalisePostcode` is a pure function with no storage/egress; neither extends a trust-boundary component. Carried and re-verified: SEC-4-D1 (localStorage theme, LOW), SEC-4-D2 (curation trust, MEDIUM), SEC-4-D3 (no CSP, INFO). No rework loop routed back to the Architect.
+
+### Carried-boundary status
+
+| Item | Prior | Cycle 6 re-check |
+|---|---|---|
+| SEC-4-01 (OFL font attribution) | risk-accepted LOW | **CLOSED** — OFL 1.1 + copyright attribution for all three fonts on disk at `src/pages/LegalPage.tsx:79-93` (read this pass). |
+| SEC-4-02 (scratch hygiene) | INFO | Successor SEC6-04: `.qwen/` gitignored (`.gitignore:9`); C62 debug env-gated, untracked, not publishable. |
+| SEC-4-03 (dark tiles) | INFO | Unchanged (out of delta scope). |
+| SEC-4-D1 (localStorage theme) | LOW design | Unchanged (grep re-verified: `theme.ts` + boot twin only). |
+| SEC-4-D2 (curation trust) | MEDIUM design | Unchanged; chain endpoints (charset assertions, ODbL pins) re-verified. |
+| SEC-4-D3 (no CSP) | INFO design | Unchanged; no new inline executables in the Cycle 6 delta. |
+| SEC5-L1..L5 (Cycle 5 landing Info) | Info | Carried unchanged; no new input paths beyond the pinned `data-raw/` set. |
+
+### Threat model (STRIDE — Cycle 6 delta)
+
+| Threat | Surface | Assessment |
+|---|---|---|
+| Spoofing | `roi-border.json` ring shape | Mitigated — SHA-256 pin (`data/README.md:44`, recomputed), fail-fast load in both scripts, Dublin interior-point shape check (`validate-tessellation.mjs:57-78`); a tampered / mismatched ring fails build and validator (SEC6-02). |
+| Tampering | pinned raw inputs | Same publisher-trusted boundary as every other `data-raw/` pin (ADR-0029/0030): repo write = publish = human approval. |
+| Repudiation | n/a | No user data, no accounts, no logs, no server. |
+| Information disclosure | ring file | Public OSM administrative boundary (ODbL-distributed); no PII. |
+| Denial of service | static assets | Platform-hosted; the +879 KB pinned input is consumed at build time only, not shipped to runtime. |
+| Elevation of privilege | build / publish chain | Unchanged — ADR-0030 chain is secret-free and network-free; the `npm test` script adds no privilege. |
+
+Outbound egress unchanged since Cycle 3: runtime keyless OSM tiles, build-time pinned inputs only, `mailto:` as the sole user-action egress. Cycle 6 introduces **no new external origin**.
+
+### Verification log (read-only commands, run this pass)
+
+| # | Command (abridged) | Result |
+|---|---|---|
+| 1 | `git status --short && git log --oneline -1` | HEAD `f141a71`; 21 tracked modified + 5 untracked (roi-border.json, ADR-0034, ADR-0035, postcodes.ts, tests/); `package-lock.json` present, unmodified |
+| 2 | `git diff package.json` | `"test": "node --test"` script addition only; zero dependency changes |
+| 3 | `npm audit --omit=dev` | 0 vulnerabilities |
+| 4 | `npm audit` (full) | 3 — xlsx HIGH (2 advisories) + esbuild MEDIUM, all dev-only (SEC6-01) |
+| 5 | SHA-256 of `data-raw/roi-border.json` | `b3431350…f98c6` == `data/README.md:44` pin; size 878,999 B == pin |
+| 6 | `node -e JSON.parse` on ring file | valid JSON; ring 18423 pts; bbox `[-8.1775099,53.8701701,-5.0777816,55.4435849]` |
+| 7 | secret-pattern grep (AKIA/ghp_/xox/begin private/password) on `data-raw/roi-border.json` | 0 hits |
+| 8 | grep `fetch(|http|net|dgram` in the three build scripts | 0 hits — no runtime network |
+| 9 | sink grep across `scripts/ src/ tests/` (eval/Function/innerHTML/document.write/WebSocket/prompt/child_process/exec/spawn) | only pre-existing hits (add-correction.mjs, theme.ts, prerender.mjs); 0 new |
+| 10 | grep `C62_DEBUG\|C62_STAGE` in `scripts/build-data.mjs` | `C62_STAGE` only, L846/866/972 → `.qwen/tmp/c62-stages.json` (SEC6-04) |
+| 11 | `findstr "qwen" .gitignore` | L9 `.qwen/` — debug output untracked |
+| 12 | read `src/pages/LegalPage.tsx:79-93` | OFL 1.1 + all three font attributions present → SEC-4-01 closed |
+| 13 | full read of ADR-0034 (incl. Amendment + Amendment 2); ADR-0035 L1-50 | invariant / difference-direction wording consistent with the code |
+
+Items 1–13 re-verified in the current session after the context-resume break, per RQ-1.
+
+### Closure
+
+**Cycle 6 security gate: PASS — 0 Blocking, 1 Risk-accepted (SEC6-01, dev-only dependencies), 3 Info (SEC6-02/03/04), 0 new design-level. SEC-4-01 CLOSED.** Stage 7 CLOSED for the Cycle 6 landing pass (rework rounds consumed: 0). Cleared for Stage 8 (DevOps). Lead-decision items: (1) approve SEC6-01 carry-forward with a dependency-cleanup target in a future cycle; (2) align the C6-1 brief wording with the implemented guards (SEC6-02).

@@ -14,6 +14,7 @@ export interface Hospice {
   cqcUrl: string;
   curated: boolean;
   nation: Nation;
+  children: boolean;
 }
 
 export interface Practice {
@@ -33,6 +34,7 @@ export interface Catchment {
   nation: Nation;
   kind: 'published' | 'approx';
   curated: boolean;
+  children: boolean;
   practiceCount: number;
   // One or more rings (Voronoi-derived; multi-ring = union of cells).
   polygons: { lat: number; lon: number }[][];

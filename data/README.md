@@ -41,6 +41,7 @@ fetched at runtime). Domain vocabulary used throughout: [`GLOSSARY.md`](../GLOSS
 | `shops-osm.json` | OSM Overpass (shop POIs in the original bbox) | 2026-10-15 | **Placeholder `[]`** — all public Overpass mirrors were down (502/500) at collection time; the websites remain the shop source. Not a build input |
 | `hospices-wikidata.json` | api.wikidata.org | 2026-10-14 | **Placeholder `[]`** — endpoint unreachable from this machine; research artifact, not a build input |
 | `uk-land.json` | OSM `natural=coastline` via Overpass, box filter `natural=coastline (49.5,-11.0,61.5,2.0)` — the fetch box is deliberately wider west than the ADR-0001 map box (−9.5) so the English Channel / Irish Sea coastline loops close entirely inside the query (ADR-0006); `scripts/fetch-uk-land.mjs` | 2026-10-30 (re-fetch via `overpass-api.de` after kumi's 504 mirror-cap timeout) | **SHA-256 `b9b313ab7dac80c45c48aea900469cf61043f7b9a0665cde79dfec63e0075b55`, 22,999 polygons** (39,433 coastline elements → 23,181 closed rings; 1,638 unclosable fragments dropped). Verified by point-in-ring against reference cities: London, Manchester, Cardiff, Inverness, Belfast, Dublin, Derry, Lisburn all land inside the mask. Core tessellation clip input; `build-data.mjs` and `validate-tessellation.mjs` fail fast without it — no box-only fallback. Consumed at build time as a **deterministic in-memory Douglas–Peucker simplification** (tol 0.001° ≈ 110 m; `scripts/land-mask.mjs`, shared by build and validator): the raw file is never rewritten, so this SHA-256 remains the provenance anchor and rebuilds are byte-identical. **Licence: Open Database License (ODbL) v1.0, © OpenStreetMap contributors** |
+| `roi-border.json` | OSM **relation 156393** (admin_level 4 "Northern Ireland / Tuaisceart Éireann") via Overpass — `relation(156393)->.r; way(r)->.w; node(w); out body;` (endpoint `overpass-api.de`); the 929 member ways assembled into a single closed outer ring by a degree-2 ring walk | 2026-11-10 (`fetchedAt` 2026-11-10T08:45:56Z) | **SHA-256 `b34313501e28bd6429857646b48da6136309c057685b606e7378ed27572f98c6`** (878,999 B). 929 member ways → 929 fetched, 0 vanished; single closed outer ring, **18,422 ring nodes** (18,423 pts incl. the closing point), `areaDeg2 2.685914`, bbox `[-8.1775099, 53.8701701, -5.0777816, 55.4435849]`. NI catchment clip input (ADR-0034 / C6-1): `build-data.mjs` clips `id.startsWith('ni')` cells into this ring **after** the land clip so no cell extends past the NI–ROI border; `validate-tessellation.mjs` invariant 5 measures cell area **outside** the ring (must be < 1e-9 deg²). Despite the filename this is the **Northern Ireland** admin polygon — the region the build clips cells **into** (keep-inside), not the Republic-of-Ireland polygon. Core tessellation clip input; `build-data.mjs` and `validate-tessellation.mjs` fail fast if it is missing. **Licence: Open Database License (ODbL) v1.0, © OpenStreetMap contributors** |
 | `site-config.json` | operator-controlled (no external fetch) | 2026-10-22 | `operatorName` + `contactEmail`; the email is a placeholder until the operator supplies a real address. Mirrors the constant in `src/lib/siteConfig.ts` — keep the two in lockstep if the address changes |
 
 ## Generated app data (`public/data/`)
@@ -57,11 +58,13 @@ Produced by `scripts/build-data.mjs` from the files above:
 
 ## Current state (post-data-landing, 2026-11-08)
 
-The committed `public/data/` is the **post-data-landing snapshot**: 9,098 of
-the 9,107 in-scope postcodes resolved (four passes of
+The committed `public/data/` is the **post-data-landing snapshot**: 9,125 of
+the 9,134 in-scope postcodes resolved (five passes of
 `scripts/geocode-postcodes.mjs` at 1 req/s, with 429/503 backoff and
 outcode fallback — the 2026-10-24 pass added the 729 Scottish practice
-postcodes, the 2026-10-27 pass the 5 NI hospice postcodes). 11,002
+postcodes, the 2026-10-27 pass the 5 NI hospice postcodes, the 2026-11-08
+pass the 15 new Wales hospice units plus the Cycle 5 Scotland additions).
+11,002
 practices are assigned; 12 sit in `hospiceId: null`
 because their postcodes have **no OSM/Nominatim coverage at unit or outcode
 level** (documented source gap, not a script bug):
@@ -73,11 +76,14 @@ complete: **911 practices, all geocoded and assigned**. Wales is complete:
 source-provided coordinates** (the DataMap layers ship lat/lon and no
 postcodes, so no Nominatim geocoding was needed). Northern Ireland now
 shows **6 hospices, all placed** (postcodes geocoded on 2026-10-27) and its
-304 practices. Wales hospices remain 0 — the 2026-11-08 final gate (H5-1)
-fetched the NHS Wales P&I page directly (SHA-256 pinned in the table
-above): the page is under review and the list is absent, so 0 is the
-verified final value, not an unanswered request (ADR-0020 zero-set);
-re-poll when the review lifts.
+304 practices. **17 Wales hospices landed 2026-11-08, all placed**, from
+the five NHS Wales P&I regional sub-pages (SHA-256 pinned in the table
+above; the parent-page pin is now the legacy fallback for when 0/5
+regional pins are present). Scope is hospices only (ADR-0033): 14 of the
+31 source rows are hospital-based (SPCTs, acute hospitals, named units)
+and excluded by additive-negative token matching;
+south-wales-central contributes 0 kept. The H5-1 finding (page under
+review, list absent) is superseded by these regional sources.
 
 The tessellation also requires `data-raw/uk-land.json` (the committed OSM
 land boundary, ADR-0006), which **is present** (fetched 2026-10-23;
