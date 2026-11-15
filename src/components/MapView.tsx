@@ -56,6 +56,24 @@ function FitToNation({ nation }: { nation: NationFilter }) {
   return null;
 }
 
+// C7/W4 (D4, R1/RA4): keeps the Leaflet view aligned with the map's
+// container — a ResizeObserver on the container element drives
+// invalidateSize(), covering the true triggers: window resize/rotation,
+// the 4-line mobile header compression, and Start here card / sheet
+// open-close (overlays themselves do not change the container's flex
+// size — RA4). Script-only, browser-native ResizeObserver, existing
+// Leaflet invalidateSize() API; no new dependency.
+function ContainerResizeInvalidator() {
+  const map = useMap();
+  useEffect(() => {
+    const el = map.getContainer();
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [map]);
+  return null;
+}
+
 // Fits the map to the selected catchment/hospice when it changes.
 function FitToSelection({ selectedId, catchments, hospices }: {
   selectedId: string | null;
@@ -322,6 +340,7 @@ export default function MapView({ hospices, practices, catchments, shops, showSh
       />
       <FitToNation nation={nation} />
       <FitToSelection selectedId={selectedId} catchments={catchments} hospices={hospices} />
+      <ContainerResizeInvalidator />
 
       {/* catchment areas (Voronoi-derived; adjacent areas share an edge) */}
       {catchments.map((c) => {

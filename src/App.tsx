@@ -37,11 +37,22 @@ export default function App() {
   // sheet on phones so the result is visible (pm 4.7).
   const select = (id: string | null) => {
     setSelectedId(id);
-    if (id) closeSheet();
+    if (id) {
+      closeSheet();
+      // C7/W3 (RA1): a selection never coexists with the card — close the
+      // mobile disclosure in the same step as the sheet.
+      setStartHereMobileOpen(false);
+    }
   };
   // wm W11: the start-here landing card is open on first load; dismissing it
   // leaves a "Start here" pill in the panel header to re-open it.
   const [startHereOpen, setStartHereOpen] = useState(true);
+  // C7/W3 (ADR-0038 re-issued, option b): mobile disclosure state —
+  // deterministically `true` in every environment incl. JSDOM prerender
+  // (R4/R6 → no hydration mismatch). Drives the `.hf-start-here-open` class
+  // on `.app` (CSS shows the card on mobile only). `startHereOpen` — the
+  // element-tree state — is untouched, so the tree is identical to today.
+  const [startHereMobileOpen, setStartHereMobileOpen] = useState(true);
   // C6-4 (ADR-0035): the children's view. Adults are the default; the toggle
   // REPLACES the adult view (the two kinds are completely separate, with
   // separate catchments — they are never overlaid). The four datasets are
@@ -156,17 +167,29 @@ export default function App() {
             <span className="form-check-label small ms-1">Children's</span>
           </label>
           <button
-            className="btn btn-outline-secondary btn-sm"
+            className="btn btn-outline-secondary btn-sm hf-source-method"
             type="button"
             data-bs-toggle="modal"
             data-bs-target="#methodologyModal"
           >
             Source &amp; Method
           </button>
+          {/* C7/W3 (ADR-0038 re-issued, option b): mobile "Start here"
+              disclosure toggle — always rendered (server/client first
+              renders match, R4/R6), CSS-hidden on desktop, shown on
+              mobile; aria-expanded mirrors the disclosure state. */}
+          <button
+            type="button"
+            className="hf-start-here-toggle btn btn-outline-secondary btn-sm"
+            aria-expanded={startHereMobileOpen}
+            onClick={() => setStartHereMobileOpen((open) => !open)}
+          >
+            Start here
+          </button>
         </>
       }
     >
-      <div className={`app${sheetOpen ? ' app-sheet-open' : ''}`}>
+      <div className={`app${sheetOpen ? ' app-sheet-open' : ''}${startHereMobileOpen ? ' hf-start-here-open' : ''}`}>
         <aside className="app-panel" id="appPanel" aria-label="Hospice list">
           <HospicePanel
             hospices={kindHospices}
@@ -232,6 +255,7 @@ export default function App() {
           <StartHere
             practices={kindPractices}
             hospices={kindHospices}
+            catchments={kindCatchments}
             onOpenHospice={select}
             onOpenShopSearch={select}
             onSearchList={setQuery}

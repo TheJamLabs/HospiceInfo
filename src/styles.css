@@ -109,6 +109,19 @@ body,
   background: var(--hf-surface-muted);
 }
 
+/* C7/W1 (ADR-0039): “Source & Method” in the footer link row — mobile-only
+   (shown below 769 px in the 768px block); hidden on desktop so the 1280 px
+   footer stays pixel-unchanged. */
+.hf-footer-source {
+  display: none;
+}
+
+/* C7/W3 (ADR-0038 re-issued): the "Start here" disclosure toggle —
+   mobile-only (display:inline-flex in the 768px block). */
+.hf-start-here-toggle {
+  display: none;
+}
+
 /* Skip-to-content link: hidden until focused (pm 2.5) */
 .skip-link {
   position: absolute;
@@ -180,6 +193,20 @@ body,
     flex: 1 1 100%;
     justify-content: space-between;
   }
+  /* C7/W1 (ADR-0039): 4-line mobile header — 351 px line budget (375 − 2×12).
+     Line 1 logo/title/subtitle · line 2 theme row · line 3 first two layer
+     toggles · line 4 third toggle + Start-here button (40% widths force
+     exactly two items per line). Header nav links are hidden — the footer
+     already carries the same six; Source & Method shifts to the footer link
+     row (hidden there on desktop, so 1280 px stays pixel-unchanged). */
+  .app-header .app-title-row { width: 100%; }
+  .app-title-sub { font-size: 0.75rem; }
+  .app-header .form-check { width: 40%; }
+  .app-header .form-check-label { font-size: 0.875rem; }
+  .app-header .hf-start-here-toggle { display: inline-flex; width: 40%; }
+  .app-header .hf-source-method { display: none; }
+  .site-nav-link { display: none; }
+  .hf-footer-source { display: inline; }
 }
 
 .panel-item-active {
@@ -214,6 +241,18 @@ body,
   max-height: calc(100% - 20px); /* pm 4.4: capped to the visible viewport */
   overflow-y: auto;
   border-radius: 8px;
+}
+
+/* C7/W2 (ADR-0038): the Start here card's desktop geometry — formerly an
+   inline style on the component root (values mirrored 1:1); the mobile
+   overrides live in the 768px block below. */
+.hf-start-here {
+  position: absolute;
+  top: 12px;
+  left: 36px;
+  z-index: 1000;
+  width: 320px;
+  max-width: calc(100% - 48px);
 }
 
 /* pm 4.8: permanent, unobstructed legend panel, bottom-left on desktop. */
@@ -321,6 +360,11 @@ body,
 }
 
 @media (max-width: 768px) {
+  /* C7/W5 (ADR-0041): one sheet-height token, two consumers below
+     (.app-panel height, .sheet-fab open offset) — drift impossible. */
+  .app {
+    --hf-sheet-h: min(55vh, 480px);
+  }
   /* The panel becomes a bottom sheet, hidden off-canvas until opened. */
   .app-panel {
     position: absolute;
@@ -330,7 +374,7 @@ body,
     top: auto;
     flex: none;
     width: 100%;
-    height: min(55vh, 480px);
+    height: var(--hf-sheet-h);
     min-width: 0;
     z-index: 1600;
     border-right: 0;
@@ -362,7 +406,7 @@ body,
     cursor: pointer;
   }
   .app-sheet-open .sheet-fab {
-    bottom: calc(min(55vh, 480px) + 14px);
+    bottom: calc(var(--hf-sheet-h) + 14px);
   }
 
   .app-sheet-open .sheet-scrim {
@@ -378,6 +422,45 @@ body,
     left: 10px;
     right: 10px;
     max-width: none;
+  }
+
+  /* C7/W2 (ADR-0038): the Start here card — hidden on mobile unless the
+     `.hf-start-here-open` class (W3 state, set on `.app`) is present.
+     Open: 12px left margin, 44px right band clearing the "Open list" FAB
+     + top-right zoom (319 px wide at 375 px). Z-order: sheet 1600 < card
+     1700 < FAB 2000. Sheet always wins (display:none, OQ1 "Selection only"). */
+  .hf-start-here {
+    display: none;
+  }
+  .hf-start-here-open .hf-start-here {
+    display: block;
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    right: 44px;
+    /* W2 acceptance: 319 px wide at 375 px (base width:320px would
+       over-constrain the box); max-width keeps it a fixed-width box,
+       not a full-width sheet, at larger mobile widths. */
+    width: auto;
+    max-width: 320px;
+    max-height: min(75vh, calc(100% - 72px));
+    overflow-y: auto;
+    z-index: 1700;
+    padding: 12px;
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  }
+  .app-sheet-open .hf-start-here {
+    display: none;
+  }
+  /* W2/ADR-0038: on mobile the Leaflet zoom cluster moves to the top-right
+     (leaflet.css loads before styles.css, so this unscoped rule wins). */
+  .leaflet-top.leaflet-left {
+    left: auto;
+    right: 10px;
+  }
+  .app-selection {
+    max-height: min(45vh, 260px);
   }
 }
 

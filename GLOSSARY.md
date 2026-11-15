@@ -172,3 +172,41 @@ provenance, and documentation. New terms are formatted in *italics*.
   co-location buckets, base `1e-5` deg; Cycle 6 keeps the mechanism unchanged
   and reduces the base constant only, until invariant 6 is green (0 empty SC
   cells, every SC×SC pair `< 1e-6 deg²`) (ADR-0034).
+
+## Cycle 8 (2026-11-14) — online postcode fallback
+
+- **Pages Function proxy** (*italic*): the stateless same-origin endpoint
+  (`functions/api/postcodes/`) that validates the postcode, forwards the
+  geocode request to the owner's self-hosted postcodes.io with the two
+  Cloudflare Access credentials (held only in Pages secrets / local
+  `.dev.vars`), and returns the stripped `{postcode, latitude, longitude}`
+  shape. The credentials never reach the browser (ADR-0037).
+- **postcode geocode**: the latitude/longitude of a UK postcode, obtained at
+  runtime via the Pages Function proxy. The online fallback is the second tier
+  of the start-here postcode resolution: the offline GP-practice map
+  (tier 1) is tried first and remains unchanged (ADR-0037).
+- **geocode fallback**: the online path of the start-here search — geocode the
+  postcode, then test even-odd point-in-polygon against the kind-filtered
+  catchment cells and open the containing hospice; degrades to the not-found
+  card without throwing on any 404/403/5xx/timeout/network failure/PIP miss
+  (ADR-0037).
+- **on-line band** (*italic*): the relative 1e-9 degree band in which a point
+  is considered to sit exactly on a ring line. Ported from
+  `scripts/build-data.mjs` (build-time PIP) into the runtime PIP, where a
+  point on the band is **not** inside any cell — cell walls are not owned by
+  any hospice (tolerance acceptance in ADR-0034; runtime use in ADR-0037).
+
+## Cycle 7 (2026-11-14) — mobile
+
+- **Start here card**: the `StartHere` overlay (postcode form + 3-persona
+  accordion) that on mobile is CSS-gated behind the header "Start here"
+  toggle — default closed, a full-width top overlay (`max-height:75vh`)
+  that the bottom sheet always excludes (ADR-0038).
+- **Scroll-region budget**: the mobile invariant that at most two surfaces
+  are concurrently scrollable — the map plus at most one *reachable,
+  non-covered* DOM surface (`scrollHeight > clientHeight`,
+  `overflow-y:auto|scroll`); a covered surface does not count (ADR-0040).
+- **layout gate** (*italic*): `npm run check:layout`
+  (`scripts/check-map-layout.mjs`) — the CI gate that fails unless the
+  complete set of `flex-direction` declarations in `src/styles.css` is
+  exactly `.app: column`, `.app-body > .app: row`, `.legend-grid: column`.

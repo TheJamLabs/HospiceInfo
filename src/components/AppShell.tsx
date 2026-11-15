@@ -53,7 +53,7 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
       <header className="app-header">
         <div className="container-fluid px-3">
           <div className="d-flex flex-wrap align-items-center justify-content-between gap-2">
-            <div className="d-flex align-items-center gap-2">
+            <div className="d-flex align-items-center gap-2 app-title-row">
               <img src="/logo.svg" width="28" height="28" alt="" aria-hidden="true" className="d-block" />
               <div>
                 <h1 className="h4 mb-0">
@@ -61,7 +61,7 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
                     Hospice Finder UK
                   </a>
                 </h1>
-              <div className="text-muted small">UK — catchments approximated from GP practice locations</div>
+              <div className="text-muted small app-title-sub">UK — catchments approximated from GP practice locations</div>
               </div>
             </div>
             <nav aria-label="Site pages" className="d-flex flex-wrap align-items-center gap-2">
@@ -101,6 +101,17 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
               {l.label}
             </a>
           ))}
+          {/* C7/W1 (ADR-0039): “Source & Method” moves here from the map header
+              on mobile (CSS: mobile-visible, desktop-hidden — 1280 px unchanged).
+              Opens the same #methodologyModal the header button does. */}
+          <a
+            href="#map"
+            className="small text-decoration-none hf-footer-source"
+            data-bs-toggle="modal"
+            data-bs-target="#methodologyModal"
+          >
+            Source &amp; Method
+          </a>
         </nav>
       </footer>
     </div>

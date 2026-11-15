@@ -1,11 +1,15 @@
-import { useMemo, useState } from 'react';
-import type { Hospice, Practice } from '../lib/types';
+import { useMemo, useRef, useState } from 'react';
+import type { Catchment, Hospice, Practice } from '../lib/types';
 import { feedbackMailto } from '../lib/feedback';
-import { normalisePostcode } from '../lib/postcodes';
+import { isPostcodeShape, lookupByPostcode, normalisePostcode } from '../lib/postcodes';
 
 // wm W11 (ADR-0012): landing card on the map — postcode → practice → catchment
 // → hospice. Not-found wording is neutral and greppable; the card never
 // exposes an internal flag.
+// Cycle 8 (C8): tier-2 geocode fallback — on a tier-1 miss with valid shape,
+// resolve the postcode (lookupByPostcode) against the kind-filtered catchments;
+// hit → hospice card (no practice line, R-3); miss → not-found card (ac3:
+// never throws). Not-found copy: OQ1 reword signed 2026-11-15 (hospice catchment).
 
 const APPROXIMATION_LINE =
   'This map is drawn from the data we have today; boundaries shown are an approximation, not official catchment areas.';
@@ -13,6 +17,7 @@ const APPROXIMATION_LINE =
 interface Props {
   practices: Practice[];
   hospices: Hospice[];
+  catchments: Catchment[];
   onOpenHospice: (id: string) => void;
   onOpenShopSearch: (id: string) => void;
   onSearchList: (text: string) => void;
@@ -22,6 +27,7 @@ interface Props {
 export default function StartHere({
   practices,
   hospices,
+  catchments,
   onOpenHospice,
   onOpenShopSearch,
   onSearchList,
@@ -29,6 +35,12 @@ export default function StartHere({
 }: Props) {
   const [postcode, setPostcode] = useState('');
   const [submitted, setSubmitted] = useState<string | null>(null);
+  // Cycle 8 (C8): tier-2 state machine (ARC §6.2): idle → resolving → hit | miss.
+  // The lookupGen ref discards stale in-flight results on resubmit —
+  // lookupByPostcode owns its own 3 s budget (W3 frozen, no signal param).
+  const [phase, setPhase] = useState<'idle' | 'resolving' | 'hit' | 'miss'>('idle');
+  const [cell, setCell] = useState<Catchment | null>(null);
+  const lookupGen = useRef(0);
 
   const hospiceById = useMemo(() => new Map(hospices.map((h) => [h.id, h])), [hospices]);
   const practiceByPostcode = useMemo(() => {
@@ -39,6 +51,9 @@ export default function StartHere({
 
   const found = submitted ? (practiceByPostcode.get(submitted) ?? null) : null;
   const hospice = found && found.hospiceId ? (hospiceById.get(found.hospiceId) ?? null) : null;
+  // Cycle 8 (C8): tier-2 hit-card hospice. Null-guard is defensive (ARC §6.2):
+  // null falls through to the not-found card, never an empty hit card.
+  const tier2Hospice = cell ? (hospiceById.get(cell.hospiceId) ?? null) : null;
 
   const noteMailto = feedbackMailto({
     id: 'start-here',
@@ -48,10 +63,10 @@ export default function StartHere({
   });
 
   return (
-    <div
-      className="card shadow-sm"
-      style={{ position: 'absolute', top: 12, left: 36, zIndex: 1000, width: 320, maxWidth: 'calc(100% - 48px)' }}
-    >
+    /* C7/W2 (ADR-0038): geometry moved to CSS (base `.hf-start-here` in
+       styles.css mirrors the former inline values 1:1; mobile overrides in
+       the 768px block). */
+    <div className="card shadow-sm hf-start-here">
       <div className="card-header d-flex align-items-center py-2">
         <strong className="small">Start here</strong>
         <button
@@ -69,7 +84,32 @@ export default function StartHere({
           className="mb-2"
           onSubmit={(e) => {
             e.preventDefault();
-            setSubmitted(normalisePostcode(postcode));
+            const normalised = normalisePostcode(postcode);
+            setSubmitted(normalised);
+            const gen = ++lookupGen.current;
+            if (practiceByPostcode.has(normalised)) {
+              // Tier-1 hit: unchanged behaviour — no tier-2 state, zero network (ac2).
+              setPhase('idle');
+              setCell(null);
+            } else if (isPostcodeShape(normalised)) {
+              // Tier-1 miss, valid shape: geocode fallback. lookupByPostcode
+              // always resolves, never throws (ac3).
+              setPhase('resolving');
+              setCell(null);
+              lookupByPostcode(normalised, catchments).then((result) => {
+                if (lookupGen.current !== gen) return; // stale: resubmitted in flight
+                if (result) {
+                  setCell(result.cell);
+                  setPhase('hit');
+                } else {
+                  setPhase('miss');
+                }
+              });
+            } else {
+              // Invalid shape: no tier-2, zero network, not-found (ac3).
+              setPhase('miss');
+              setCell(null);
+            }
           }}
         >
           <label className="form-label small mb-1" htmlFor="startHerePostcode">
@@ -113,10 +153,27 @@ export default function StartHere({
             </div>
           </div>
         )}
-        {!found && submitted && (
+        {!found && submitted && phase === 'resolving' && (
+          <div className="alert alert-light border py-2" role="status">
+            <div className="small">Checking your area…</div>
+          </div>
+        )}
+        {!found && submitted && phase === 'hit' && tier2Hospice && (
+          <div className="alert alert-light border py-2" role="status">
+            <div className="small mb-2">{tier2Hospice.name} · {tier2Hospice.town}</div>
+            <button
+              type="button"
+              className="btn btn-sm btn-primary"
+              onClick={() => onOpenHospice(tier2Hospice.id)}
+            >
+              Open in panel
+            </button>
+          </div>
+        )}
+        {!found && submitted && !(phase === 'resolving') && !(phase === 'hit' && tier2Hospice) && (
           <div className="alert alert-light border py-2" role="status">
             <div className="small">
-              We couldn't match that postcode to a GP practice on this map. You can search the list
+              We couldn't match that postcode to a hospice catchment on this map. You can search the list
               instead, or <a href={noteMailto}>send us a note</a>
             </div>
             <button
