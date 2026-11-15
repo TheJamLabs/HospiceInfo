@@ -42,7 +42,7 @@ In a new terminal from the same folder:
 
 ```bat
 npm run build    :: tsc -b && vite build && node scripts/prerender.mjs → dist/
-                  :: emits 200 static shells + sitemap.xml + robots.txt (215 files total)
+                  :: emits 216 static shells + sitemap.xml + robots.txt (231 files total)
 ```
 
 To test the built app locally (the published site is the `main` build — see
@@ -51,6 +51,20 @@ Deploy):
 ```bat
 npm run preview   :: local test of the shipped static file
 ```
+
+Cycle 8 (C8) — start-here geocode fallback (Pages Function at
+`functions/api/postcodes/[postcode].ts`) local test against the built
+output:
+
+```bat
+npx wrangler pages dev dist   :: local Pages dev server (wrangler not pinned)
+```
+
+The route reads `POSTCODES_IO_BASE`, `POSTCODES_ACCESS_CLIENT_ID` and
+`POSTCODES_ACCESS_CLIENT_SECRET` from `.dev.vars` only — that file is
+git-ignored and never committed. Without `.dev.vars` the upstream
+returns 403, the function returns 502, and start-here shows the
+not-found card (documented degradation).
 
 ## Providing feedback
 
@@ -114,9 +128,13 @@ The site is static: `npm run build` produces `dist/`. The Pages project
 `hospiceinfo` is git-connected to `main`: every James-approved push runs the
 build command `npm ci && npm run build` and publishes `dist/` (`pages_build_output_dir`
 in the repo's `wrangler.jsonc`). No local `wrangler login` or deploy command is
-needed — the approved push triggers a rebuild of 215 files and publishes them
-automatically. `data-raw/` stays committed; it is excluded from the deployment
-by the output directory (only `dist/` ships). Branch previews for
+needed — the approved push triggers a rebuild and publishes the **231 dist
+files** (215 of which are `<loc>`-tracked static pages — 208 hospice pages +
+7 others in `sitemap.xml`) automatically. `functions/` ships automatically
+with the same push — the C8 Pages Function (`/api/postcodes/{postcode}`) is
+part of every build (ADR-0037); there is no separate deploy command.
+`data-raw/` stays committed; it is excluded from the deployment by the output
+directory (only `dist/` ships). Branch previews for
 pre-promote checks: push the branch and open its preview URL in the Pages dashboard.
 
 **Post-deploy verification**
@@ -134,9 +152,38 @@ publish completes:
    - `application/ld+json` block with a `HealthCareBusiness` node;
    - title includes the hospice name and "Hospice Finder UK".
 3. `curl -s https://hospiceinfo.pages.dev/sitemap.xml` → 200; count of
-   `<loc>` entries is **199** (192 hospice pages + 7 others).
+   `<loc>` entries is **215** (208 hospice pages + 7 others).
 4. `curl -s https://hospiceinfo.pages.dev/robots.txt` → 200; the 75-byte body
    matches gate C3-5.
+
+**Cycle 8 probes** (C8 Pages Function `GET /api/postcodes/{postcode}`,
+ops-cycle8.md §3). Run once the first C8 publish completes; the owner records
+results in `.agents/implementation.md` — record only what was observed:
+
+```bat
+curl -s -D - https://hospiceinfo.pages.dev/api/postcodes/PR72TH  :: acceptor 1
+curl -s https://hospiceinfo.pages.dev/api/postcodes/CF119HD      :: acceptor 2
+curl -s https://hospiceinfo.pages.dev/api/postcodes/BT153LH      :: acceptor 3
+curl -s https://hospiceinfo.pages.dev/api/postcodes/LS14AP       :: acceptor 4 (tier-1 vector)
+curl -s -D - https://hospiceinfo.pages.dev/api/postcodes/ABC     :: malformed shape
+curl -s https://hospiceinfo.pages.dev/api/postcodes/AA99AA       :: valid shape, unresolvable
+```
+
+Expected results:
+
+- PR7 2TH, CF11 9HD, BT15 3LH, LS1 4AP → `200` with exactly the keys
+  `postcode`, `latitude`, `longitude`, and `Cache-Control: no-store`
+  (verify `content-type` + `cache-control` on at least one 200 and one
+  non-200).
+- `ABC` → `400`, body exactly `{"error":"bad-postcode"}`.
+- `AA99AA` → `404`, body exactly `{"error":"unknown postcode"}`.
+- Run the PR7 2TH command **before the C8 secrets in Quick start are set**
+  (or after deleting one) → `502`, body exactly `{"error":"postcode service
+  unavailable"}`; start-here in the UI renders the not-found card. Do not
+  force a 502 after the secrets are set.
+
+A probe reading `500` is a missing/typo'd env key (SEC-8-02 class) — record
+it with that label and re-set the secret; no code change.
 
 **Rollback**
 
@@ -148,6 +195,45 @@ publish completes:
   `data-raw/` — a bad data set rolls back by re-running the data chain, no
   code rollback needed; the prerendered page set re-derives from the restored
   data on the next build.
+
+
+## Cycle 8 ops: start-here geocode fallback
+
+Cycle 8 (C8) adds a stateless Pages Function, `GET /api/postcodes/{postcode}`
+(`functions/api/postcodes/`): no new dependency, no `wrangler.jsonc` change,
+no separate deploy command — it ships with `dist/` on the next push to
+`main` (ADR-0037). It backs the start-here tier-2 geocode fallback; every
+failure (400/404/502/500/timeout) degrades silently to the existing
+not-found card. Full ops detail: [.agents/ops-cycle8.md](.agents/ops-cycle8.md).
+
+**Owner secret setup.** The Function reads three env names, by name only
+(values are owner-held and never appear in this file):
+
+```bat
+wrangler pages secret put POSTCODES_IO_BASE              :: <value>
+wrangler pages secret put POSTCODES_ACCESS_CLIENT_ID     :: <value>
+wrangler pages secret put POSTCODES_ACCESS_CLIENT_SECRET :: <value>
+```
+
+One command per name; each prompts for the value (hidden input). Local dev:
+put the same three names in `.dev.vars` at the repo root — git-ignored,
+never commit (see the Cycle 8 block in Quick start).
+
+**Rollback.** Restore the prior release `aaee725` (the C6 ship) from the
+Pages dashboard (Workers & Pages → `hospiceinfo` → Deployments → Restore),
+then lock the repo with `git revert <sha>` + a James-approved push (ADR-0014).
+No migration, no env cleanup — the client's silent-degradation chain
+(502/404 → not-found card) makes rollback trivially safe, even mid-session.
+
+**Carried findings (documented debt, ops-cycle8.md §5).**
+- **SEC-8-01** — `GET /api/postcodes/{postcode}` is an unauthenticated public
+  proxy to the owner's self-hosted postcodes.io (capacity/abuse only, no data
+  leak): owner sets a rate alert in Cloudflare Analytics for a sustained
+  call-rate spike on `/api/postcodes/*`.
+- **SEC-8-02** — a function-internal env failure surfaces as workerd's
+  generic `500`, not the contract's `502`: owner alerts on the first `500`
+  (re-set the secret per the setup above) and may prefer a `502` shim for
+  that class.
 
 
 ## Land file — `data-raw/uk-land.json` (ADR-0006)
@@ -295,27 +381,96 @@ current values. Full Cycle 5 ops detail:
 [.agents/ops.md](.agents/ops.md) — "Cycle 5 — Landing (2026-11-08)"
 supersedes the Cycle 4 file at that path.
 
-**Dist invariants** (re-asserted on every push; Cycle 5 values,
-disk-verified 2026-11-08):
+**Dist invariants** (re-asserted on every push; Cycle 8 values,
+disk-verified 2026-11-15):
 
 | Invariant | Check | Expectation |
 |---|---|---|
-| Physical files | Node walk of `dist/` | **215** (202 emitted: 200 `.html` shells — 1 index + 6 info + 192 hospice + 1 404 — + `sitemap.xml` + `robots.txt`; + 13 Vite-copied: 2 assets, 3 woff2, `logo.svg`, `manifest.webmanifest`, `og-image.png`, 5 `data/*.json`) |
-| Sitemap | `dist/sitemap.xml` | **199** `<loc>` (192 hospice + 7), 0 `<lastmod>` — asserted in `scripts/prerender.mjs`, non-zero exit on violation |
-| Boot snippet | grep `hfuk-theme` in all emitted shells | present in **200/200** HTML shells |
+| Physical files | Node walk of `dist/` | **231** (218 emitted: 216 `.html` shells — 1 index + 6 info + 208 hospice + 1 404 — + `sitemap.xml` + `robots.txt`; + 13 Vite-copied: 2 assets, 3 woff2, `logo.svg`, `manifest.webmanifest`, `og-image.png`, 5 `data/*.json`) |
+| Sitemap | `dist/sitemap.xml` | **215** `<loc>` (208 hospice + 7), 0 `<lastmod>` — asserted in `scripts/prerender.mjs`, non-zero exit on violation |
+| Boot snippet | grep `hfuk-theme` in all emitted shells | present in **216/216** HTML shells |
 | Data assets | double `npm run build-data` | byte-identical; SHA-256 pins in [`data/README.md`](data/README.md) |
 
 The standing pre-push chain (ops.md §7.1), the two-file rule for the
 theme-boot snippet, the data-refresh chain (ops.md §7.2), and the
 deploy & rollback story above all carry over unchanged.
 
-**Definition of healthy** (ops.md §7.4, Cycle 5 values): 192 hospices
+**Definition of healthy** (ops.md §7.4, Cycle 8 values): 208 hospices
 (unplaced 0); 178 catchment cells; 100.00% coverage, 0 slivers, 1 empty
 cell (ni-r5), pairwise overlap 0.0060 deg²; 138 shops (unresolved 0);
 11,014 practices (11,002 geocoded, 12 unplaced = 9 BT + 3 non-BT);
 20 curated rows.
 
-**Post-publish smoke checks** (Cycle 5): sitemap 199 `<loc>`; the 200-shell
+**Post-publish smoke checks** (Cycle 8): sitemap 215 `<loc>`; the 216-shell
 survey includes both new rows (`/hospice/sc-pcs-30.html`,
 `/hospice/sc-pcs-58.html`); map smoke: Scotland 34, Wales 0; `robots.txt`
 75 bytes; three woff2 served at 14,508 / 14,632 / 14,592 bytes.
+
+## Cycle 7 (C7) — mobile 375 px layout
+
+Cycle 7 (2026-11-15) is a mobile (≤768 px) layout pass: the Start-here sheet
+opens by default (`useState(true)` + `aria-expanded`); the header collapses
+to 4 lines at 375 px within a 351 px line budget (nav links hidden, "Source &
+Method" moved to the footer link row); the details card is 319 px wide with
+a 44 px right band and `max-height:min(75vh, calc(100% − 72px))`, sized
+through the new `--hf-sheet-h` token (one definition, two consumers);
+`ContainerResizeInvalidator` re-fires `map.invalidateSize()` on resize
+(ResizeObserver → invalidate → `disconnect()`, no new dependency); and the
+scroll-region budget keeps the map plus at most one reachable surface —
+`document.documentElement.scrollHeight <= window.innerHeight` in all five
+OQ1 states × dark/light. Desktop (1280 px) is unchanged, and `npm run
+check:layout` still enforces the 3-`flex-direction` whitelist in
+`styles.css` (L77/L89/L275). Surface: five source files (`src/App.tsx`,
+`src/components/AppShell.tsx`, `src/components/MapView.tsx`,
+`src/components/StartHere.tsx`, `src/styles.css`) plus ADRs 0038–0041 and
+the C7 glossary terms — no data, env, dependency, or deploy-config changes.
+Design rationale: ADR 0038–0041 in [`docs/adr/`](docs/adr/).
+
+**Pre-publish chain** — from the repo root, in this order
+(ops-cycle7.md §4):
+
+```bash
+npm test
+npm run check:layout
+npm run build
+cp -r dist /tmp/dist-a
+npm run build
+diff -rq /tmp/dist-a dist   # expect: empty output = byte-identical
+```
+
+Expected: `npm test` 23/23; `check-map-layout: OK`; both builds exit 0 (231
+dist files, 171 prerendered); empty diff. Any diff output stops the push —
+determinism (ADR-0015) has broken.
+
+**Post-publish verification**
+
+1. Pages deploy log for the push is green (`npm ci && npm run build`,
+   exit 0).
+2. Live site returns 200 at the root and on one `/hospice/<id>` page.
+3. Deployed `index.html` references `index-Dn97-FzZ.css` and
+   `index-D61LFkAW.js` — old hashes present = the C7 build is not live.
+
+**Rollback**
+
+- **Code (primary):** `git revert <C7-commit>` + push to `main`. Static
+  site with no data, env, or migration changes — nothing beyond the
+  revert is required; the C7 diff is self-contained in the ten
+  commit-scope files, so the revert is byte-clean.
+- **Live site (secondary):** Pages keeps every prior release; restore the
+  previous deployment from the Pages dashboard (Deployments → restore).
+
+**Carried debt (risk-accepted)**
+
+| ID | Finding | Follow-up |
+|---|---|---|
+| C7-QA-1 | Requirements item-2 wording drift (stale DOM-delta summary; implementation correct) | No code action |
+| C7-QA-2 | `ContainerResizeInvalidator` undebounced (per-frame `invalidateSize()` during continuous resize) | One-line `requestAnimationFrame` coalescing, only if owner-gate item 7 shows jank |
+| C7-QA-3 | Zero automated 768 px layout coverage (the 23 tests are data/logic only) | Later-cycle Playwright 375×812 pin |
+| C7-SEC-2 | Start-here toggle reports "expanded" while the sheet visually occludes the card | Owner-gate item 9 records it as observed behavior; no code action |
+
+Full detail: [.agents/qa-cycle7.md](.agents/qa-cycle7.md) and
+[.agents/security-cycle7.md](.agents/security-cycle7.md).
+
+This section — like the Cycle 8 sections above it — ships with the next
+commit that includes `MAINTENANCE.md`; the C7 ten-path commit deliberately
+excludes it (ops-cycle7.md §5).

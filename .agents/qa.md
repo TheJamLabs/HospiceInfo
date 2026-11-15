@@ -358,3 +358,54 @@ overlap, (2) targeted SC×SC fix pass under a fresh loop, (3) fresh C62
 root-cause cycle). Stage 6 NOT passed for C62-V2 until Q6-4 is resolved.
 Nothing committed (James's ship gate); the paused DevOps subagent was left
 untouched.**
+
+---
+
+## Cycle 7 — Coding-stage records (Stage 5, 2026-11-15; input to Stage 6)
+
+### W6 — footer link contrast (measured; WCAG 2.x relative-luminance formula,
+static computation from resolved colours — in-browser confirmation is owner-gate
+item §8.6 below; no browser automation exists in this repo)
+
+| Theme | Element | Colour | Background | Contrast | AA (≥4.5:1) |
+|-------|---------|--------|------------|----------|-------------|
+| light | footer `<a>` links (Bootstrap 5.3 default `--bs-link-color`; no repo override) | `#0d6efd` | `#ffffff` | **4.5008:1** | PASS (margin +0.0008) |
+| dark | footer `<a>` links | `#6ea8fe` | `#0f1720` (`--hf-surface`) | **7.4719:1** | PASS |
+
+- Both themes ≥ 4.5:1 → **PASS: no source change** (W6 contract: “no source
+  change if passing”). Contingent fix (footer-scoped `--hf-footer-link`,
+  `@media (max-width:768px)`) not triggered, not applied.
+- Contract-expectation note: the ≈7.5:1 prediction was right for dark (7.4719)
+  but the light theme measures 4.5008:1 because the repo does not override
+  `--bs-link-color` (Bootstrap 5.3 default `#0d6efd`). It still passes AA, so
+  nothing changes in C7; recorded for the owner's information (a later, separate
+  cycle could set `--bs-link-color: var(--hf-primary)` ≈11.6:1 light /
+  #7dadd6 ≈7.58:1 dark, but that alters 1280 px pixels — out of C7 scope).
+- Reference (outside W6's “footer-link” scope): footer `small.text-muted` body
+  copy — light `#5f7183`/`#ffffff` = 5.0283:1; dark `#8fa3b8`/`#0f1720` =
+  6.9595:1 — both PASS.
+
+### W8 — verification matrix, automated items (run 2026-11-15, post W1–W6)
+
+| Item | Check | Result |
+|------|-------|--------|
+| 1 | `npm run check:layout` (layout gate) | `check-map-layout: OK`, exit 0 |
+| 2 | `npm run build` ×2 + prerender, DOM diff vs pre-C7 baseline | PASS — see below |
+
+- Test suite: `npm test` → 23/23 pass, 0 fail (C8 vectors + postcode shape/lookup tests).
+- Double build: 171 prerendered files each run; full dist SHA-256 manifest byte-identical
+  (231 files; `diff .tmp/c7-build1.sha256 .tmp/c7-build2.sha256` empty).
+- Prerender DOM: the app shell is client-rendered (`<div id="root"></div>` empty at
+  prerender), so every prerendered HTML differs from `.tmp/c7-baseline/dist` ONLY in the two
+  hashed asset references (css `index-50GQAEoY`→`index-Dn97-FzZ`, js `index-UggaqDto`→
+  `index-D61LFkAW`). No static-DOM drift.
+- Client first-render delta (R4/R6 = server render ↔ client first render match), verified
+  at the static-JSX level (this repo has no browser automation; in-browser confirmation is
+  owner-gate): exactly +1 static header toggle button (`aria-expanded=true` at first render),
+  StartHere card root inline-style→class relocation (`hf-start-here`), `.app` gaining the
+  `hf-start-here-open` class (deterministic `useState(true)`, identical in JSDOM and browser),
+  and +1 footer `Source & Method` link (W1). No other attribute change.
+- In-browser items 3–9 (375×812 screenshot matrix, no-page-scroll check, scroll-region
+  count ≤2, footer contrast confirmation, marker/tile alignment, 320 px overflow, a11y
+  order/aria/focus) = James's mobile-visual ship gate — manual, deliberately no
+  browser-automation dependency added.

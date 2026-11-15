@@ -1,154 +1,113 @@
-# Feature: Cycle 6 — Border fixes, postcode search, children's mode
+# Feature: Cycle 7 — Postcode finder via self-hosted postcodes.io
 
-Four issues reported by the site owner against the live site (published
-`416d28a`, now at `f141a71` locally):
+Owner request (2026-11-14, verbatim): "To allow the hospice finder to
+work please wire in my local hosted postcodes.io."
 
-1. **Northern Ireland — catchment borders extend outside NI.** "In Ireland
-   ensure the borders don't extend outside of Northern Ireland."
-2. **Scotland — catchment borders don't fit together well.** "The Scottish
-   hospice area borders don't butt up against each other particularly well."
-3. **Postcode search fails.** "Find by postcode doesn't work."
-4. **Children's mode.** "Children's hospices should be hidden by default,
-   when shown, hide adult hospices, they're completely separate as are the
-   catchment areas, etc."
+## Background
 
-Items 1–3 are bugfixes; item 4 is a feature (data + schema + UI). The data
-chain invariants carry over: `npm run build-data` (fail-fast, byte-identical
-re-run), `node scripts/validate-tessellation.mjs` exit 0 (~110s),
-`npm run build` byte-identical two runs, prerender `<loc>` count = data
-count + 7. No new runtime dependencies.
+C6-3 shipped the offline normaliser only: "Find by postcode" (Start-here
+page) resolves only postcodes present in `public/data/practices.json`
+(≈11k geocoded GP-practice postcodes, space form "LS1 4AP"). Anything
+else — e.g. `CF11 9HD`, `BT15 3LH`, pinned today as "clean not-found"
+vectors in `tests/postcodes.test.mjs` — falls through to the "couldn't
+match this postcode" state. This cycle adds an online fallback so the
+finder works for *any* real UK postcode, degrading gracefully when the
+service is unreachable.
 
-## James's scope decisions (2026-11-08)
+## Owner-supplied service (verified live 2026-11-14)
 
-- **Worktree**: the uncommitted ADR-0033 Wales landing was committed first
-  (its own commit `f141a71`); Cycle 6 starts on a clean tree. Push remains
-  James's human gate (branch 1 ahead of `origin/main` until he runs it).
-- **St Andrew's Hospice (Grimsby, "Adult and Children's Services")** →
-  shown in **BOTH modes** (adult AND children's), with its catchment in
-  both.
-- **Children's Hospices Across Scotland** (`sc-oscar-019724`, umbrella org,
-  no town) → **removed from the data entirely** (not a hospice; an
-  artefact of parsing the OSCAR list).
+- **Self-hosted postcodes.io**: `https://postcodes.thejamlabs.com`
+  (owner-operated).
+- **Cloudflare Access-protected**: requires the two header credentials
+  `CF-Access-Client-Id` and `CF-Access-Client-Secret`. Values were given
+  by the owner in chat; they must **never** enter the repo, bundle,
+  docs, ledger, or this file — refer to them by name only. (Security
+  note: the client-secret form is single-use-renewable; owner may rotate
+  at will — the app reads them from Pages secrets, so rotation is an
+  ops-only change.)
+- `GET /postcodes/{URL-encoded postcode}` → `200`
+  `{"status":200,"result":{"postcode":"PR7 2TH","latitude":53.652582,
+  "longitude":-2.636219, ...}}` (verified live, 2026-11-14). Unknown
+  postcode → `404` with `result` null (standard postcodes.io shape —
+  Research to confirm if cheap).
 
-## The children's set (20 rows after CHAS removal)
+## Design (constrained by the auth boundary)
 
-Rows whose name matches `/children/i` (Research must verify this list
-exactly and flag any doubtful membership):
+The browser cannot hold the CF Access credentials, so the app calls a
+**Cloudflare Pages Function** proxy:
 
-| id | name | notes |
-|---|---|---|
-| en-1-117648999 | Francis House Children's Hospice (Manchester) | |
-| en-1-116772470 | Claire House Children's Hospice (Wirral) | |
-| en-1-110304719 | Bluebell Wood Children's Hospice (Sheffield) | |
-| en-1-119796870 | St Andrew's Hospice, Adult and Children's Services (Grimsby) | **both modes** |
-| en-1-120599968 | Haven House Children's Hospice (Woodford Green) | |
-| en-1-122038149 | Rainbows Hospice for Children and Young People (Loughborough) | |
-| en-1-129536667 | Hope House Children's Hospice (Oswestry) | |
-| en-1-442758792 | Forget Me Not Children's Hospice (Huddersfield) | |
-| en-1-119107844 | Demelza, Hospice Care for Children - SE London | |
-| en-1-3969537495 | Alexander Devine Children's Hospice Service (Maidenhead) | |
-| en-1-111584886 | Christopher's Children's Hospice (Guildford) | |
-| en-1-112108967 | Naomi House Children's Hospice (Winchester) | |
-| en-1-116804848 | Milton Children's Hospice (Cambridge) | |
-| en-1-113884204 | Acorns Children's Hospice in Birmingham | |
-| en-1-8209602845 | Noah's Ark - The Children's Hospice (Barnet) | |
-| en-1-125645846 | Little Havens Children's Hospice (Benfleet) | |
-| en-1-114396298 | Derian House Children's Hospice (Chorley) | |
-| sc-oscar-r28 | Rachel House Childrens Hospice (CHAS) (Kinross) | |
-| sc-oscar-r29 | Robin House Childrens Hospice (CHAS) (Balloch) | |
-| ni-r3 | Northern Ireland Childrens Hospice (10668) | **town blank in data** — needs a display town (gate) |
+1. **Proxy** in `functions/` (Cloudflare Pages, git-connected deploy per
+   ADR-0014): `GET /api/postcodes/{postcode}` — validates the postcode
+   shape, reads the two credentials from **Pages secrets** (never
+   committed), forwards to the self-hosted postcodes.io, returns a
+   minimal JSON `{postcode, latitude, longitude}` (stripped payload).
+2. **Client fallback** (`StartHere.tsx`): on a `practices.json` miss,
+   `fetch('/api/postcodes/' + code)` → on 200, point-in-polygon test
+   against `public/data/catchments.json` cells → the hospice whose
+   catchment contains the point → existing hospice card
+   (`onOpenHospice`).
+3. **Graceful degradation**: proxy 404 (unknown postcode), network/5xx,
+   timeout, or no catchment contains the point → existing
+   "couldn't match" not-found state (copy may be refined to note the
+   online check was made). No throws, no broken UI.
+4. **Offline-first**: a `practices.json` hit never touches the network.
 
-Removed: `sc-oscar-019724` (CHAS umbrella) — 21 → 20 rows.
+## Working items (draft — PM owns the list)
 
-## Agreed scope
-
-1. **C6-1 NI border clip** — Northern-Ireland catchment cells must not
-   extend into the Republic of Ireland. Research establishes how the build
-   chain currently clips cells (land mask `data-raw/uk-land.json` vs the
-   box) and identifies the correct NI-region clip (candidate: the OSM
-   `INTL`/NI–ROI boundary; ODbL attribution required if a new source is
-   pinned). The fix stays in the build chain (deterministic), not the
-   frontend. The validator's `ni-r5` empty-cell signal (no land in box)
-   is part of the same investigation.
-2. **C6-2 Scotland border fit** — diagnose why Scottish catchment borders
-   don't butt up tightly: measure per-pair overlap on SC cells, check
-   multi-ring cell unions, near-duplicate/nearby source points (current
-   validator: total pairwise overlap 0.0269 deg², up from 0.0060 after
-   the Wales landing; worst pair St Michael's vs St Michaels 0.0136), and
-   the renderer's cell drawing. Fix must keep the tessellation validator
-   green and measurably improve the SC fit metric it reports.
-3. **C6-3 Postcode search** — reproduce "Find by postcode doesn't work"
-   against `public/data/practices.json` (11,002 geocoded practices,
-   unit-level postcode key in `StartHere.tsx`) and the deployed site;
-   identify the root cause (exact-match gap, input constraints, data
-   coverage) and fix it so a realistic user postcode resolves to the
-   correct practice → hospice, with the not-found path preserved for
-   genuinely unmapped postcodes. New tests for the lookup.
-4. **C6-4 Children's mode** —
-   - **Data/schema**: children's designation on hospice rows; the 20-row
-     set above; St Andrew's dual-listed; CHAS removed from
-     `hospices-all.json` (and its id asserted gone at merge). 208 hospice
-     rows expected after removal (209 − 1).
-   - **UI**: toggle, children's hidden by default; when children's mode is
-     shown, ALL adult hospices are hidden (replacement, not additive);
-     catchments, list, and associated views are consistent per mode.
-   - The children's designation is a data flag; the frontend derives both
-     mode views from it. Hide-not-delete-public discipline: no public
-     surface exposes an internal flag, and no mode shows unassigned
-     posts, offline rows, or null-hospiceId entries.
-   - ADR records the design decision (flag shape, St Andrew's dual
-     listing, scrim semantics).
-5. **Chain green, byte-identical, no new runtime dependencies**;
-   `data/README.md` updated for the CHAS removal and any new source pin;
-   GLOSSARY.md updated for the children's-mode vocabulary if introduced.
+- W1 `functions/api/postcodes.*` Pages Function proxy (no new runtime
+  dependencies; reads secrets from `env`).
+- W2 `src/lib/postcodes.ts` — geocode-fallback helper (fetch + point-in-
+  polygon over catchments; minimal, no new runtime deps).
+- W3 `src/components/StartHere.tsx` — wire fallback into submit flow,
+  loading state, keep not-found path.
+- W4 Tests (`node --test`, `tests/postcodes.test.mjs` + new files as
+  needed): point-in-polygon helper against the real `catchments.json`
+  (vector: PR7 2TH's coordinates → its containing hospice); degraded
+  path (fetch unreachable → clean not-found). The existing CF11 9HD /
+  BT15 3LH "not-found" pins become **fallback-resolves** vectors where
+  their points land inside a catchment (Research reports which do).
+- W5 ADR (proxy + fallback design; cites ADR-0014 deploy + the C6-3
+  normaliser ADR) + maintainer docs: Pages secret names, `wrangler
+  pages secret` setup commands, local dev via `wrangler pages dev` +
+  `.dev.vars`.
+- W6 Ops (`.agents/ops.md`): owner-executed secret setup, deploy = git
+  push (ADR-0014), rollback = revert (the proxy is additive; the app
+  degrades to today's behaviour without it).
 
 ## Acceptance criteria
 
-- **C6-1**: no NI-labelled cell polygon intersects the ROI side of the
-  NI–ROI boundary (validator or a new check reports this);
-  `validate-tessellation.mjs` still exit 0; en/sc/wales cells unchanged by
-  the clip.
-- **C6-2**: the tessellation validator reports a reduced pairwise-overlap
-  figure for SC cell pairs after the fix (Research sets the measurable
-  bar; at minimum the worst SC pair improves over the 0.0136/0.0269
-  baseline); no visible gaps between adjacent Scottish cells on the map.
-- **C6-3**: sampled real postcodes (including the owner's test case if he
-  supplies one) resolve to the correct hospice; mixed-case / no-space
-  input works; a genuinely unmapped postcode still shows the existing
-  not-found path; unit tests cover normalise + lookup + not-found.
-- **C6-4**: default view shows only adult hospices; the toggle to
-  children's mode hides every adult row (St Andrew's remains, as it is
-  dual-listed); the 20-row set renders; CHAB/CHAS is absent from all data
-  outputs and the merge asserts it; counts in `data/README.md` and the
-  ledger reconcile (208 total rows; PR/SD gates); prerender + sitemap
-  counts reconcile with the new data count (+7 invariant).
-- **All items**: two consecutive `npm run build` runs are byte-identical;
-  `npm run build-data` re-run is byte-identical; ADRs landed under
-  `docs/adr/` for C6-1 (clip) and C6-4 (children's mode); docs updated
-  from DevOps's ops plan.
+1. A postcode **not** in `practices.json` (e.g. `PR7 2TH`, and `CF11 9HD`
+   / `BT15 3LH` where their geocoded points lie inside a catchment)
+   resolves to the hospice whose catchment contains the point — verified
+   in the built app without code inspection.
+2. A postcode **in** `practices.json` (e.g. `LS1 4AP`) still resolves
+   offline with zero network calls.
+3. Unknown postcode (proxy 404) and unreachable proxy both land in the
+   not-found state — no throw, no broken UI, sensible copy.
+4. The CF Access client id/secret appear **nowhere** in the committed
+   tree, `dist/`, `.agents/`, or `docs/` (grep-verified at the Security
+   stage).
+5. Chain stays green and stable: `npm test`, `tsc -b && vite build`
+   byte-identical across two runs, prerender `<loc>` count invariant
+   (data count + 7).
+6. ADR + maintainer docs (secret setup, local dev) landed.
 
 ## Out of scope
 
-- Sourcing official catchments (the approximation line stays).
-- Adding/removing other hospices beyond the CHAS removal.
-- Changes to the Wales/Scotland/N.I. enumeration sources.
-- New runtime dependencies.
-- Search-beyond-postcode (e.g., free-text address geocoding) unless
-  Research proves the postcode failure is only fixed that way AND the
-  owner approves.
+- The C6-2 invariant-6 Scottish-overlap BLOCKING — separate HUMAN
+  DECISION REQUIRED section in `pipeline.md`; stays open, untouched by
+  C7.
+- C6-3's "later uncoded thread" — superseded by this explicit cycle.
+- Data/tessellation changes (`build-data`, `validate-tessellation`).
+- Push/deploy — James's ship gate.
+- Removing the offline `practices.json` lookup (it stays tier 1).
 
 ## Human gates
 
-1. **Push** — commit+push of the Cycle 6 ship commit (James runs it;
-   Cloudflare Pages auto-deploys `dist/`, ADR-0014).
-2. **Children's roster confirmation** — if Research flags any of the 20
-   rows as doubtful (or finds additional children's rows the name match
-   missed), the final list goes back to James. ni-r3's blank town needs a
-   display value from James (or a source pin).
-3. **Postcode test case** — if James can supply the exact postcode that
-   failed for him, it becomes an acceptance test vector.
-4. **CHAS removal** — already approved by James (gate resolved 2026-11-08).
-5. **NI boundary source** — if a new ODbL source (e.g., OSM boundary) is
-   pinned for the NI clip, the provenance pin follows the standard
-   `data/README.md` discipline; no separate gate expected, surfaced for
-   James at the ship gate.
+1. **Pages secrets** — James runs the documented `wrangler pages secret
+   put` commands (his Cloudflare account; pipeline never stores the
+   values).
+2. **Ship gate** — commit+push of the C7 ship commit (Cloudflare Pages
+   auto-deploy, ADR-0014).
+3. **Acceptance vectors** — `PR7 2TH`, `CF11 9HD`, `BT15 3LH` as pinned;
+   James may substitute his own failed postcodes.

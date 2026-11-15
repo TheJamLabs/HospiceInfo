@@ -1,276 +1,389 @@
-# ARCHITECTURE — Cycle 6 (NI clip, SC jitter gate, postcode fallback, per-kind tessellation)
+# Architecture — Cycle 7: Mobile Map Fix (375 px)
 
-**Date:** 2026-11-08
-**Inputs:** `.agents/research.md` (C6-1..C6-4 research record), working-tree
-verification (`build-data.mjs`, `validate-tessellation.mjs`, `StartHere.tsx`,
-`postcodes.ts`, `tests/postcodes.test.mjs`, `App.tsx` grep, `data/README.md`),
-ADRs 0006 / 0033, dispatch decision table.
+**Stage:** 2 (Architect) · **Date:** 2026-11-15 · **Supersedes:** the prior 419-line
+pre-renumber design in this file (the Cycle-8 copy is archived at
+`.agents/architecture-cycle8.md` and untouched).
+**Inputs:** `.agents/research.md` (P1–P6, OQ1–OQ6, R1–R5) + inline source facts
+verified 2026-11-14 in the handoff brief.
+**Deliverables this stage:** this file; `docs/adr/0038–0041`; one GLOSSARY.md
+EOF append. No source/data/config changes in this stage.
 
-Where the research record and the disk disagree, **the disk wins** — verified
-case in C6-3. The prior attempt's record is superseded by this file (git
-history). All line references are to the current working tree.
+## 1. Purpose and scope
 
----
+Make the ≤768 px experience (verified at 375 px) produce: a 4-line header
+(D1), a map-first first paint, at most two concurrently scrollable
+surfaces, and no element overlap — without changing desktop behaviour, data,
+config, or dependencies.
 
-## C6-1 — Northern Ireland catchments clipped to the NI admin ring
+In scope: new/extended media-scoped rules in `src/styles.css`; exactly two
+attribute-level DOM deltas + one static header button in React; one
+script-only change in `MapView.tsx` (guarded by R1 verification); one new
+deterministic React state.
 
-**Decision.** The NI clip ring is **OSM relation 156393** (admin_level 4
-"Northern Ireland / Tuaisceart Éireann", 929 way members, single closed
-outer ring, no holes), committed as `data-raw/roi-border.json` and applied
-**after** the land clip, guarded to `id.startsWith('ni')` catchments. The
-consumer is already wired on disk: `scripts/build-data.mjs` L118–130 (load +
-fail-fast `process.exit(1)` on missing/degenerate ring; logs relation
-id/name/points/fetchDate) and L273–274
-(`if (id.startsWith('ni') && clipped.length)
-clipped = intersection(clipped, roiRingPoly)`); the validator guard is
-invariant 5 (L109–141: fail-fast on missing file, `spill =
-area(intersection(cellPoly, roiPoly))` per NI cell, total `roiSpill`,
-exit 1 if `roiSpill >= 1e-9`). **The outstanding C6-1 work is the data
-artifact plus its provenance — no consumer code changes.** The committed file
-must be exactly what the in-flight fetch commits: Coding does not hand-edit
-or regenerate the geometry, and the `data/README.md` provenance row is
-derived from the committed file's fields on disk (RQ-1: no fabricated values).
+Out of scope: desktop layout (must remain pixel-identical), data pipeline,
+prerender pipeline mechanics, new dependencies, the Cycle-8 archive.
 
-**Rationale.** The land mask (ADR-0006) is island-scoped by construction
-(`fetch-uk-land.mjs` L38–42, box minLon −11.0; island ring OSM 62273), so the
-land clip removes nothing for NI — the ROI/sea halves of NI cells survive it
-and need the admin-boundary clip. The OSM admin ring is authoritative, ODbL,
-reproducible to fetch, and a single closed outer ring (no holes) means a
-single-polygon intersection needs no interior-ring handling. The fail-fast
-contract guarantees a missing ring can never ship unclipped data.
+## 2. Current state (verified 2026-11-14, from handoff inline facts)
 
-**Acceptance (measurable).**
-1. `data-raw/roi-border.json` exists with the full §Data-artifacts schema;
-   `ring` closed (first = last), `ringNodes >= 600` (in-flight fetch: 665),
-   `areaDeg2` within 5% of 5.54, `licence` exactly
-   `"ODbL v1.0, © OpenStreetMap contributors"`, `adminLevel === 4`.
-2. `node scripts/validate-tessellation.mjs` exits 0 with invariant 5 green:
-   total NI spill `< 1e-9 deg²` (implies `< 1e-9 deg²/cell`).
-3. `en`, `sc`, `wales` entries of `public/data/catchments.json` are
-   **byte-identical** to the pre-C6-1 baseline (clip is id-guarded); the
-   byte-identical rebuild ritual (double build, SHA-256 compare) is green.
-4. `data/README.md` provenance row per §Data-artifacts + the §Licences ODbL
-   line for this file.
+- `App.tsx`: `startHereOpen` initialized `true` (card open by default);
+ `sheetOpen` state + `closeSheet`; `select(id)` closes the sheet when an id is
+ set. `.app` div classes: `app` + `app-sheet-open` conditionally. Children:
+ `aside.app-panel` (HospicePanel), `div.app-map` (selection alert when a
+ hospice is selected; `<StartHere/>` when `startHereOpen`; `<MapView/>`;
+ `<Methodology/>`), `button.sheet-fab`, `button.sheet-scrim`.
+- `AppShell.tsx`: `NAV_LINKS` = 6 entries (Feedback, Corrections, About,
+ Privacy, Licences, Accessibility). Header row: 28 px logo + `h1.h4` "Hospice
+ Finder UK" + subtitle; theme group (Auto/Light/Dark); `headerExtras` (3
+ form-checks + "Source & Method"); 6 `.site-nav-link` links. Footer repeats
+ the same 6 links.
+- `StartHere.tsx`: card root has **no CSS class**; positioning is inline-style
+ only: `position:absolute; top:12; left:36; z-index:1000; width:320;
+ max-width:calc(100% - 48px)`. No mobile rule exists. Contents: postcode form
+ (uppercase, `pattern=[A-Z0-9 ]{5,8}`, 44 px submit), found/not-found alerts
+ with `feedbackMailto`, 3-persona accordion (patient, fundraiser, clinician).
+- `src/styles.css` (448 lines) — exactly three `@media` blocks:
+ 1. `max-width:768px` header block (~line 164): 44 px-form-checks, scaled
+ inputs, 44 px buttons, full-width theme row.
+ 2. `max-width:768px` sheet block (~line 323): bottom-sheet transform, FAB
+ with `bottom:calc(min(55vh,480px) + 14px)` under `.app-sheet-open`,
+ scrim, legend hidden, selection full-width.
+ 3. `max-width:1100px` footer block (~line 433): footer small full-basis.
+- Observed 375 px behaviour (P1–P6): header ≈ 4 lines; open card covers map +
+ Leaflet zoom controls; three stacked scroll regions (page, card, sheet);
+ ragged 6-link nav duplicated in footer; footer link contrast ≈ 7.5:1 in
+ dark (unconfirmed); map area crowded (selection card, StartHere, FAB,
+ attribution, map).
 
-**Files Coding touches.**
-- `data-raw/roi-border.json` (new — from the lead's in-flight fetch; if
-  absent/incomplete when Coding runs, refetch per research.md §5 notes —
-  plain way endpoints, `.full` 406s; ~20 way ids per batch; 404 on a red-lined
-  id → bisect — and verify the schema above).
-- `data/README.md` (provenance row + SHA-256 pin + licences line).
-- No script/component edits (read-only verification only).
+## 3. Hard-constraint compliance (GATE: `npm run check:layout`)
 
-**NOT in scope.** Land-mask box changes; clip ordering; validator threshold
-changes; bundling the one-off fetch into a permanent script.
+`scripts/check-map-layout.mjs` is a comment-stripping brace-depth parser that
+fails (exit 1) unless the **complete** set of `flex-direction` declarations
+anywhere in `src/styles.css` (all depths, including every `@media` block) is
+exactly:
 
----
+| # | Selector | flex-direction | Status after this design |
+|---|-------------------|----------------|--------------------------|
+| 1 | `.app` | `column` | unchanged |
+| 2 | `.app-body > .app`| `row` | unchanged |
+| 3 | `.legend-grid` | `column` | unchanged |
 
-## C6-2 — JITTER nudge + validator gate for Scotland cell overlap
+Compliance proof:
+- **No new `flex-direction` declaration is introduced anywhere** — no selector,
+ no media query. No existing declaration is removed or altered.
+- Every new rule in this design uses only: `display`, `visibility`,
+ `position`/`top`/`left`/`right`/`bottom`, `width`/`max-width`/`height`/
+ `max-height`/`min-height`, `overflow`, `z-index`, `border-radius`,
+ `box-shadow`, `padding`, `font-size`, and one custom property
+ (`--hf-sheet-h`). None of these is the `flex-direction` property.
+- Precedent that `display:flex`/`display:inline-flex` is not counted: existing
+ CSS already uses `.app{display:flex}` and passes the checker today; the
+ parser counts the `flex-direction` property only. The new toggle button uses
+ `display:inline-flex` on mobile (permitted, not counted).
+- The sheet-height variable is defined on `.app` **inside** the 768 px media
+ block, so the whole change surface stays scoped to size/visibility/
+ overflow/positioning under `max-width` media queries, per the constraint.
 
-**Decision.** The lever is the `JITTER` constant in `scripts/build-data.mjs`
-L206 (currently `1e-5` deg): **reduce it until the validator gate is green**,
-leaving the mechanism unchanged — 8-direction spiral `JDIRS` (L207),
-co-location buckets `lon.toFixed(6)+','+lat.toFixed(6)` (L229–236), offsets
-applied (L239–242), deterministic by label order. The chosen final constant
-is recorded in `.agents/implementation.md` together with the gate run that
-proved it. The acceptance gate is already shipped in the working tree:
-`validate-tessellation.mjs` invariants 5 (L109–141) and 6 (L142–149), the
-uncommitted `M` change.
+**Gate: `npm run check:layout` must exit 0** — run locally before handoff and
+kept in CI. Failure blocks the cycle.
 
-**Rationale.** The defect is co-located seed degeneration: global pairwise
-overlap baseline 0.0269 deg², worst SC pair **St Michael's vs St Michaels
-0.0136 deg²** (invariant 6's target, read at L142–149: **all SC×SC pairs of
-non-empty cells** over `scPresent`, plus a **zero-empty-SC-cells** check —
-`scEmpty.length > 0` → exit 1). A deterministic constant is the minimal,
-closed-form lever, and every change is re-proven by the full chain; the
-actual worst case is a two-member twin, which a single smaller nudge
-resolves. The ledger's "exit 0" baseline predates invariants 5–6, so
-**current data is expected red on invariant 6 (0.0136 ≥ 1e-6) and red on
-invariant 5 until `roi-border.json` lands — turning the validator green is
-the C6 acceptance gate, not a regression.**
+## 4. Design decisions
 
-**Acceptance (measurable).**
-1. `node scripts/validate-tessellation.mjs` **exits 0** — all invariants 1–6.
-2. Invariant 6: **0 empty SC cells** and **every SC×SC pair `< 1e-6 deg²`**
-   (worst pair, if any ≥ 0 deg², reported in `.agents/qa.md`).
-3. **No other-nation pair worsens**: global worst pairwise overlap (the
-   invariant-3 advisory, L120–128) `<= 0.0269 deg²`; new value reported in
-   `.agents/qa.md`.
-4. No *new* empty cell anywhere (invariant 4) vs the pre-C6-2 baseline (3
-   empty total, incl. `ni-r5` — no land in box).
-5. Byte-identical rebuild ritual green (the nudge is a pure function of fixed
-   label order and fixed constants).
+### D1 — Compress the mobile header to 4 lines (P1, P4) — CSS-only
 
-**Files Coding touches.** `scripts/build-data.mjs` (constant value only —
-no mechanism change); rebuild via the standard chain; no validator edits.
+Under the existing `@media (max-width:768px)` block, the header becomes:
 
-**NOT in scope.** Mechanism redesign (golden-angle spiral / per-group scaled
-offsets — considered, rejected for first move: the real worst pair is a
-two-member twin, and a mechanism change would touch every nation's cells at
-once); deduplicating co-located sites; loosening the `1e-6`/`1e-9` thresholds;
-per-hospice hand-pinning of Scottish cells.
+Line budget: **351 px** (375 px viewport minus 12 px padding each side).
+Per-row width estimates follow the reviewer's measurement that the full
+3-control row needs ≈660 px (≈143 px per form-check, ≈130 px for
+"Source & Method", ≈120 px for the "Start here" toggle, plus gaps):
 
----
+1. **Line 1** — logo + `h1` + subtitle (add `font-size:.75rem` to the
+ subtitle; its class is confirmed at implementation time — if absent, add a
+ static class, an attribute-level delta).
+2. **Line 2** — theme group, already a full-width row (existing rule kept).
+3. **Line 3** — the first two form-checks (layer toggles) only:
+ ≈2 × 143 px + gap ≈ 300 px ≤ 351 px. `font-size:.875rem` labels, existing
+ `min-height:44px` row rule kept.
+4. **Line 4** — the third form-check + the new "Start here" toggle (D2):
+ ≈143 px + 120 px + gap ≈ 275 px ≤ 351 px.
+5. **`.site-nav-link{display:none}`** — the 6 links are carried by the footer,
+ which is already the identical link set inside a 100 %-height flex column
+ (visible on mobile without any page scroll). Function loss: zero. React
+ loss: zero. → This is also the OQ3 answer. **"Source & Method" (≈130 px)
+ moves to the footer link row** — it is the one control that cannot fit a
+ 351 px line alongside the checks/toggle; DOM delta +1 footer link
+ (`AppShell.tsx`, in surface).
 
-## C6-3 — start-here postcode: normalise-then-exact, outcode+sector fallback
+Estimated header height: ~180 px (from ~200 px). The map gains **≈20 px** —
+an honest claim; a 3-line variant would only fit ≈430 px of controls, so the
+affordable gain at the 351 px budget is ~20 px (reviewer B1: "≥60 px" was
+false). This is a container-size change, so `invalidateSize()` is required
+(D4).
 
-**Decision.** Lookup is **exact-after-normalise first; on a miss, fall back
-to the same outcode+sector, chosen by latitude** (smallest latitude among
-practices whose normalised postcode starts with the input's outcode+sector
-prefix — e.g. `LS14AP` → `LS14` — deterministic tie-break by id). Two parts:
-(1) **verified on-disk state** — `src/lib/postcodes.ts` contains only
-`normalisePostcode` (strip non-alphanumerics, upper-case);
-`src/components/StartHere.tsx` already applies it at **both** call
-boundaries — practice map build L36 (`m.set(normalisePostcode(p.postcode), p)`)
-and submit L72 (`setSubmitted(normalisePostcode(postcode))`) — with the
-lookup at L39 a plain exact `Map.get`. **The research record's (and the prior
-architect record's) `matchPostcode` / `postcodeLookup` helpers do not exist
-anywhere on disk (repo-wide grep); the disk wins**, so the wiring the
-dispatch asked for is already complete and the outcode+sector tier is not
-"existing". (2) **Coding adds the fallback as a small testable helper in
-`src/lib/postcodes.ts`** (e.g. `findPracticeByPostcode(submitted, practices):
-Practice | null` — exact-normalised first, then the sector rule) and routes
-`StartHere.tsx`'s L39 lookup through it.
+### D2 — Mobile StartHere: CSS-gated top overlay, default open (P2, P6, OQ2)
 
-**Rationale.** Normalisation alone closes the reported brokenness class
-(lowercase / spacing / hyphens / ` UK` suffix against the 11,002 normalised
-practice postcodes) — James's failed postcode very likely resolves there.
-The sector fallback covers the residual class (the user's unit postcode ≠
-any registered practice's unit postcode, same sector) with a deterministic,
-unit-testable rule over data that already carries geocoded lat/lon, keeping
-the card useful without exposing internal flags (hide-not-delete, ADR-0012:
-not-found wording unchanged).
+DOM deltas (attribute-level only; see R4):
+- `StartHere.tsx` card root: **add class `hf-start-here`**, **remove the
+ inline `style` attribute**; its values move to a base CSS rule that is
+ pixel-identical on desktop:
+ ` .hf-start-here{position:absolute;top:12px;left:36px;z-index:1000;`
+ ` width:320px;max-width:calc(100% - 48px)}`
+- `App.tsx`: add `const [startHereMobileOpen, setStartHereMobileOpen] =
+ useState(true)` — **default open on mobile** (lead decision, option (b));
+ deterministic `true` in every environment (including the JSDOM prerender),
+ so server and client first renders match exactly. When the state is true,
+ the `.app` div gains class `hf-start-here-open`. `select()` sets the state
+ `false` alongside closing the sheet (existing behaviour), so a selection
+ never coexists with the card (OQ1). **`startHereOpen` is untouched**
+ (initial `true`, same logic) → element tree identical to today.
+- `headerExtras`: one **static** button `.hf-start-here-toggle` (text "Start
+ here", `aria-expanded` bound to the state), always rendered; CSS shows it
+ only on mobile.
 
-**Acceptance (measurable).**
-1. **Human gate 2**: James's failed postcode, entered verbatim (as he typed
-   it), resolves end-to-end — card shows his practice (name + postcode), the
-   hospice name + town, and "Open in panel" opens the correct route.
-2. `tests/postcodes.test.mjs` green and extended: the existing five
-   `normalisePostcode` asserts stay; new asserts cover (a) exact match wins
-   over the sector fallback, (b) fallback picks the smallest-latitude
-   practice in outcode+sector, deterministic id tie-break, (c) no fallback
-   when no practice shares the sector → not-found path, (d) inputs shorter
-   than 4 normalised chars get no fallback.
-3. A byte-exact unit postcode that matched before still matches (exact tier
-   ordering unchanged); not-found wording unchanged (neutral, greppable, no
-   internal flag named).
+Mobile CSS (new rules inside the 768 px block; **order matters** — the
+sheet-wins rule is last):
+```css
+.hf-start-here{display:none} /* mobile: hidden until the toggle opens it */
+.hf-start-here-open .hf-start-here{
+ display:block;position:absolute;top:12px;left:12px;right:44px;
+ max-width:none;max-height:min(75vh, calc(100% - 72px));overflow-y:auto;
+ z-index:1700;padding:12px;border-radius:12px;
+ box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.app-sheet-open .hf-start-here{display:none} /* sheet always wins */
+.leaflet-top.leaflet-left{left:auto;right:10px} /* zoom → top-right */
+.app-selection{max-height:min(45vh,260px)} /* selection card capped */
+```
+Geometry (reviewer B2, matches ADR-0038 re-issue): `top:12px; left:12px;
+right:44px` → **319 px card width at 375 px**; the 44 px right band keeps the
+"Open list" FAB and the top-right zoom controls clear; `max-height:min(75vh,
+calc(100% - 72px))` keeps the card above the map's bottom UI; the
+`.app-selection` cap keeps the selection card from covering the FAB. The card
+is a fixed-width box, not a full-width sheet — the map stays visible and
+interactable around it (left margin 12 px, right band 44 px).
+Z-order: sheet 1600 < start-here 1700 < FAB 2000. The card overlays the sheet
+if both were open, then the last rule hides it; the FAB stays reachable above
+everything. Implementation note: if `leaflet.css` loads after `styles.css`,
+bump the zoom-control rule to `.app-map .leaflet-top.leaflet-left`.
 
-**Files Coding touches.** `src/lib/postcodes.ts` (new helper),
-`src/components/StartHere.tsx` (route the L39 lookup through it),
-`tests/postcodes.test.mjs` (new asserts).
+Desktop: no 768 px rule applies → byte-identical look via the base rule that
+mirrors the former inline values.
 
-**NOT in scope.** Input `pattern`/`maxLength` changes; data-side postcode
-normalisation (already in the build); locality search; changes to the
-feedback-mailto note.
+### D3 — Scroll-region budget (P3, OQ1)
 
----
+Defined and enforced in §5 OQ1. Summary: map + at most one reachable DOM
+scroll surface, always; enforced by construction (page has no overflow), by
+the D2 display rule (sheet excludes card), by React behaviour (`select()`
+closes the sheet **and** the mobile StartHere card — so selection never
+coexists with card or sheet), and by z-order reachability (a covered surface
+does not count).
 
-## C6-4 — per-kind tessellation; children's mode
+### D4 — Map resize handling (R1)
 
-**Decision.** **Adult and children catchments run as two independent
-`tessellate()` passes** — `tessellate(adultSites)` and
-`tessellate(childrenSites)` — so the two sets share **no Voronoi vertices**:
-each pass seeds only its own sites plus the geocoded practices assigned to
-those sites. This is **already implemented on disk** (the `tessellate`
-definition at L210–214; the per-kind calls at L283–285), and the App view
-layer is complete (`src/App.tsx`: `childrenMode` state L50,
-`activeHospices`/`activeCatches` filtered on `children === childrenMode`
-L63–69, `#childrenToggle` L147–156 "the two sets, and their catchment areas,
-are completely separate"). **Coding's remaining C6-4 work is the two thin
-spots:** (a) the route-level HospiceDetail view must apply the mode filter —
-a detail route reached in one mode renders that mode's set; (b)
-`StartHere.tsx`'s navs (`onOpenHospice` from the found card, `onOpenShopSearch`
-from the fundraiser section) must carry/preserve the mode flag so a
-children-mode user lands in children-mode detail. Data edge cases are
-resolved at the human gates and verified by Coding: **St Andrew's (Grimsby)
-ships in BOTH sets** (children + adult rows, catchment in both);
-**`sc-oscar-019724` (CHAS umbrella) is removed entirely** from
-`data-raw/hospices-all.json`; **ni-r3's blank town** takes James's gate-1
-value (no blank `town` in shipped `hospices.json`).
+The mobile layout restacks `.app` into a flex column, so the map panel's
+height changes **without any window-resize event**: the header compresses
+(D1), the card opens/closes (D2), and the sheet opens/closes (D5) all resize
+the map container. The map therefore needs a container-size trigger, not
+merely a window listener. Inspect `MapView.tsx` first: if it already calls
+`invalidateSize()` on the appropriate triggers (window resize, container
+change), no script change is needed. If not, add a `ResizeObserver` on the
+map container that calls `invalidateSize()` — covers every container-size
+change above, script-only, no new dependency, no import-style change beyond
+existing Leaflet API.
 
-**Rationale.** Per-kind separation prevents cross-kind practice assignment
-(a children-only practice must not carve an adult cell) and stops children's
-boundaries warping adult geometry; a shared vertex set could not guarantee
-that. A view-level two-state toggle (default adult) leaves the first-load
-public map untouched. The edge-case choices are data-level curation and
-belong at the gates; the architecture pins only their downstream effect.
+### D5 — Sheet-height token (R2)
 
-**Acceptance (measurable).**
-1. **No shared vertices**: the set of raw `[lon,lat]` vertices of
-   `children: true` catchments and of `children: false` catchments in
-   `public/data/catchments.json` is disjoint (verify with a short one-shot
-   node comparison; report in `.agents/qa.md`).
-2. Adults mode renders only `children === false` hospices/catchments;
-   children's mode only `children === true` (App.tsx filters — QA spot-check
-   per nation).
-3. HospiceDetail route: detail pages reached from list/search in each mode
-   are consistent with the active mode (QA: toggle in both modes, open a
-   detail from each).
-4. Data completeness: St Andrew's (Grimsby) rows present in both sets;
-   `sc-oscar-019724` absent from `hospices-all.json`; ni-r3 `town` non-blank
-   (gate-1 value) in `public/data/hospices.json`.
-5. Byte-identical rebuild ritual green.
+Replace the duplicated `min(55vh,480px)` literal with a single custom
+property: `.app{--hf-sheet-h:min(55vh,480px)}` (inside the 768 px block), then
+`.app-panel{height:var(--hf-sheet-h)}` and
+`.app-sheet-open .sheet-fab{bottom:calc(var(--hf-sheet-h) + 14px)}`. One value,
+two consumers — the FAB and sheet can never drift apart, which removes the
+root cause of the overlap in both screenshots.
 
-**Files Coding touches.** `src/App.tsx` (route-level detail view mode
-filter), `src/components/StartHere.tsx` (nav callsites carry the flag),
-`data-raw/hospices-all.json` (edge-case rows as resolved at the gates).
+### D6 — Footer contrast, verify-first (R3)
 
-**NOT in scope.** Re-keying children rows; a new designation source; toggle
-UI/visual redesign; map-layer changes.
+In-browser WCAG check of the footer links in both themes. ≥4.5:1 in both →
+record the measured values in `qa.md` and make no change. <4.5:1 in any theme
+→ add `.app-footer a{color:var(--hf-footer-link)}` per theme (new custom
+property, **scoped to the ≤768 px media block** (reviewer RA3), footer-scoped
+only — no global `--bs-link-color` override, no desktop change; see OQ4).
 
----
+## 5. Open questions (resolved in this design)
 
-## Data artifacts
+### OQ1 — What counts as a "scrollable region", and what is the budget?
 
-**`data-raw/roi-border.json` — schema (frozen):**
+Definition: a scrollable region is the map (always counts as 1) plus any
+reachable, non-covered DOM surface with `scrollHeight > clientHeight` and
+`overflow-y:auto|scroll`. A surface fully covered by a higher-z surface is not
+reachable and does not count. Budget: map + at most one reachable surface,
+in every visible state.
 
-| field | type | contract |
+State matrix (state → reachable scrollable surfaces):
+
+| State | Reachable scrollable surfaces |
+|---|---|
+| Card open (mobile default) | map + card (2) |
+| Card closed (toggle off), no selection | map only (1) |
+| Selection only | map + selection card (2); `select()` closes the mobile card in the same step (D2), so card and selection never coexist |
+| Sheet open, no selection | map + sheet (2); card hidden by rule |
+| Sheet open + selection | **unreachable** — `select()` closes the sheet before the selection renders (D3) |
+| Card open + selection alert | map + card (2); alert inside `div.app-map` is capped (D2), page itself has no overflow |
+
+The page (`html`/`body`/`.app`) must keep no overflow at ≤768 px, so the
+matrix ceiling is 2. No `:has()` used — reachability is enforced by the
+`display:none`/z-order rules above, which are plain descendant combinators.
+
+### OQ2 — Default open vs default closed for the mobile StartHere card?
+
+Default **open** on mobile (`startHereMobileOpen` initial `true`, D2 — lead
+decision, option (b)); default **open** on desktop (unchanged `startHereOpen`
+initial `true`) — one deterministic initial value, no client branching.
+Rationale (reviewer B3): the acceptance block requires map + postcode search
+in the **primary viewport** at 375 px; a default-closed card fails it. The
+B2 geometry (319 px wide, ≤75vh) keeps the card small enough that the map
+stays visible and interactable — zoom (44 px right band), FAB, and the
+selection cap all stay clear — and the card is closable via the toggle at
+any time.
+
+### OQ3 — Header nav links: hide or reflow?
+
+CSS-only `.site-nav-link{display:none}` (D1.4). The footer already carries the
+identical 6-link set, visible on mobile without page scroll — no function
+loss, no React change.
+
+### OQ4 — Contrast fix scope (lead supplement to architect's handoff)
+
+Footer-scoped, **mobile-reach only (≤768 px)** (reviewer RA3). If D6's
+measure fails, the fix is `.app-footer a{color:var(--hf-footer-link)}` per
+theme inside the 768 px block — never a global `--bs-link-color` override,
+which would re-tint every link site-wide (header, alerts, cards) and blow up
+the change surface beyond mobile. The target is
+confirmed by an in-browser WCAG measurement in both themes, recorded in
+`qa.md` (static math for both dark values lands in the passing zone, so the
+expected outcome is "record, no change").
+
+### OQ5 — FAB form: reserved strip vs sheet handle (lead supplement)
+
+Keep the existing centered "Open list" pill unchanged in form; this change is
+positioning-only — it rides above the sheet via the D5 `--hf-sheet-h` token.
+No reserved strip over the map (would shrink the map, the thing we are
+enlarging), no handle/grabber (extra surface, no contrast benefit). The
+Leaflet attribution lives bottom-right; the center pill does not obstruct it
+at 320 px.
+
+### OQ6 — Map min-height expression (lead supplement)
+
+Add **no** min-height: `.app` is a flex column and the map takes the flex
+remainder, so a min-height would only force the page into scroll and break
+the OQ1 budget. Fallback if the §8 screenshot matrix shows the map collapsing
+when the sheet is closed: `.app-map{min-height:50dvh}` (dvh survives iOS
+URL-bar resizing) with a px fallback line above it, and revisit D4.
+
+## 6. Change manifest
+
+| File | Change | Gate |
 |---|---|---|
-| `relationId` | string | `"156393"` |
-| `relationName` | string | OSM name (e.g. `Northern Ireland / Tuaisceart Éireann`) |
-| `adminLevel` | int | `4` |
-| `source` | string | fetch endpoint path used |
-| `licence` | string | `ODbL v1.0, © OpenStreetMap contributors` (exact string) |
-| `fetchDate` | string | ISO date of the fetch |
-| `fetchedAt` | string | ISO timestamp |
-| `memberWays` | int | 929 (way members of the relation) |
-| `fetchedWays` | int | ways successfully fetched (929 on the in-flight run) |
-| `vanishedWays` | int | ids 404ed during fetch (0 expected; non-zero → note in README) |
-| `ringNodes` | int | outer-ring node count (665 in-flight) |
-| `areaDeg2` | float | ring area in deg² (≈ 5.54) |
-| `bbox` | `[minLon, minLat, maxLon, maxLat]` | ring bounds |
-| `ring` | `[[lon,lat],...]` | **closed** outer ring (first = last) |
+| `src/styles.css` | New/extended rules in the 768 px block (D1, D2, D3, D5) + base `hf-start-here` rule + optional footer-link rule (D6); the `--hf-sheet-h` token | `npm run check:layout` must exit 0 (pure CSS, zero `flex-direction`) |
+| `src/components/StartHere.tsx` | +class `hf-start-here` on card root; −inline `style` attribute | build + prerender DOM diff |
+| `src/App.tsx` | +`startHereMobileOpen` state (init `true`); +`hf-start-here-open` class on `.app` when true; `select()` also sets it `false` (with the sheet close); +"Start here" static button in `headerExtras` (`aria-expanded`) | build + prerender DOM diff |
+| `src/components/MapView.tsx` | Only if R1 unobserved: container `ResizeObserver` → `invalidateSize()` | build |
+| `src/components/AppShell.tsx` | +1 footer link for "Source & Method" (D1); plus the toggle button if `headerExtras` lives there | build |
 
-**Provenance row — `data/README.md`** (table `| File | Source | Fetched | Notes |`):
+No data, no config, no dependency, no prerender-pipeline change. Desktop
+diff: byte-identical bytes except the class/style relocation on the StartHere
+card (same computed styles).
 
-`| data-raw/roi-border.json | OSM relation 156393 — admin_level 4 Northern Ireland boundary (OSM way API) | <fetchDate> | ODbL v1.0, © OpenStreetMap contributors · 929 way members, single closed outer ring (areaDeg2 ≈ 5.54) · clips NI catchments only (ADR-0034) · SHA-256 <hash> |`
+## 7. Risks
 
-plus one line in `data/README.md` §Licences & Attribution adding
-`roi-border.json` to the ODbL list. `<hash>` = `Get-FileHash` on the committed
-file.
+| # | Risk | Mitigation |
+|---|------|------------|
+| R1 | Map not invalidated after header compress (map shifts/stale canvas) | D4 verify-first; `invalidateSize()` on container change |
+| R2 | FAB and sheet height drift (overlap regression) | D5 single `--hf-sheet-h` token, two consumers |
+| R3 | Footer link contrast below 4.5:1 in a theme | D6 verify-first, footer-scoped fix only |
+| R4 | Prerender/client DOM mismatch from the new DOM deltas | All new state deterministic (`true` init); button static; verified in §8.2 |
+| R5 | A state exceeds the ≤2 scroll-region budget | OQ1 matrix; §8.5 automated count |
+| R6 | Hydration mismatch if any state is non-deterministic | §8.2 diff; `startHereMobileOpen` is `true` everywhere |
+| R7 | Zoom controls covered by the selection card in some state | Accepted: card is capped (D2), zoom moved top-right; visual check in §8.7 |
+| R8 | Focus loss when the card/sheet close | §8.9 a11y pass: return focus to the toggle/FAB on close |
 
-## Human gates
+## 8. Verification
 
-| # | Gate | Owner | Unblocks |
-|---|---|---|---|
-| 1 | **ni-r3 town** — the display name for the ni-r3 row (blank `town` in the register) | James | C6-4 acceptance 4 |
-| 2 | **James's failed postcode** — the exact raw string as he typed it; the C6-3 end-to-end vector | James | C6-3 acceptance 1 |
-| 3 | **Ship/push** — final: validator exit 0 (invariants 1–6), byte-identical ritual green, all four issues landed, ADRs + glossary present; James approves publish + push | James | publication |
+1. `npm run check:layout` exits 0 (gate).
+2. `npm run build` + prerender: DOM diff between desktop build and the new
+ build = exactly +1 header button, card class/style relocation. No other
+ attribute changes.
+3. Screenshot matrix at 375×812, dark + light, 5 states (OQ1 matrix rows):
+ header ≤ 4 lines (D1); map visible first paint; no element overlap; FAB
+ clear of sheet; zoom controls visible.
+4. `document.documentElement.scrollHeight <= window.innerHeight` in all 5
+ states (no page scroll).
+5. Reachable scrollable-region count ≤ 2 in all 5 states (OQ1 definition).
+6. Footer link contrast measured in both themes; values recorded in
+ `qa.md`.
+7. Marker alignment: after opening/closing the card, opening the sheet, and
+ triggering a resize — markers and tiles stay aligned (R1).
+8. At 320 px: nothing overflows horizontally; zoom controls do not overlap
+ the selection card beyond the accepted R7 condition.
+9. a11y: Tab order includes the new toggle before the map; `aria-expanded`
+ updates; focus returns to the control when its panel closes (R8).
 
-(Fetch matrix already complete per the ledger; no raws in transit.)
+## 9. Alternatives considered (rejected)
 
-## Finalised GLOSSARY terms (Cycle 6)
+- **A — Shrink-but-keep-open the card**: still covers map + zoom; complaint
+ remains.
+- **B — Second bottom sheet for StartHere**: two bottom sheets compete for
+ the same vertical space; the OQ1 budget is harder to hold; more DOM.
+- **C — `matchMedia` to react to viewport on init**: non-deterministic across
+ prerender/client; exactly the hydration risk R6 exists to avoid.
+- **D — Hamburger menu for the six links**: extra surface to build and test
+ for functionality the footer already provides.
+- **E — Dedicated position FAB (strip/handle)**: shrinks the map; OQ5.
 
-- **admin ring**: the OSM admin-boundary polygon of a nation. The NI ring is
-  OSM relation `156393` (single closed outer ring, committed as
-  `data-raw/roi-border.json`); NI catchments are clipped to it after the land
-  clip (ADR-0034).
-- **spill**: the area of a catchment cell that falls outside the forbidden
-  region. Invariant 5 bounds NI spill at `< 1e-9 deg²` per cell (total
-  `roiSpill` gates the validator exit).
-- **sliver**: a non-empty cell below 0.0002 deg² — a validator warning class,
-  distinct from degenerate cells (`polygons: []`).
-- **JITTER nudge**: the deterministic 1e-5 deg spiral offset of co-located
-  seed points (8-direction spiral, toFixed(6) co-location buckets, applied
-  before the Voronoi pass) that keeps the Delaunay triangulation
-  non-degenerate — the C6-2 lever (ADR-0034).
+## 10. Glossary
+
+One EOF append to `GLOSSARY.md`: `## Cycle 7 (2026-11-14) — mobile` with the
+terms **Start here card**, **Scroll-region budget**, and the layout gate
+`check:layout` (see §10 of the architect brief for exact wording). No entry
+may reuse "sliver" (a validator cell term already in GLOSSARY).
+
+## 11. ADRs
+
+- `docs/adr/0038-mobile-start-here-css-disclosure.md` — StartHere becomes a
+ CSS-gated, default-open mobile overlay (D2); class in, inline style out;
+ deterministic state `startHereMobileOpen` (init `true`).
+- `docs/adr/0039-mobile-nav-carried-by-footer.md` — header
+ `.site-nav-link{display:none}` on mobile; footer is the mobile nav; zero
+ function loss.
+- `docs/adr/0040-mobile-scroll-region-budget.md` — map + ≤1 reachable surface
+ invariant; definition and state matrix (OQ1); enforcement by construction.
+- `docs/adr/0041-sheet-height-token.md` — `--hf-sheet-h` custom property
+ unifies sheet and FAB offsets; removes the duplication that caused the
+ overlap.
+
+## Rework log (2026-11-15)
+
+Round 1 of 2, applied by the lead in-session after review
+`.agents/review-cycle7.md` (FAIL: B1, B2, B3; RA1–RA5). Subagent dispatches
+#1–#5 all died zero-write against the 58,920-token context wall, so the
+findings were absorbed directly. Changes made:
+
+- **B1** (header math): D1 rewritten to 4 lines with the 351 px line budget
+ and per-row width estimates; "Source & Method" moves to the footer;
+ map-gain claim corrected to ≈20 px (§1 claim updated to match).
+- **B2** (card geometry): D2 mobile rule now `top:12px;left:12px;right:44px;
+ max-height:min(75vh, calc(100% - 72px))` with the clear-of-FAB/zoom
+ rationale stated; geometry note added.
+- **B3** (default state): `startHereMobileOpen` initial `true` — mobile card
+ default open; OQ2 flipped with rationale; manifest, §2, D3, R4, R6 and
+ ADR-0038 line updated for `true`.
+- **RA1**: OQ1 matrix row "Selection only" — `select()` closes the mobile
+ card in the same step; card and selection never coexist.
+- **RA2**: OQ1 matrix row "Sheet open + selection" marked **unreachable**
+ with the D3 reason.
+- **RA3**: D6 + OQ4 — contrast fix scoped to the ≤768 px media block.
+- **RA4**: D4 — rationale added: header/compress and card/sheet changes
+ resize the map container without a window-resize event, so the
+ `ResizeObserver` covers container-size changes.
+- **RA5**: no action (informational).
+
+§8 verification item 3 now reads "header ≤ 4 lines (D1)". No other sections
+changed. Next gate: Reviewer re-review.
