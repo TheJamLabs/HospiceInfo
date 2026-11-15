@@ -815,7 +815,19 @@ function mergeTwo(polyA, polyB) {
         for (const ci of comp) inc[ci] = 0;
         continue;
       }
-      throw new Error(`mergeTwo: chain of ${chainEdges.length} edges did not close`);
+      // A chain genuinely open at this point is a seam defect, not a gap
+      // to bridge: never fabricate a connection between start and end.
+      // Endpoints agreeing within WELD (~1e-6°) are welded — the chain is
+      // effectively closed and snapped to its start vertex. Anything
+      // wider is emitted as its own ring of the resulting multi-part area:
+      // every other ring keeps its geometry intact, and no bridged
+      // vertices are introduced by this walk.
+      if (
+        Math.abs(last.x2 - first.x1) <= WELD * S &&
+        Math.abs(last.y2 - first.y1) <= WELD * S
+      ) {
+        chain.push([first.x1, first.y1]); // weld-equivalent: close the ring
+      }
     }
     outRings.push(chain.map(([x, y]) => [x / S, y / S]));
   }

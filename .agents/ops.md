@@ -386,3 +386,180 @@ advisories, port 5173, `npm ci` rule) unchanged.
 file. The pre-push checklist (§3) is the single point of
 publish-gating; rollback (§4) is the single point of crisis response;
 the smoke checks (§5) are the acceptance test after every push.*
+---
+
+## Cycle 6 — Landing (2026-11-13)
+
+Stage 8 re-pass for the Cycle 6 delta (2026-11-10 coding pass): the
+site-owner's four issues — C6-1 NI catchments clipped to the NI admin
+ring, C6-2 Scottish border fit (adjacent-only edge merge + jitter),
+C6-3 postcode-search normaliser, C6-4 children's mode (per-kind
+tessellation, ADR-0035). QA (stage 6) **PASS, 0 Blocking** (Q6-1/Q6-2/
+Q6-3 Informational — `.agents/qa.md`); Security (stage 7) **PASS, 0
+Blocking** (SEC6-01..04 risk-accepted debt — `.agents/security.md`).
+State verified read-only 2026-11-13: working tree = **22 tracked
+modifications + 5 new untracked paths** on top of HEAD `f141a71` — the
+C6 work is **UNCOMMITTED**, and `f141a71` ("Land ADR-0033 Wales",
+human-approved 2026-11-08) is itself **unpushed**: local `main` is 1
+ahead of `origin/main` (`a6791d5`). `f141a71` is part of the pending
+push, not a defect (see publish plan). Everything in §1–§7 above that
+is not overridden here (deploy topology, ADR-0014 git-connected
+publish, §4 rollback model, §7 standing chain) remains in force.
+
+**Landing figures (disk-verified 2026-11-13).** **208 hospices:
+en 152, sc 33, wales 17, ni 6** (209 at `f141a71` minus the CHAS
+umbrella row, removed per James's scope gate). 20 rows carry the
+`children` flag, stamped by `scripts/merge-hospices.mjs` (static
+CHILDREN_IDS list; St Andrew's, Grimsby, in BOTH modes per gate
+2026-11-08). `public/data/hospices.json` = 208 rows;
+`public/data/catchments.json` = 194 entries. New raw input
+`data-raw/roi-border.json` (C6-1 clip ring): OSM relation 156393
+(admin_level 4, Northern Ireland / Tuaisceart Éireann), 18,422 ring
+nodes, areaDeg2 2.685914, ODbL v1.0, fetched 2026-11-10, 878,999 B —
+SHA-256 pinned in `data/README.md:44`. C6 jitter applied at build (from
+the pre-crash log lines below): 2,445 co-located vertices (±1e-4 deg)
++ 7,700 others (±1e-5 deg). Expected post-build: **216 shells** (208
+hospice + 8) and **215 `<loc>`** = 208 + 7 (prerender self-assert).
+The `f141a71` baseline (pre-C6, `pipeline.md` ledger): 209 rows / 195
+cells / pairwise overlap 0.0269 deg² (pre-jitter) / 3 empty cells /
+11,002 of 11,014 placed / 138 shops / 216 `<loc>` (209 + 7).
+
+**Post-landing re-run chain (fresh 2026-11-13 pass — Step 2 BLOCKING).**
+
+| Step | Result |
+|---|---|
+| `node scripts/merge-hospices.mjs` | exit 0; 208 merged (en 152, sc 33, wales 17, ni 6), curated: 20, CHAS excluded, `children` flagged on 20, count-mismatch exit-1 guard in place; re-run idempotent — output SHA-1 unchanged |
+| `npm run build-data` | **exit 1 — BLOCKING.** `Error: mergeTwo: chain of 9 edges did not close` thrown at `scripts/build-data.mjs:676` (mergeTwo), call chain `tessellate:845 ← main:886`, Node v22.23.1. Reproduced twice (2026-11-13) on byte-identical inputs (~110–180 s); deterministic (green-green crash, disk unchanged). Pre-crash log: `roi border: relation 156393 (Northern Ireland / Tuaisceart Éireann), 18423 ring points, fetched 2026-11-10` / `hospices: 208 (unplaced: 14)` / `tessellation offsets: 2445 co-located vertices (±1e-4 deg) + 7700 others (±1e-5 deg)`. Throws before any `public/data/` write — committed data SHAs re-verified unchanged after the runs |
+| `node scripts/validate-tessellation.mjs` | **not run** — chain stops at Step 2 (§7.1 fail-fast) |
+| `npm run build` ×2 | **not run** — chain stops at Step 2 |
+| `npm run check:layout` | **not run** — chain stops at Step 2 |
+| `npm test` | exit 0; 3/3 pass (~0.5 s) — C6-3 `normalisePostcode` vectors: LS1 4AP positive resolution via committed `public/data/practices.json`; CF11 9HD and BT15 3LH clean not-found (no throw) |
+| `npm audit --omit=dev` | 0 vulnerabilities (re-verified this pass; SEC6-01 dev-only xlsx@0.18.5 HIGH / esbuild MEDIUM debt unchanged, out of gate scope) |
+
+**Chain verdict — ship gate BLOCKED on Step 2 (Blocking, documented;
+ops does not fix).** The C6 `public/data/*.json` in the working tree is
+what the 2026-11-10 coding pass built (QA/Security verified it on
+disk), but ADR-0030's reproducibility claim — fresh clone + canonical
+chain reproduces the deployed bytes — now **fails at build-data**, so
+those bytes cannot be re-produced by the chain that must own them. A
+**Coding fix pass (lead-directed)** to root-cause and fix the mergeTwo
+open-chain throw, followed by the full §7.1 chain green (including the
+two new C6 gates `npm test` and `npm audit --omit=dev`), is required
+before the C6 commit is carved. Evidence boundary: QA's vm-sandbox
+slice harness over `mergeTwo` (Q6-1) **PASSED** — the adjacency rule is
+verified on the classified L/L corner inputs — but the full
+tessellation run throws on a 9-edge open chain, i.e. **the failing
+input is outside the harness's classified set**; expected same
+degeneracy family as C6-2 (L/L corner / T2 stub; Q6-1/Q6-2). This
+section is read-only: no code changed, no fix applied.
+**SHA pins (C6 delta, measured 2026-11-13; `data/README.md` re-pin
+remains due once the chain is green).**
+
+| File | Pin |
+|---|---|
+| `data-raw/roi-border.json` (NEW, 878,999 B, OSM rel 156393, ODbL v1.0) | SHA-256 `b34313501e28bd6429857646b48da6136309c057685b606e7378ed27572f98c6` |
+| `data-raw/hospices-all.json` (merged, 208) | SHA-1 `c06de9b9a260938d65350cd973c2c1dd1e4f989d` |
+| `public/data/hospices.json` (208 rows) | SHA-1 `a32230eee8843ee1ad11cfa1667b1473ffaf2f0c` |
+| `public/data/catchments.json` (194 entries) | SHA-1 `b74e5769db46e6361715ca63130b841d7a841757` |
+| `public/data/practices.json` | SHA-1 `088d08ef8fd180a9c00bec4e7336a6119bb5446e` |
+| `public/data/shops.json` (138) | SHA-1 `2d631214cfa12c16a8155e8c27e5ecdf693c93b1` |
+
+All six pins are stable across the crashing runs (re-verified
+before/after). The `public/data/*` rows hash the coding-pass disk
+bytes; when the C6 chain first goes green, build-data output may
+re-write them and the `data/README.md` pins must be re-verified against
+the final byte-identical output (ADR-0030: pin the shipped bytes).
+
+**Publish plan (gated — see chain verdict; do not ship while Step 2 is
+red).** Commit scope = the verified C6 delta, 22 tracked modifications
++ 5 new untracked paths: `scripts/build-data.mjs`,
+`scripts/validate-tessellation.mjs`, `scripts/merge-hospices.mjs`,
+`src/App.tsx`, `src/components/StartHere.tsx`, `src/lib/types.ts`,
+`src/lib/postcodes.ts` (NEW), `tests/postcodes.test.mjs` (NEW, under
+`tests/`), `data-raw/hospices-all.json`, `data-raw/roi-border.json`
+(NEW), `public/data/hospices.json`, `public/data/catchments.json`,
+`public/data/practices.json`, `public/data/shops.json`, `data/README.md`,
+`package.json` (C6 diff = the `"test": "node --test"` script only —
+SEC-4-01 closed), `docs/adr/0034-ni-clip-and-sc-jitter-acceptance.md`
+(NEW), `docs/adr/0035-per-kind-tessellation-childrens-mode.md` (NEW),
+`.agents/research.md`, `.agents/architecture.md`, `.agents/feature.md`,
+`.agents/implementation.md`, `.agents/qa.md`, `.agents/security.md`,
+`.agents/pipeline.md` (7), `GLOSSARY.md`, `QWEN.md`. The push carries
+**two commits** on top of `origin/main` (`a6791d5`): `f141a71` (ADR-0033
+Wales landing — approved 2026-11-08, rides along as part of the pending
+push, not a defect) + the C6 commit. ADR-0014: the push to `main` IS
+the publish — Cloudflare Pages project `hospiceinfo` (git-connected)
+runs `npm ci && npm run build` and publishes `dist/`; a failed Pages
+build does not replace the live site. Human ship gate: James
+(commit + push, ledger gate 1) — **currently BLOCKED** by Step 2 above.
+Post-push publish truth = the Pages deploy log (no CI to consult — see
+tooling gaps below); run the smoke checks below only after the deploy
+reports success.
+**Post-publish smoke checks (Cycle 6, against `https://hospiceinfo.pages.dev`):**
+
+1. `GET /` → 200, "Hospice Finder UK".
+2. `GET /sitemap.xml` → **215 `<loc>`** = 208 + 7 (prerender self-assert); `GET /robots.txt` → 200, 75 bytes (unchanged).
+3. **216 shell survey**: index, 6 info pages, **208 `hospice/*.html`**, `404.html` all present; sample 1 new Wales page (the `f141a71` landing, `ww-` id), an NI page (`ni-*`), the two SC St Michael's / St Michaels pages (C6-2 fit), one children's hospice page → 200.
+4. **NI border (C6-1)**: every NI cell lies **inside the NI admin ring** — no polygon fill crossing into ROI or out to sea on the ROI side of the border; Belfast Lough region eyeballed.
+5. **No RI bleed (C6-1 Amendment 2 Option A residual)**: no new RI bleed beyond the documented en/wales residual (3.5658 / 0.3100 deg², SEC6-03 accepted debt) — en/wales cells do not visibly touch Irish land.
+6. **Children's mode (C6-4)**: default OFF → children's rows filtered out of all four datasets; toggle ON (`#childrenToggle`) → children's catchments only (20, incl. St Andrew's Grimsby), no interleave with adult catchments (per-kind tessellation); selection clears on toggle; toggle back restores the adult view.
+7. **Postcode search (C6-3)**: type `ls1 4ap` (lowercase, no space) → normalised, resolves to a practice → catchment → hospice card; `CF11 9HD` and `BT15 3LH` → clean not-found, no exception.
+8. Map counts: England 152, Scotland 33, Wales 17, NI 6; 194 catchment polygons render in adult mode.
+
+**Definition of healthy — updated for Cycle 6.** 208 UK hospices
+(en 152, sc 33, wales 17, ni 6); 20 rows children's-flagged (St
+Andrew's Grimsby in both modes); 194 catchment cells; NI spill
+**0.000000 deg²** (invariant 5, `area(difference(cell, roiRing))`
+form, GREEN at the 2026-11-10 coding pass); SC pairwise overlap gate
+**< 1e-6** (invariant 6 — post-jitter measured value **pending** the
+full validator run, currently blocked behind the Step-2 fix; the
+`f141a71` pre-jitter baseline 0.0269 deg² / worst pair St Michael's vs
+St Michaels 0.0136 deg² is documented as pre-fix state, superseded once
+green); coverage 100.00% against the UK-land-only target (Amendment 2
+Option A); documented residual: en/wales ROI spill 3.5658 / 0.3100
+deg² (SEC6-03, accepted debt); 3 empty cells (incl. ni-r5); 0 slivers;
+11,002 of 11,014 GP practices placed (12 unplaced = 9 known BT OSM gap
++ 3 non-BT); 138 charity shops, 0 unresolved; `npm audit --omit=dev`
+= 0. All other entries in §7.4 unchanged.
+**Rollback (Cycle 6).** Model unchanged (§4): ADR-0012 — no changelog;
+rollback is a bare `git revert <sha>` + push. ADR-0030 — deterministic
+rebuild; Pages re-builds `dist/` byte-for-byte from the reverted tree.
+Pages Deployments restore remains available for immediate
+stop-the-bleed. C6 specifics:
+
+- A C6 push lands **two commits in one deploy** (`f141a71` then C6),
+  so live jumps `416d28a` (Cycle 5 published) → C6 state in one step.
+  Reverting the C6 commit leaves live at `f141a71` (17 Wales rows, 209
+  total incl. CHAS, no NI clip, no children's mode); reverting both
+  `f141a71` + C6 restores the current Cycle 5 state — or restore the
+  `416d28a` deployment directly from Pages Deployments without any git
+  movement.
+- Data-only rollback: re-run the canonical chain from the pinned
+  `data-raw/` of the target commit — `merge-hospices` is deterministic
+  per script version, and the CHAS exclusion + `children` stamps live
+  in the C6 script, so reverting the scripts reverts the data with them.
+- The new pin `data-raw/roi-border.json` is tracked; on a full C6
+  revert it disappears from the branch, and the build/validator
+  fail-fast ring load cannot fire — no dangling state.
+- `npm test` / `npm audit --omit=dev` are additive gates with no
+  rollback surface. Changelog: none (ADR-0012) — the Pages Deployments
+  history is the audit trail.
+- Blocked-state caveat: while Step 2 is red, **no C6 commit should be
+  carved** (ADR-0012 + ADR-0030 — a commit is a publish candidate;
+  committing then pushing while the chain is red publishes bytes the
+  canonical chain cannot reproduce).
+
+**Tooling gaps recorded (platform MCP, per pipeline rule).** No
+GitHub / Azure / Bicep / MAUI MCP servers are configured in this
+session: the repo is GitHub-hosted (`origin` =
+`git@github.com:TheJamLabs/HospiceInfo.git`) but has **no GitHub
+Actions CI** — publish truth is the Cloudflare Pages deploy log
+(verified post-push), so PR/CI status cannot be checked via tooling
+here; no `.bicep` files; no MAUI. `semgrep` unavailable (Security
+already recorded the grep sweep). Recorded for Hindsight (stage 10).
+
+---
+*Stage 10 (Hindsight) — `docs/` (Stage 9, Docs) — will consume this
+section as well. The pre-push checklist (§3) is the single point of
+publish-gating; rollback (§4) is the single point of crisis response;
+the smoke checks (§5) are the acceptance test after every push.*

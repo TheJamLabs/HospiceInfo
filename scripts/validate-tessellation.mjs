@@ -248,10 +248,33 @@ const sc = catchments.filter((c) => c.nation === 'sc');
 const scEmpty = sc.filter((c) => !c.polygons?.length);
 const scPresent = sc.filter((c) => c.polygons?.length);
 const scPolys = scPresent.map((c) => union(toPolys(c).map((r) => [r])));
+// C6 closeout 2026-11-14/15: two SC×SC pairs are waived below (B1 by
+// James 2026-11-14; the ACCORD pair by the lead 2026-11-15 per the B1
+// precedent — owner declined SC×SC fix loops 2026-11-14). Waivers match
+// ONLY on an explicit, order-insensitive name pair — the measured
+// overlap is still printed every run as a waived note. No threshold
+// changes; every other pair keeps full force.
+const scWaivers = [
+  { names: ['Hospice at Home', 'Strathcarron Hospice'], reason: 'C6 closeout 2026-11-14: B1 risk-accepted (James)', decided: '2026-11-14' },
+  { names: ['ACCORD@Home (hospice at home service)', 'Accord Hospice'], reason: 'C6 closeout 2026-11-15: ACCORD pair risk-accepted (lead, B1 precedent; 0.000488618 < B1 0.001983171 deg², same defect family, same town Paisley)', decided: '2026-11-15' },
+];
+const isScWaived = (a, b) =>
+  scWaivers.some(
+    (w) => (w.names[0] === a && w.names[1] === b) || (w.names[0] === b && w.names[1] === a)
+  );
 let scWorst = null;
 for (let i = 0; i < scPolys.length; i++) {
   for (let j = i + 1; j < scPolys.length; j++) {
     const ia = area(intersection([scPolys[i][0]], [scPolys[j][0]]));
+    if (isScWaived(scPresent[i].name, scPresent[j].name)) {
+      const w = scWaivers.find(
+        (x) => x.names.includes(scPresent[i].name) && x.names.includes(scPresent[j].name)
+      );
+      console.log(
+        `waived (risk-accepted): ${scPresent[i].name} × ${scPresent[j].name} = ${ia.toFixed(9)} deg^2 — ${w.reason}`
+      );
+      continue;
+    }
     if (!scWorst || ia > scWorst.ia)
       scWorst = { a: scPresent[i].name, b: scPresent[j].name, ia };
   }
