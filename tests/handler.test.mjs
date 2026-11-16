@@ -20,6 +20,8 @@ import {
   SPACED_NORMALISES_TO,
   INVALID,
   SPACED_FORM,
+  WIRE_ENCODED,
+  WIRE_ENCODED_INVALID,
   PLACEHOLDER_CREDS,
 } from './postcode-vectors.mjs';
 
@@ -47,6 +49,15 @@ test('C8: validatePostcodeShape — shared vector set (R-5 parity)', () => {
     assert.equal(validatePostcodeShape(raw), compact);
   }
   for (const raw of INVALID) {
+    assert.equal(validatePostcodeShape(raw), null);
+  }
+});
+
+test('C8 (C8-OPS-2): percent-encoded wire segments decode to the compact form', () => {
+  for (const [raw, compact] of WIRE_ENCODED) {
+    assert.equal(validatePostcodeShape(raw), compact);
+  }
+  for (const raw of WIRE_ENCODED_INVALID) {
     assert.equal(validatePostcodeShape(raw), null);
   }
 });

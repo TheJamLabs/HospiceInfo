@@ -18,6 +18,21 @@ export const SPACED_NORMALISES_TO = [
 
 export const INVALID = ['ABC', '12345', '!@#', '', 'LS1AA'];
 
+// C8-OPS-2 (2026-11-16): wire-encoded wildcard segments exactly as the
+// Pages runtime passes them to context.params (percent-encoded, single
+// decode). Function-side only — the client never receives raw segments.
+export const WIRE_ENCODED = [
+  ['PR7%202TH', 'PR72TH'],
+  ['CF11%209HD', 'CF119HD'],
+  ['BT15%203LH', 'BT153LH'],
+  ['LS1%204AP', 'LS14AP'],
+];
+
+// Wire inputs the shape test must reject: a malformed percent sequence
+// ("PR7%2G2TH") and a double encoding ("PR7%25202TH" → one decode →
+// "PR7%202TH"; only one decode is applied).
+export const WIRE_ENCODED_INVALID = ['PR7%2G2TH', 'PR7%25202TH', ''];
+
 // Compact → spaced display form expectations.
 export const SPACED_FORM = [
   ['LS14AP', 'LS1 4AP'],

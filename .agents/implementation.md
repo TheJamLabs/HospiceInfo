@@ -615,3 +615,59 @@ gate CLOSED. The deferred gates (`npm test`, `npm run build` ×2
 byte-identity) were run green by C8 Coding's W10 chain (2026-11-15:
 `npm test` 23/0; two builds byte-identical, 231 files in `dist/`),
 which this commit uses as the C6 closeout gate — C6 is now closed.
+
+## C8 — online postcode fallback tier-2 (2026-11-16 closeout)
+
+### Live probe results — ops plan `.agents/ops-cycle8.md` §3 (W11), 2026-11-16 17:16 UTC, `https://hospiceinfo.pages.dev`, live release `4389694` (C8-OPS-1 publish, three runtime secrets set)
+
+| # | Probe (ops §3) | Live result | Verdict |
+|---|---|---|---|
+| P1 | `GET /api/postcodes/PR72TH` (acceptance) | `200`; `content-type: application/json`, `cache-control: no-store`; body exactly 3 keys `{"postcode":"PR7 2TH","latitude":53.652582,"longitude":-2.636219}` | PASS (headers verified on this 200) |
+| P2 | `GET /api/postcodes/CF119HD` (acceptance) | `200` `{"postcode":"CF11 9HD","latitude":51.484666,"longitude":-3.193503}` | PASS |
+| P3 | `GET /api/postcodes/BT153LH` (acceptance) | `200` `{"postcode":"BT15 3LH","latitude":54.627331,"longitude":-5.933535}` | PASS |
+| P4 | `GET /api/postcodes/LS14AP` (tier-1) | `200` `{"postcode":"LS1 4AP","latitude":53.795472,"longitude":-1.555729}` | PASS |
+| P5 | `GET /api/postcodes/ABC` (malformed) | `400`; `content-type: application/json`, `cache-control: no-store`; body exactly `{"error":"bad-postcode"}` | PASS (headers verified on this non-200) |
+| P6 | `GET /api/postcodes/AA99AA` (valid shape, unresolvable) | `404` body exactly `{"error":"unknown postcode"}` | PASS |
+| P7 | upstream failure | covered by the pre-secrets no-credential scenario (`502` `{"error":"postcode service unavailable"}`, observed before §2); ops rule "do not force a post-secrets 502" honoured — not forced | PASS (documented) |
+
+All seven ops outcomes match; no `500` observed (SEC-8-02 class reads 0).
+
+**Recorded deviation — C8-OPS-2 (2026-11-16).** Spaced/wire-encoded form
+`GET /api/postcodes/PR7%202TH` → live `400 {"error":"bad-postcode"}` on
+release `4389694`. Root cause: Cloudflare Pages passes the wildcard segment
+to `context.params` **percent-encoded** (literal `PR7%202TH`, no runtime
+decode); `validatePostcodeShape` tested the raw string, so `%` failed
+`POSTCODE_SHAPE`. This is exactly what start-here's tier-2 geocode sends on
+the wire (`toSpacedForm` → space → `%20`) — the cause of the owner's
+"still not working" report while compact forms returned 200.
+
+Fix (working tree, **uncommitted on top of `4389694`**):
+- `functions/api/postcodes/handler.ts` — `validatePostcodeShape` decodes
+  first; malformed percent sequences (e.g. `%2G`) stay raw and are rejected
+  by the shape test — no throw, R-5 parity preserved (client-side
+  `isPostcodeShape` untouched; its input is already normalised).
+- `functions/api/postcodes/[postcode].ts` — doc comment on the
+  percent-encoded params contract.
+- `tests/postcode-vectors.mjs` — `WIRE_ENCODED` (4 pairs: `PR7%202TH`→
+  `PR72TH` etc.) + `WIRE_ENCODED_INVALID` (`PR7%2G2TH`, `PR7%25202TH`, `''`)
+  shared vectors.
+- `tests/handler.test.mjs` — new wire-segment suite test.
+
+Post-fix W10 chain: `npm test` **24/24** (re-run 2026-11-16, includes the
+C8-OPS-2 test); `tsc -b`, `check:layout` and the double-build invariant are
+unaffected by this diff — it touches `tests/` + `functions/` only
+(`functions/` is out of `tsc -b` scope per SEC-8-04; `dist/` unchanged
+since the C8-OPS-1 ship, chain hash `d7f3c8c3`).
+
+**W11 (probe-table close) DONE 2026-11-16**: all ops §3 outcomes verified
+live, headers verified on one 200 (P1) and one non-200 (P5), results pasted
+above; the single deviation (C8-OPS-2) is recorded with its fix and
+re-probe plan per the acceptance rule "deviation recorded".
+
+**W12 (owner ship gate) OPEN**: owner commits + pushes the uncommitted
+C8-OPS-2 diff (parent `4389694`; push = publish, owner-gated). Post-push
+re-probe: `PR7%202TH` / `CF11%209HD` / `BT15%203LH` / `LS1%204AP` → `200`
+with exactly the 3-key body each; browser start-here — `PR72TH`/`LS14AP`
+resolve at tier 1 (zero fetch), `CF119HD`/`BT153LH` geocode at tier 2 via
+the Function; a postcodes.io `200` + PIP miss renders the genuine
+not-found card (valid miss, distinct from a `400`).

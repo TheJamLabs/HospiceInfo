@@ -16,9 +16,21 @@ const POSTCODE_SHAPE = /^[A-Z]{1,2}[0-9](?:[0-9A-Z])?[0-9][A-Z]{2}$/;
  * IO/AA/ZI reserved areas are NOT special-cased (A§4): any postcode
  * upstream returns is accepted. Returns the compact form (e.g. "PR72TH")
  * or null when malformed.
+ *
+ * C8-OPS-2 (2026-11-16): the Pages runtime passes the raw percent-encoded
+ * wildcard segment to `context.params` (e.g. "PR7%202TH"), so the input is
+ * percent-decoded first. A malformed percent sequence (e.g. "%2G") leaves
+ * the raw string in place, which the shape test below then rejects.
  */
 export function validatePostcodeShape(raw: string): string | null {
-  const compact = raw.replace(/\s+/g, '').toUpperCase();
+  let decoded = raw;
+  try {
+    decoded = decodeURIComponent(raw);
+  } catch {
+    // Malformed percent sequence: keep the raw string — the shape test
+    // below rejects it (C8-OPS-2, 2026-11-16).
+  }
+  const compact = decoded.replace(/\s+/g, '').toUpperCase();
   return POSTCODE_SHAPE.test(compact) ? compact : null;
 }
 

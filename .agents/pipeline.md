@@ -2014,7 +2014,7 @@ gate.** Stages 9/10 + Reporter run with the C6 closeout (see C6 section).
 | 8 | DevOps | **done** (2026-11-15, `devops` subagent, 8 tool_uses; lead disk-verified) | `.agents/ops-cycle7.md` (7,108 B, 120 ln, created 19:40 — after the C7 window; all 5 source-file mtimes unchanged → zero source modifications confirmed; 1 benign deviation declared: implementation-cycle7.md read twice due to a truncated first read — no budget violation of substance). All 8 required sections verified: scope = exactly 10 committed files (5 src + ADRs 0038–0041 + GLOSSARY.md) with explicit exclusions (pre-C7 dirty files incl. cycle-8 ADRs + untracked `.agents/`/`.qwen-coding/`/`.tmp/`; never `git add -A`); deploy model unchanged (ADR-0014 git-connected, push = publish); owner ship-gate = W8 items 3–9 in-browser 375×812 (5 OQ1 states × dark+light, 4-line header, 319 px/44 px card geometry, footer contrast observe-only, alignment, 320 px overflow, a11y incl. C7-SEC-2 nuance); pre-push chain = npm test → check:layout → build → cp → build → diff -rq (empty); rollback = revert single commit + push, static site no migration; carried debt C7-QA-1/2/3 + C7-SEC-2 with exact follow-ups; post-publish checks (green deploy log, 200s, C7 hashed assets `index-Dn97-FzZ`/`index-D61LFkAW`). VERDICT: OPS PLAN READY (owner gate + commit/push remain with James) |
 | 9 | Documentation | **done** (2026-11-15, `documentation` subagent, ~62 min; lead disk-verified) | Subagent completed but its write **never landed**: both full-file `write_file` rewrites of the 408-line MAINTENANCE.md were rejected by the environment truncation guard (per-response output limit) — 0 writes. Lead verified file intact (407 `wc -l` lines, end line matches, zero unintended changes — `git diff --stat` on C7 scope byte-identical to prior values). Lead disposed: applied the subagent's ready-to-apply section via `cat >>` heredoc (entities unescaped) — `docs/MAINTENANCE.md` now 476 lines, exactly one `## Cycle 7 (C7)` section (grep count 1), tail verified. Section content lead-checked against ops-cycle7.md ground truth (assets `index-Dn97-FzZ.css`/`index-D61LFkAW.js`, 231 dist/171 prerendered, 23/23, 6-step pre-push chain, 10-path commit scope w/ MAINTENANCE.md exclusion, revert + dashboard rollback, 4-row carried-debt table). C7 section stays excluded from the C7 10-path commit by design (ops-cycle7.md §5) — ships with the C8 `-A` commit |
 | 10 | Hindsight | **done** (2026-11-15, `hindsight` subagent, ~8 min; lead disk-verified) | `.agents/hindsight-cycle7.md` (101 ln, 7,811 B, on disk) — the missing C7 rail pass (`hindsight-cycle8.md` was the only bank artefact in the tree). Cross-checks green: ops-cycle7.md matches inlined ground truth; 208/208 `/hospice/` `<loc>` in `dist/sitemap.xml`; zero contradiction vs C8 artefact. **Bank-side apply pending (lead action, not blocking):** platform Hindsight tools absent from subagent toolset AND from lead session (`tool_search` → Not found) — D1 (initiative) + D2 (decisions, ADR-0038…0041 + W4/W6 + debt + commit-scope facts) recorded ready-to-ingest verbatim in §4, plus C8-1…C8-8 (hindsight-cycle8.md L144–196) still "emitted, not applied". Owner session with bank tooling should ingest D1/D2 + C8-1…8; repo artefact is the durable record either way |
-| — | Reporter | pending | one-screen report in chat |
+| — | Reporter | **done** (2026-11-15, lead) | One-screen status delivered to owner in chat: pre-ship report + ship results (C7 `6d6994c` + C8 `9ce3444` pushed `aaee725..9ce3444`, Pages re-published) + open items (Function 500/1101 = SEC-8-02 class, owner §2 secret setup pending; bank ingest D1/D2 + C8-1…C8-8 deferred to owner session). See **Ship record** below the table |
 
 **Note 2026-11-15 (Architect ROUND 3 done, stage 2 closed):** the write-first
 strategy worked — round 1 began with the skeleton `write_file`, all later
@@ -2050,6 +2050,17 @@ new scroll container. Next: Stage 3 (Reviewer) → `.agents/review-cycle7.md`.
 > `.agents/architecture-cycle8.md` (copied 2026-11-14) so the shared
 > `architecture.md` is free for the C7 Architect without overwriting C8's
 > design.
+
+**Ship record (2026-11-15, lead) — owner gates: "Commit and push when ready" / "Two commits: C7 then C8" / "Gate passed".**
+
+- **C7 commit `6d6994c`** — the exact 10 paths of ops-cycle7.md §5 (5 src files + ADRs 0038–0041 + GLOSSARY.md), +434/−17. `docs/MAINTENANCE.md` excluded by design (ships with C8). `git status` clean after commit.
+- **C8 ship commit `9ce3444`** — `git add -A` + owner-verbatim message (ops-cycle8.md L53–54): 47 files, 97,971 insertions / 93,581 deletions (data-raw CSV refreshes dominate). Includes the C8 Pages Function (`functions/api/postcodes/{handler,[postcode]}.ts` + tests + ADR-0037), all cycle-7/8 `.agents/` artifacts, and MAINTENANCE.md.
+- **Push `aaee725..9ce3444` → origin/main** — one push carrying C6-close (`c0300db`) + C7 (`6d6994c`) + C8 (`9ce3444`); Cloudflare Pages auto-publish (ADR-0014, `npm ci && npm run build`). Working tree clean post-push.
+- **Post-publish verification (2026-11-15, live `https://hospiceinfo.pages.dev`):**
+  - **Static surface GREEN.** Root `200`; real hospice page `GET /hospice/en-1-106214874.html` → `308` → `/hospice/en-1-106214874` final **`200`**; deployed `index.html` references `assets/index-Dn97-FzZ.css` + `assets/index-D61LFkAW.js` = byte-identical match to local dist (C7 assets live — rules out "old release answering").
+  - **Function surface — OPEN FINDING, SEC-8-02 class (R-1, function-internal failure):** acceptance probes P1 `GET /api/postcodes/PR72TH`, P5 `/api/postcodes/ABC`, P6 `/api/postcodes/AA99AA` all → **HTTP `500`, body `error code: 1101`** (text/plain) — not the contract'd 200/400/404/502. Route existing proves `functions/` shipped; the empty-body 1101 signature is the ops-cycle8.md §3 caveat: function-internal failure, most plausibly the **owner's three Pages env secrets not yet set** (`POSTCODES_IO_BASE`, `POSTCODES_ACCESS_CLIENT_ID`, `POSTCODES_ACCESS_CLIENT_SECRET` — ops-cycle8.md §2). **Disposal: record with class label; fix = owner re-sets secrets per §2 (`wrangler pages secret put` × 3, then re-run P1–P6). No code change, no rollback.**
+- **Carried debt (no change from stage artifacts):** C7-QA-1/2/3, C7-SEC-2 (§8.9 a11y gate), SEC-8-01 (design-level, no auth on Function — owner risk-accepted per ops-cycle8.md §5), SEC-8-04 (tooling gap, informational).
+- **Bank-side apply still pending (owner session):** D1 + D2 (`hindsight-cycle7.md` §4) and C8-1…C8-8 (`hindsight-cycle8.md` L144–196) — Hindsight bank tools absent from lead/subagent sessions this run; repo artifacts are the durable record.
 
 ---
 
@@ -2234,3 +2245,181 @@ round-2 verification is authoritative.
 - Inherited context, NOT a C8 blocker: C6 B1 inv-6 Scottish overlap —
   **RESOLVED 2026-11-14 (James: risk-accept)** — documented debt +
   per-finding validator waiver; see C6 section above.
+- **C8-OPS-1 (Blocking — code-level, CLOSED 2026-11-16; fix live-verified)**:
+  live C8 Function returns 500 on **every** probe (P1 `PR72TH` / P5 `ABC` /
+  P6 `AA99AA` → `error code: 1101` at 08:06 UTC, 11+ h post-push — not deploy
+  settling). Root cause reproduced and confirmed: local
+  `npx wrangler pages dev dist --local` (fresh wrangler, compat date
+  2026-11-13) yields `TypeError: Cannot read properties of undefined
+  (reading 'postcode')` at `functions/api/postcodes/[postcode].ts:27` for all
+  three probes — the route shell reads `context.requestParams`, which the
+  current Pages runtime does not populate; the runtime provides route params
+  under `context.params` (verified in the wrangler Pages template worker's
+  context construction: `params` key present, `requestParams` absent).
+  Therefore even the env-independent malformed probe P5 throws before its 400
+  return. Class: SEC-8-02 / R-1 family (function-internal failure → 500),
+  but this instance is a **code defect**, not env misconfiguration. Owner
+  gate ("no more code changes, no more commits") defers the fix; minimal fix
+  = one-line read of `context.params` (plus a local `wrangler pages dev`
+  smoke probe in the ops plan so the route shell is covered against a real
+  Pages runtime — QA round 2 exercised only `handler.ts` pure logic).
+  Owner prerequisites remain orthogonal and still required: the three §2
+  secrets (`wrangler pages secret put` ×3) before P1–P4/P6 can reach
+  upstream. Post-fix acceptance signal, secret-free: P5 → 400
+  `{"error":"bad-postcode"}`; P1 → 200 only after the secrets are set.
+  No rollback (static surface unaffected; see ship note below).
+
+### Ship & live verification (2026-11-16, lead)
+
+- Owner gates (verbatim): "Two commits: C7 then C8" → commit 1 = C7 mobile
+  layout (exact 10 paths, no `-A`); "Gate passed" → commit 2 = C8 (`git add -A`,
+  owner-verbatim message). Pushed `aaee725..9ce3444` to `main`; git-connected
+  Pages chain auto-published per ADR-0014.
+- C7 = `6d6994c` (10 paths; `docs/MAINTENANCE.md` C7 section deliberately
+  excluded, ships with C8). C8 = `9ce3444` (47 files incl.
+  `functions/api/postcodes/{handler,[postcode]}.ts`, `tests/*.mjs`,
+  ADR-0037…0041, `.agents/*cycle7/8`, data-raw CSV refreshes).
+- Working tree after ship: clean except `M .agents/pipeline.md` (lead ledger,
+  committed by next cycle's `-A` sweep).
+- Static live surface — **GREEN** (2026-11-16 08:06 UTC): `GET /` → 200
+  `text/html` 11,919 B; deployed `index.html` sha256 `1ade09a562eb4d0848190f31b325bffb279367aa1c24f8646a726c0c8d0cb577`
+  == local C8 `dist/index.html` (byte-identical; release cutover complete);
+  referenced assets `index-D61LFkAW.js` / `index-Dn97-FzZ.css` serve 200 and
+  byte-match the C8 commit-message hashes.
+- Function live surface — **OPEN FINDING C8-OPS-1** (above): 500 on every
+  probe; root cause disk-confirmed locally (context key mismatch).
+
+### C8-OPS-1 fix pass (2026-11-16, lead)
+
+- Owner gate (verbatim): "Approve the fix (Recommended)" — lifts the
+  "no more code changes, no more commits" gate for exactly: (a) the
+  one-line `context.params` read in `[postcode].ts`, (b) a local
+  route-shell smoke probe documented in the ops plan, (c) `.wrangler/`
+  added to `.gitignore`; plus one small commit + push (→ auto-publish).
+- Files touched (3): `functions/api/postcodes/[postcode].ts` (interface
+  `params?` + `validatePostcodeShape(context.params?.postcode ?? '')`;
+  rest of handler unchanged), `.agents/ops-cycle8.md` (§2 local-dev line
+  `check-ignore` note now `.gitignore:12` (line 3 = `.wrangler/`); new
+  "Local route-shell smoke probe" block: 400 = secret-free gate, pre-fix
+  500 at `[postcode].ts:27`, re-run after **any** `functions/` change),
+  `.gitignore` (`.wrangler/` line 3 — stops next cycle's `-A` sweep from
+  committing wrangler cache).
+- W10 chain (all green, 2026-11-16): `npm test` 23/23; `npx tsc -b` exit 0;
+  `npm run check:layout` OK; double `npm run build` byte-identical — dist
+  sha256 `d7f3c8c39a3bfad9e65f17eb234da6e59f61328b62b54b93b2f74cf3d088b748`
+  ×2 (edit is outside `dist/`, so publish content unchanged — same 231 files).
+- Local runtime verification (`npx wrangler pages dev dist --local --port
+  8931`, wrangler 4.162.0, compat 2026-11-13): **P5 `ABC` → 400
+  `{"error":"bad-postcode"}`** with `content-type: application/json` +
+  `cache-control: no-store` (exact contract headers; pre-fix: 500
+  `TypeError ... 'postcode'` at `[postcode].ts:27`); **P1 `PR72TH` → 502**
+  and **P6 `AA99AA` → 502** `{"error":"postcode service unavailable"}` via
+  the transport catch (`.dev.vars` with unreachable base `http://127.0.0.1:9`
+  — test value, deleted after probes). First local run (process-env
+  `POSTCODES_IO_BASE`) 500'd at `handler.ts:44`: `wrangler pages dev` does
+  NOT inherit process env vars (`.dev.vars` only) — that is the documented
+  R-1 / SEC-8-02 class, not a regression; the 502 run confirms the route
+  shell now reaches the transport path. 200/P6-404 locally impossible
+  without the owner's real upstream; live P1/P6 gated on the §2 secrets.
+- **Shipped + live-verified (2026-11-16 10:06 UTC):** commit `4389694`
+  (3 paths, ledger excluded) → push `9ce3444..4389694` → auto-published;
+  live poll: P5 `ABC` → **400** `{"error":"bad-postcode"}` with contract
+  headers (first attempt 500 = old release; second 400 = new release) →
+  **C8-OPS-1 CLOSED**. Live P1 `PR72TH` → 500 `error code: 1101` while the
+  §2 secrets are unset — the documented SEC-8-02 / R-1 class (`base`
+  undefined → throw before fetch), not a code defect; ops plan §3:
+  re-set secrets to clear. Owner's 3 `wrangler pages secret put` commands
+  (§2 ops plan) are now the **sole** remaining action for P1–P4 → 200 and
+  P6 → 404 live. No rollback needed.
+
+### C8 live: §2 secrets set + re-probes (2026-11-16, lead)
+
+- Owner set all three §2 production secrets via the CLI (his wrangler
+  4.163.0, `wrangler pages secret put POSTCODES_IO_BASE` /
+  `POSTCODES_ACCESS_CLIENT_ID` / `POSTCODES_ACCESS_CLIENT_SECRET`,
+  `--project=hospiceinfo`): each returned "Creating the secret for the
+  Pages project 'hospiceinfo' (production)" + "Success! Uploaded secret"
+  (2026-11-16 ~12:14–12:15 UTC) — production scope confirmed per name. An
+  earlier dashboard pass had placed them under the Build tab's
+  "Variables and secrets" (build-time section; owner's screenshot shows all
+  three listed as Secret, "Value encrypted"). The CLI put is the
+  §2-canonical placement and confirms project-level registration.
+- Live re-probes (2026-11-16 12:16 UTC): P1 `PR72TH` / P2 `CF119HD` /
+  P3 `BT153LH` / P4 `LS14AP` / P6 `AA99AA` → **500 `error code: 1101`**
+  (text/plain, 17 B); P5 `ABC` → **400** `{"error":"bad-postcode"}` with
+  `content-type: application/json` + `cache-control: no-store` (exact
+  contract headers — P5 acceptance now passes live; the 12:21 re-probe
+  header check passed again).
+- Dedicated ~3 m 20 s propagation window (standalone `sleep 200`, policy:
+  no combined sleep+curl), re-probes (2026-11-16 12:21 UTC): P1 + P6
+  **still 500 / 1101** → rollout lag ruled out.
+- **Diagnosis (decisive):** the live production release was cut *before*
+  the secrets existed; Pages Functions bake env configuration into each
+  deployment at build time (Cloudflare docs: config changes require a new
+  deployment). Signature matches exactly: P5 (env-independent) passes →
+  route shell + code are live; P1/P6 500 is plain 1101 text/plain with no
+  JSON = `env.POSTCODES_IO_BASE` undefined → `base.replace` throws at
+  `handler.ts:44` before any fetch (if the env were present and upstream
+  failed, the contract 502 JSON would fire instead). R-1 class;
+  **no code change**.
+- Disposition: **one new deployment is required** to bind the
+  already-registered production secrets. Owner action (his gate; push =
+  publish): push a trivial/empty commit to `main`, or trigger a redeploy
+  of `hospiceinfo` from the Cloudflare dashboard Deployments tab. No
+  rollback (leaving secrets set is harmless per ops §4). Next, on owner
+  confirmation of the new deployment: re-run P1–P6 — P1 → 200
+  `{postcode,latitude,longitude}` (exactly 3 keys) + JSON + no-store
+  headers; P2 `CF119HD` / P3 `BT153LH` / P4 `LS14AP` → 200; P5 `ABC` → 400
+  (already verified live ×2); P6 `AA99AA` → 404 `{"error":"unknown
+  postcode"}`. P7 (502) stays covered by the pre-secrets no-credential
+  scenario — do not force a 502 post-secrets. Record results in
+  `.agents/implementation.md` per ops §3 before W11 is marked done, then
+  close the C8 probe table.
+
+### C8 live: probe table closed (W11) + C8-OPS-2 deviation & fix (2026-11-16, lead)
+
+- Owner shipped the C8-OPS-1 hotfix: `main` = `origin/main` = `4389694`
+  ("Pages route reads context.params, not context.requestParams"),
+  published over the git-connected chain; the live release is `4389694`
+  (the 12:16–12:21 500/1101 results above were the pre-hotfix release
+  cut before the secrets existed; they no longer reproduce).
+- Live re-probes (2026-11-16 17:16 UTC against `hospiceinfo.pages.dev`):
+  P1 `PR72TH` → **200**, exactly 3 keys
+  `{"postcode":"PR7 2TH","latitude":53.652582,"longitude":-2.636219}`,
+  `content-type: application/json` + `cache-control: no-store` verified;
+  P2 `CF119HD` → 200 `CF11 9HD`; P3 `BT153LH` → 200 `BT15 3LH`;
+  P4 `LS14AP` → 200 `LS1 4AP`;
+  P5 `ABC` → **400** `{"error":"bad-postcode"}` (headers verified on this
+  non-200); P6 `AA99AA` → **404** `{"error":"unknown postcode"}`.
+  All outcomes match ops §3. No 500 observed (SEC-8-02 class reads 0).
+  P7 (502) stays covered by the documented pre-secrets no-credential
+  scenario — post-secrets 502 not forced, per ops rule.
+- **Deviation recorded: C8-OPS-2 (contract response, not R-1).**
+  Spaced/wire-encoded `GET /api/postcodes/PR7%202TH` → 400
+  `{"error":"bad-postcode"}` on `4389694`. Root cause: Pages passes the
+  wildcard segment to `context.params` **percent-encoded** (literal
+  `PR7%202TH`, no runtime decode); `validatePostcodeShape` tested the raw
+  string, so `%` failed `POSTCODE_SHAPE`. This is exactly the tier-2
+  geocode wire form the frontend sends (`toSpacedForm` → space → `%20`) —
+  the owner's "still not working".
+- **Fix implemented (working tree, uncommitted on `4389694`):**
+  `functions/api/postcodes/handler.ts` — decode-first in
+  `validatePostcodeShape` (malformed percent sequences keep the raw
+  string and are rejected by the shape test; never throws); R-5 parity
+  preserved (client `isPostcodeShape` untouched — its input is already
+  normalised); `functions/api/postcodes/[postcode].ts` — doc comment on
+  the params contract; `tests/postcode-vectors.mjs` +
+  `tests/handler.test.mjs` — `WIRE_ENCODED` / `WIRE_ENCODED_INVALID`
+  vectors + suite test. Post-fix W10 chain: `npm test` 24/24; `tsc -b`,
+  `check:layout`, double build unaffected (diff touches tests + functions
+  only; `functions/` out of scope per SEC-8-04; `dist/` unchanged).
+- **W11 (probe-table close) DONE 2026-11-16** — full results pasted into
+  `.agents/implementation.md` § C8 closeout per ops §3 (headers verified
+  on P1 200 and P5 400), deviation recorded with class + fix.
+- **W12 (owner ship gate) OPEN** — owner commits + pushes the uncommitted
+  C8-OPS-2 diff (parent `4389694`; push = publish, owner-gated — lead
+  does not push). Post-push: re-probe spaced forms (`PR7%202TH` /
+  `CF11%209HD` / `BT15%203LH` / `LS1%204AP` → 200 with exactly the 3-key
+  body each) + browser start-here (tier-1 no-fetch `PR72TH` / `LS14AP`;
+  tier-2 geocode `CF119HD` / `BT153LH`; postcodes.io 200 + PIP miss =
+  genuine not-found card, distinct from 400).

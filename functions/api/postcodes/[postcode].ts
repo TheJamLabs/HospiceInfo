@@ -23,6 +23,8 @@ interface FunctionContext {
   // C8-OPS-1 fix (2026-11-16): the current Pages runtime passes route
   // params as `context.params`; `context.requestParams` is undefined and
   // threw on every probe (reproduced via wrangler pages dev --local).
+  // C8-OPS-2 (2026-11-16): the wildcard segment arrives percent-encoded
+  // ("PR7%202TH"); `validatePostcodeShape` decodes it before the shape test.
   params?: Record<string, string>;
 }
 
