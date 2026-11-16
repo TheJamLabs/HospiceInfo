@@ -40,7 +40,10 @@ export function toSpacedForm(code: string): string {
  * → inside, so no winding/role bookkeeping is needed. A point within the
  * on-line band `|v| <= (|dx|+|dy|)/2 * 1e-9` of any edge votes OUTSIDE
  * (the build-time band, one tolerance system across build and runtime).
- * Degenerate `polygons: []` cells → no hit (no special-casing).
+ * Degenerate `polygons: []` cells → no hit (no special-casing). Repeated
+ * vertices (zero-length edges, present in every tessellated catchment ring)
+ * are skipped: they have no direction, so the band's `0 <= 0` would
+ * hard-reject every point, and even-odd gets no toggle from them.
  */
 export function pointInCell(lat: number, lon: number, cell: Catchment): boolean {
   let inside = false;
@@ -50,6 +53,7 @@ export function pointInCell(lat: number, lon: number, cell: Catchment): boolean 
       const b = ring[(j + 1) % ring.length];
       const dx = b.lon - a.lon;
       const dy = b.lat - a.lat;
+      if (dx === 0 && dy === 0) continue; // repeated vertex: skip
       const v = dx * (lat - a.lat) - dy * (lon - a.lon);
       if (Math.abs(v) <= (Math.abs(dx) + Math.abs(dy)) / 2 * 1e-9) return false;
       // Edge crosses the horizontal ray at lat (so dy !== 0): toggle when

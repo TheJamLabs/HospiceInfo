@@ -55,6 +55,41 @@ test('C8: pointInCell — point clearly inside a convex ring → true', () => {
   assert.equal(pointInCell(53.0 + H / 2, -2.0 - H / 2, cell), true);
 });
 
+// Kite ring in the shape of a live tessellated catchment: vertex 1 is
+// repeated, so edge 1→2 is zero-length. Before the skip guard, the on-line
+// band degraded to `0 <= 0` on that edge and rejected EVERY point.
+function kiteCell(hospiceId) {
+  return {
+    hospiceId, name: hospiceId, nation: 'england', kind: 'published',
+    curated: false, children: false, practiceCount: 0,
+    polygons: [[
+      { lat: 53.63561094, lon: -2.67193613 }, // north
+      { lat: 53.61573957, lon: -2.66543397 }, // west
+      { lat: 53.61573957, lon: -2.66543397 }, // repeated → zero-length edge
+      { lat: 53.59284668, lon: -2.67193613 }, // south
+      { lat: 53.61573957, lon: -2.67843832 }, // east
+    ]],
+  };
+}
+
+test('C8: pointInCell — repeated vertex (zero-length edge) must not hard-reject an interior point', () => {
+  const cell = kiteCell('degenerate');
+  assert.equal(pointInCell(53.61573, -2.67194, cell), true);
+  assert.equal(pointInCell(53.7, -2.67193613, cell), false); // well north of the ring
+});
+
+test('C8: lookupByPostcode — PR7 2TH geocode resolves through a zero-length-edge catchment (live regression)', async () => {
+  const cell = kiteCell('en-1-126365065');
+  const r = await lookupByPostcode('PR72TH', [cell], () =>
+    Promise.resolve({
+      status: 200,
+      json: () => Promise.resolve({ postcode: 'PR7 2TH', latitude: 53.61573, longitude: -2.67194 }),
+    }),
+  );
+  assert.equal(r && r.cell.hospiceId, 'en-1-126365065');
+  assert.equal(r && r.code, 'PR72TH');
+});
+
 test('C8: findHospiceCell — point on the shared on-line edge of two adjacent cells → null', () => {
   const h = 1e-4;
   const left = squareCell('band-left', 51.0, -3.0 - h, h);
