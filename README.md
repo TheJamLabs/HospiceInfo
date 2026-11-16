@@ -1,7 +1,7 @@
 # Hospice Finder UK
 
-An interactive map of UK hospices — 161 in the committed data snapshot
-(England 152, Scotland 3, Wales 0, Northern Ireland 6) — with the GP
+An interactive map of UK hospices — 208 in the committed data snapshot
+(England 152, Scotland 33, Wales 17, Northern Ireland 6) — with the GP
 practices each one is (approximately) associated with. Click a hospice in
 the side panel to spotlight its catchment, use the nation pills
 (All / England / Scotland / Wales / NI) to filter and reframe the map,
@@ -16,7 +16,7 @@ for the full methodology, caveats and the catchment colour key.
 > adjacent catchments share a continuous edge (they tile the map: no gaps,
 > no overlap). The 20 hospices of the original Lancashire & South Cumbria
 > map are *curated* (hand-verified names, towns and postcodes); the other
-> 141 come from the national registers. See the Source & Method modal and
+> 188 come from the national registers. See the Source & Method modal and
 > [`data/README.md`](data/README.md).
 
 No auth required. The side-panel search is debounced; `#feedback` opens
@@ -51,7 +51,8 @@ your mail client (nothing is collected by the site).
 
 ## Current data snapshot
 
-Counts from the committed `public/data/` as of 2026-10-27. Scotland is
+Counts from the committed `public/data/` as of 2026-11-14 (Cycle 6
+closeout on top of the 2026-11-08 data landing). Scotland is
 complete: 911 practices, all geocoded and assigned. Wales practices are
 complete: 539, placed from the source's own coordinates (the DataMap layers
 carry no postcodes).
@@ -59,40 +60,47 @@ carry no postcodes).
 | Nation | Hospices | GP practices |
 |---|---|---|
 | England | 152 | 9,260 |
-| Scotland | 3 | 911 |
-| Wales | 0 — CIW reply pending | 539 |
+| Scotland | 33 | 911 |
+| Wales | 17 | 539 |
 | Northern Ireland | 6 | 304 |
 
-161 hospices in total, with 11,002 practices geocoded (four passes of
-`scripts/geocode-postcodes.mjs` at 1 req/s, outcode fallback — the
-2026-10-24 pass added the 729 Scottish practice postcodes; the 2026-10-27
-pass added the 5 new NI hospice postcode units). 138 charity shops are
-geocoded, 21 of them outside their own catchment. Geocoding is complete:
-9,098 of the 9,107 in-scope postcodes are resolved. The remaining 9 (all
+208 hospices in total, with 11,002 of the 11,014 practices geocoded (five
+passes of `scripts/geocode-postcodes.mjs` at 1 req/s, outcode fallback — the
+2026-10-24 pass added the 729 Scottish practice postcodes, the 2026-10-27
+pass the 5 new NI hospice postcode units, and the 2026-11-08 pass the 15 new
+Wales hospice postcode units plus the Cycle 5 Scotland additions). 138
+charity shops are geocoded, 17 of them outside their own catchment in the
+committed snapshot (recomputed on every build). Geocoding is complete:
+9,125 of the 9,134 in-scope postcodes are resolved. The remaining 9 (all
 NI practice postcodes) have no OSM/Nominatim coverage (units and outcodes
 both absent), so their 12 practices carry no assignment in the data and
 are not shown on the map — a documented source gap, not a defect (see
 [`data/README.md`](data/README.md)). The assignment rule itself never
 changes.
 
-## Pre-launch
+## Live site
 
-The map is in a pre-launch state. Verification gates remain open:
+The map is live at <https://hospiceinfo.pages.dev>. The Pages project is
+git-connected to `main`, so every James-approved push builds
+(`npm ci && npm run build`) and publishes `dist/` automatically
+(ADR-0014).
 
-- **G5** — Chrome mobile pass (Slow 4G + 4× CPU) — post-fix m1, m2, m4 values
-  pending the human pass
-- **W8** — ADR-0010 stride gate, decided from G5's m1 (lead, code)
-- **G7** — Overpass mirror capacity re-check
+Verification gates (owners + acceptance) are tracked in the pre-publish
+gates section of [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md):
+
+- **G5** — Chrome mobile pass (Slow 4G + 4× CPU) — m1 decided W8; closed
+  with the Cycle 7 ship pass (2026-11-15)
+- **W8** — ADR-0010 stride gate — passed 2026-11-15 (decided from G5's m1
+  and James's in-browser 375 px ship pass)
+- **G7** — Overpass mirror capacity re-check — carried (a rebuild event if
+  actioned)
 - ~~**H1a** — Wales GP practices fetch~~ — done 2026-10-27 (539 practices)
 - ~~**H1b** — NI hospices fetch~~ — done 2026-10-27 (6 from the RQIA
   June 2026 export)
 
-Pre-launch gates (owners + acceptance) are tracked in the pre-launch gates
-section of [`docs/MAINTENANCE.md`](docs/MAINTENANCE.md). The Cycle 2 working
-tree is committed to `origin/main` (2026-10-27); the site publishes
-automatically on each approved push via the git-connected Cloudflare Pages
-build (ADR-0014) — the gates are verification gates and no longer block
-publication.
+Recent ships: the Cycle 7 mobile layout fix (2026-11-15) and the Cycle 8
+postcode-finder online fallback (2026-11-16, ADR-0037 — the first live
+runtime component, a Pages Function proxy).
 
 ## Pages
 
@@ -124,7 +132,7 @@ Production build:
 
 ```
 npm run build  # type-check (tsc) + Vite build + prerender → dist/
-                # emits 169 static shells + sitemap.xml + robots.txt (181 total)
+                # emits 216 static shells + sitemap.xml + robots.txt (231 files total)
 npm run preview  # serve the built app
 ```
 
@@ -143,8 +151,8 @@ without re-downloading anything.
 |---|---|---|---|
 | 1. Practices | `scripts/extract-gp-practices-{en,sc,ni,wales}.mjs` | CQC directory, NHS Scotland, NI practice file, Wales DataMap | `data-raw/gp-practices-<nation>.json` |
 | 2. Hospices | `scripts/extract-hospices-{en,sc,ni,wales}.mjs` | CQC directory, Care Inspectorate, RQIA, CIW | `data-raw/hospices-<nation>.json` |
-| 3. Merge | `scripts/merge-hospices.mjs` | stage 2 + the 20 curated catchments | `data-raw/hospices-all.json` (161) |
-| 4. Geocode | `scripts/geocode-postcodes.mjs` | practice + hospice postcodes (9,107) | `data-raw/postcode-geo.csv` (OSM Nominatim, 1 req/s, resumable) |
+| 3. Merge | `scripts/merge-hospices.mjs` | stage 2 + the 20 curated catchments | `data-raw/hospices-all.json` (208) |
+| 4. Geocode | `scripts/geocode-postcodes.mjs` | practice + hospice postcodes (9,134) | `data-raw/postcode-geo.csv` (OSM Nominatim, 1 req/s, resumable) |
 | 5. Shops | `data-raw/shops-website.json` + `scripts/geocode-shops.mjs` | the 20 curated websites | `data-raw/shops-geo.json` (138 shops) |
 | 6. Build | `scripts/build-data.mjs` | stages 1–5 | `public/data/hospices.json`, `practices.json`, `catchments.json`, `shops.json` |
 | 7. Validate | `scripts/validate-tessellation.mjs` | `public/data/catchments.json` | no gaps, no overlap, in-bounds (exit 0) |

@@ -641,7 +641,7 @@ decode); `validatePostcodeShape` tested the raw string, so `%` failed
 the wire (`toSpacedForm` → space → `%20`) — the cause of the owner's
 "still not working" report while compact forms returned 200.
 
-Fix (working tree, **uncommitted on top of `4389694`**):
+Fix (committed as **`0e2d6d0`**, push = publish, 2026-11-16):
 - `functions/api/postcodes/handler.ts` — `validatePostcodeShape` decodes
   first; malformed percent sequences (e.g. `%2G`) stay raw and are rejected
   by the shape test — no throw, R-5 parity preserved (client-side
@@ -664,10 +664,21 @@ live, headers verified on one 200 (P1) and one non-200 (P5), results pasted
 above; the single deviation (C8-OPS-2) is recorded with its fix and
 re-probe plan per the acceptance rule "deviation recorded".
 
-**W12 (owner ship gate) OPEN**: owner commits + pushes the uncommitted
-C8-OPS-2 diff (parent `4389694`; push = publish, owner-gated). Post-push
-re-probe: `PR7%202TH` / `CF11%209HD` / `BT15%203LH` / `LS1%204AP` → `200`
-with exactly the 3-key body each; browser start-here — `PR72TH`/`LS14AP`
-resolve at tier 1 (zero fetch), `CF119HD`/`BT153LH` geocode at tier 2 via
-the Function; a postcodes.io `200` + PIP miss renders the genuine
-not-found card (valid miss, distinct from a `400`).
+**W12 (owner ship gate) DONE 2026-11-16**: owner gate approved ("Commit and
+push"); lead shipped the scope per the per-cycle commit-scope rule — six
+explicit paths staged (no `git add -A`; the runbook's §1 `-A` is scoped to
+the original C8 ship `9ce3444`), committed **`0e2d6d0`** (parent
+`4389694`), pushed to `origin main` → Pages auto-build + publish.
+
+Post-push re-probe (2026-11-16 18:43 UTC, live `https://hospiceinfo.pages.dev`,
+release `0e2d6d0`):
+
+| Probe | Live result | Verdict |
+|---|---|---|
+| `GET /api/postcodes/PR7%202TH` (C8-OPS-2 regression gate) | `200`; `content-type: application/json`, `cache-control: no-store`; body exactly 3 keys `{"postcode":"PR7 2TH","latitude":53.652582,"longitude":-2.636219}` | PASS (spaced form — was `400` on `4389694`) |
+| `GET /api/postcodes/CF11%209HD` (second spaced form) | `200` `{"postcode":"CF11 9HD","latitude":51.484666,"longitude":-3.193503}` | PASS |
+| `GET /api/postcodes/ABC` (malformed re-check, ops P5) | `400`; `content-type: application/json`, `cache-control: no-store`; body exactly `{"error":"bad-postcode"}` | PASS (behaviour unchanged) |
+
+The C8-OPS-2 deviation is resolved live. **C8 closed** — all W-items done
+(W10 chain, W11 probe table, W12 ship gate); carried findings SEC-8-01 /
+SEC-8-02 risk-accepted, SEC-8-03 / SEC-8-04 informational, unchanged.

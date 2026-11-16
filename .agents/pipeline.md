@@ -2402,7 +2402,7 @@ round-2 verification is authoritative.
   string, so `%` failed `POSTCODE_SHAPE`. This is exactly the tier-2
   geocode wire form the frontend sends (`toSpacedForm` → space → `%20`) —
   the owner's "still not working".
-- **Fix implemented (working tree, uncommitted on `4389694`):**
+- **Fix committed as `0e2d6d0` (2026-11-16, owner gate approved):**
   `functions/api/postcodes/handler.ts` — decode-first in
   `validatePostcodeShape` (malformed percent sequences keep the raw
   string and are rejected by the shape test; never throws); R-5 parity
@@ -2416,10 +2416,102 @@ round-2 verification is authoritative.
 - **W11 (probe-table close) DONE 2026-11-16** — full results pasted into
   `.agents/implementation.md` § C8 closeout per ops §3 (headers verified
   on P1 200 and P5 400), deviation recorded with class + fix.
-- **W12 (owner ship gate) OPEN** — owner commits + pushes the uncommitted
-  C8-OPS-2 diff (parent `4389694`; push = publish, owner-gated — lead
-  does not push). Post-push: re-probe spaced forms (`PR7%202TH` /
-  `CF11%209HD` / `BT15%203LH` / `LS1%204AP` → 200 with exactly the 3-key
-  body each) + browser start-here (tier-1 no-fetch `PR72TH` / `LS14AP`;
-  tier-2 geocode `CF119HD` / `BT153LH`; postcodes.io 200 + PIP miss =
-  genuine not-found card, distinct from 400).
+- **W12 (owner ship gate) DONE 2026-11-16** — owner approved the ship
+  ("Commit and push"); lead staged the scope per the per-cycle
+  commit-scope rule (six explicit paths, no `git add -A`), committed
+  **`0e2d6d0`** (parent `4389694`) and pushed to `origin/main` → Pages
+  auto-build + publish, live `0e2d6d0`.
+- **Post-push re-probe (2026-11-16 18:43 UTC, live):**
+  `GET /api/postcodes/PR7%202TH` (C8-OPS-2 regression gate) → **200**,
+  `content-type: application/json` + `cache-control: no-store`, body
+  exactly `{"postcode":"PR7 2TH","latitude":53.652582,"longitude":-2.636219}`
+  (was `400` on `4389694`); `GET /api/postcodes/CF11%209HD` → **200**
+  `{"postcode":"CF11 9HD","latitude":51.484666,"longitude":-3.193503}`;
+  `GET /api/postcodes/ABC` → **400** `{"error":"bad-postcode"}` with the
+  contract headers (P5 re-check, behaviour unchanged). No 500 observed.
+- **C8 CLOSED 2026-11-16** — all W-items done (W10 chain, W11 probe
+  table, W12 ship gate); carried findings SEC-8-01 / SEC-8-02
+  risk-accepted, SEC-8-03 / SEC-8-04 informational, unchanged; 0 open
+  Blocking findings.
+
+---
+
+## Cycle 9 — 2026-11-16 (working)
+
+Owner batch, four items; design decisions confirmed by the owner
+2026-11-16 (terse answers to the lead's two questions). Hindsight
+initiative page: `kp-9836d5857a0b49a689ea1d8e07a55d70`.
+
+1. **M1 — mobile header compression** (owner: "Dark/Light/Auto takes up
+   way too much room — need a hamburger menu?"): collapse the ≤768 px
+   header from four lines (ADR-0039) to **one line: logo + title + ☰**.
+   Auto/Light/Dark theme control, the Charity shops / GP practices /
+   Children's layer toggles, and Source & Method move into a hamburger
+   dropdown panel. Owner-approved option: "Hamburger, 1-line header
+   (Recommended)".
+2. **M2 — layer toggles** (owner: "Charity shops, GP practices,
+   Childrens toggles take up too much room — need a hamburger menu?"):
+   same resolution as M1 — the three switches live in the hamburger
+   panel.
+3. **M3 — CTA styling** (owner: "Start Here and Open List buttons look
+   rubbish — need some decent styling"): "Start here" = full-width
+   solid-primary button in a slim CTA row directly under the header
+   row, always visible on mobile; "Open list" = bottom FAB restyled
+   (icon + text pill, stronger shadow, ≥48 px target). Owner-approved
+   option: "CTA row + restyled FAB (Recommended)".
+4. **D1 — desktop About footer overlap** (owner: "About page needs some
+   styling work — footer overlap"; https://hospiceinfo.pages.dev/#about
+   at desktop width): content pages overflow the height-clamped
+   `.app { height: 100% }` viewport and paint over the footer.
+   Research confirms the root cause; Architect designs a road-mapped
+   fix (map page keeps its pixel-exact fill).
+
+Done when:
+
+- Mobile (≤768 px) header is one line: logo + title + ☰ only. The ☰
+  panel contains the theme segmented control (Auto/Light/Dark, same
+  `aria-pressed` semantics and `pickMode` behaviour), the three layer
+  toggles (same state wiring as today), and Source & Method (same
+  `#methodologyModal` target). All controls function from the panel.
+  Desktop (≥769 px, especially 1280 px) header is pixel-unchanged.
+- "Start here": mobile CTA row under the header, full-width, solid
+  primary, ≥48 px, toggling the existing `startHereMobileOpen`
+  disclosure (card + `.hf-start-here-open` behaviour unchanged).
+  "Open list": restyled FAB — icon + text pill, stronger shadow,
+  target ≥48 px, same position/offset/z-order logic (bottom sheet
+  open/close, scrim, selection-closes-card invariants held).
+- `#about` and every content page show no footer overlap at any width
+  (verified ≥1024 px and mobile); map page layout at 1280/768/375 is
+  pixel-identical to today.
+- `npm test`, `npx tsc -b`, `check:layout`, double `prerender:2win`
+  byte-identical, sitemap 215 `<loc>` — all green.
+- Owner gate: commit scope + push (publish) approval.
+
+| # | Stage | Agent / model | Artifact (cycle9) | Status |
+|---|-------|---------------|-------------------|--------|
+| 1 | Research | research / qwen-flash (plan) | `research-cycle9.md` | **running** |
+| 2 | Architecture | architect / qwen-dense | `architecture-cycle9.md` | pending |
+| 2B | Visual prototyping | designer / qwen-flash | `design-cycle9.md` | pending (UI feature — run parallel with PM) |
+| 3 | Review (pre-impl) | reviewer / qwen-dense (plan) | `review-cycle9.md` | pending |
+| 4 | Work breakdown | product-manager / qwen-dense | `requirements-cycle9.md` | pending |
+| 5 | Implementation | coder / qwen-dense | code + `implementation-cycle9.md` | pending |
+| 6 | QA | qa-engineer / qwen-dense | `qa-cycle9.md` | pending (∥ 7) |
+| 7 | Security | security / qwen-dense | `security-cycle9.md` | pending (∥ 6) |
+| 8 | DevOps | devops / qwen-dense | `ops-cycle9.md` | pending |
+| 9 | Documentation | documentation / qwen-flash | `docs/` | pending |
+| 10 | Hindsight integration | hindsight / qwen-flash | `hindsight-cycle9.md` | pending |
+| 11 | Report | reporter / qwen-flash (plan) | chat only | pending |
+
+**Dispatch log**
+
+- Stage 1 attempt 1 (`research-cycle9`, 2026-11-16, completion:
+  first-turn, sub-session `f8bacc50`): lead-side first-turn timeout
+  mid-investigation; no artifact on disk after 45 s watch — stage
+  unverified, NOT marked done.
+- Stage 1 attempt 2 (sub-session `d5acd0d3`, completion: sent,
+  fire-and-forget) dispatched; lead polls disk for
+  `research-cycle9.md` (bg poll `bg_5a4109a7`, 480 s budget).
+  Disk remains ground truth: a verified artifact closes the row.
+
+**Human gates**: owner design approval recorded above (M1/M2/M3 options,
+2026-11-16). Second gate: commit scope + push.
