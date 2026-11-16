@@ -166,14 +166,15 @@ tessellation of the practice + hospice-site points over the UK box
 ## Updating the data
 
 1. Refresh the raw registers — the per-nation download steps live in
-   `data/README.md` (the only one still pending is the Care Inspectorate
-   Wales reply with the Wales hospice list; the RQIA export and the Wales
-   DataMap layers were fetched and committed 2026-10-27).
+   `data/README.md` (the RQIA export and the Wales DataMap layers were
+   fetched and committed 2026-10-27; the Wales hospice list landed
+   2026-11-08 from the five NHS Wales P&I regional sub-pages,
+   SHA-256 pins in `data/README.md`).
 2. Re-run the four practice extract scripts and the four hospice extract
    scripts, then `node scripts/merge-hospices.mjs`.
 3. `node scripts/geocode-postcodes.mjs` — resumable; only *new* postcodes
    are fetched (Nominatim = 1 request/second, no key). A full fresh run
-   of all ~9,100 areas takes roughly 3 hours.
+   of all ~9,134 areas takes roughly 3 hours.
 4. `npm run build-data`, then `node scripts/validate-tessellation.mjs`,
    then `npm run build`.
 
