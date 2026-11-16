@@ -20,11 +20,14 @@ const FUNCTION_BUDGET_MS = 5000;
 
 interface FunctionContext {
   env: Record<string, string | undefined>;
-  requestParams: Record<string, string>;
+  // C8-OPS-1 fix (2026-11-16): the current Pages runtime passes route
+  // params as `context.params`; `context.requestParams` is undefined and
+  // threw on every probe (reproduced via wrangler pages dev --local).
+  params?: Record<string, string>;
 }
 
 export const onRequest = async (context: FunctionContext): Promise<Response> => {
-  const postcode = validatePostcodeShape(context.requestParams.postcode ?? '');
+  const postcode = validatePostcodeShape(context.params?.postcode ?? '');
   if (postcode === null) {
     // Defence in depth: the client pre-checks the same shape (A§4).
     return new Response(JSON.stringify({ error: 'bad-postcode' }), {

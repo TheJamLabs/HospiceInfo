@@ -92,7 +92,8 @@ Local dev: create `.dev.vars` at the repo root containing the same three
 names, e.g. line format `POSTCODES_IO_BASE=<value>` etc.
 
 - The file is git-ignored — verified: `git check-ignore -v .dev.vars` →
-  `.gitignore:11:.dev.vars` (line 11 of `.gitignore`).
+  `.gitignore:12:.dev.vars` (line 12 of `.gitignore`; line 3 is `.wrangler/`
+  as of the C8-OPS-1 fix, 2026-11-16).
 - Values are entered by hand by the owner. The file is never read, logged,
   committed, or referenced from `.agents/`/`docs/` — ac4 requires secret-shape
   greps to return 0 matches repo-wide.
@@ -100,6 +101,25 @@ names, e.g. line format `POSTCODES_IO_BASE=<value>` etc.
   (docs/MAINTENANCE.md, Quick start, C8 section). Without `.dev.vars` the
   upstream returns 403 → the function 502s → start-here shows the not-found
   card (documented degradation).
+
+**Local route-shell smoke probe (post-C8-OPS-1 fix, 2026-11-16)** — no auth,
+no secrets needed; probes the committed route shell against a real Pages
+runtime (wrangler 4.162.0, compat date 2026-11-13):
+
+```bash
+npx wrangler pages dev dist --local --port 8931 &    # background
+curl -s -D - http://127.0.0.1:8931/api/postcodes/ABC      # → 400 {"error":"bad-postcode"} (env-independent)
+curl -s -D - http://127.0.0.1:8931/api/postcodes/PR72TH   # → 502 with unreachable base (transport catch); 200 only with real .dev.vars
+kill %%   # stop the local server when done
+```
+
+The 400 on the malformed probe is the secret-free route-shell gate (live
+equivalent: P5 in §3). Before the C8-OPS-1 fix this probe returned
+`500 TypeError: Cannot read properties of undefined (reading 'postcode')`
+at `[postcode].ts:27` — the runtime supplies `context.params`, not
+`context.requestParams`. QA round 2 exercised `handler.ts` pure logic only;
+this probe is the route-shell regression guard — re-run after **any** change
+under `functions/`.
 
 ## 3. Post-deploy probe table (W11)
 
