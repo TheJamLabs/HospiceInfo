@@ -100,10 +100,12 @@ export function LicencesPage() {
       </p>
       <h2 className="h5">Software</h2>
       <p className="mb-0">
-        The site itself is built with open-source components — React (MIT),
-        Leaflet (BSD-2-Clause), Bootstrap (MIT), plus the Voronoi and
-        polygon-clipping libraries described on the About page — each under its
-        own licence as stated in the project&apos;s package manifest.
+        The site&apos;s own code is released under the GNU General Public
+        License, version 3 (GPL-3.0-only). It is built with open-source
+        components — React (MIT), Leaflet (BSD-2-Clause), Bootstrap (MIT),
+        plus the Voronoi and polygon-clipping libraries described on the About
+        page — each under its own licence as stated in the project&apos;s
+        package manifest.
       </p>
     </div>
   );

@@ -2,6 +2,7 @@
   "name": "hospice-catchment-map",
   "private": true,
   "version": "0.1.0",
+  "license": "GPL-3.0-only",
   "description": "Interactive map of hospice catchment areas across the UK, approximated from GP practice locations.",
   "type": "module",
   "scripts": {
