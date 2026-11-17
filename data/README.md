@@ -83,7 +83,7 @@ practices are assigned; 12 sit in `hospiceId: null`
 because their postcodes have **no OSM/Nominatim coverage at unit or outcode
 level** (documented source gap, not a script bug):
 `BT13 1AD, BT13 3BW, BT42 1GP, BT42 1NW, BT42 2PB, BT42 3JU, BT42 4JA,
-BT63 6JS, BT79 0NR`. 138 charity shops, of which **21 sit outside their own
+BT63 6JS, BT79 0NR`. 138 charity shops, of which **17 sit outside their own
 catchment** in this snapshot (recomputed on every build). Scotland is
 complete: **911 practices, all geocoded and assigned**. Wales is complete:
 **539 practices (369 main + 170 branch sites), all placed from
