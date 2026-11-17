@@ -210,3 +210,18 @@ provenance, and documentation. New terms are formatted in *italics*.
   (`scripts/check-map-layout.mjs`) — the CI gate that fails unless the
   complete set of `flex-direction` declarations in `src/styles.css` is
   exactly `.app: column`, `.app-body > .app: row`, `.legend-grid: column`.
+
+## Cycle 9 (2026-11-16) — mobile header, CTA, footer
+
+- **hamburger button** (*italic*): the ≤768 px header control
+  (`.hf-burger`) that opens the *menu panel*; hidden ≥769 px so the
+  desktop header is unchanged (ADR-0043).
+- **menu panel** (*italic*): the Bootstrap `offcanvas offcanvas-end`
+  side sheet (`#mobileMenu`, z-index 2100) carrying the theme segmented
+  control, the three layer toggles (map route only) and the "Source &
+  Method" trigger; bootstrap owns the `show` class / focus trap / Esc,
+  React only syncs `aria-expanded` (ADR-0043).
+- **CTA row** (*italic*): the mobile-only full-width solid-primary
+  "Start here" button `.hf-start-here-cta` (≥48 px) rendered directly
+  under the header, bound to the ADR-0038 `startHereMobileOpen`
+  disclosure state (class on `.app`) (ADR-0043).

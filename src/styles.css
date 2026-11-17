@@ -76,8 +76,7 @@ body,
   display: flex;
   flex-direction: column;
   min-width: 0;
-  min-height: 0;
-  height: 100%;
+  min-height: 100%;
   position: relative;
 }
 
@@ -116,9 +115,13 @@ body,
   display: none;
 }
 
-/* C7/W3 (ADR-0038 re-issued): the "Start here" disclosure toggle —
-   mobile-only (display:inline-flex in the 768px block). */
-.hf-start-here-toggle {
+/* C9/ADR-0043: the hamburger button and the "Start here" CTA row —
+   mobile-only (shown in the 768px block); hidden at base so the ≥769 px
+   desktop header stays pixel-identical. */
+.hf-burger {
+  display: none;
+}
+.hf-cta-row {
   display: none;
 }
 
@@ -175,38 +178,54 @@ body,
 }
 
 @media (max-width: 768px) {
-  /* pm 4.4: header controls (shop toggle, Source & Method) stay tappable. */
-  .app-header .form-check {
-    min-height: 44px;
+  /* C9/ADR-0043: one-line mobile header — logo + title + hamburger
+     (44 × 44 px); subtitle drops out. The theme control, the three layer
+     toggles and Source & Method live in the offcanvas menu panel
+     (`.hf-menu-panel`); the "Start here" disclosure becomes the full-bleed
+     CTA row under the header (`.hf-cta-row`). Header nav links stay
+     hidden — the footer already carries the same six, and Source & Method
+     remains in the mobile-only footer link row, so the 1280 px surface is
+     unchanged. */
+  .app-title-sub { display: none; }
+  .theme-group { display: none; }
+  .app-header .form-check { display: none; }
+  .app-header .hf-source-method { display: none; }
+  .hf-burger {
     display: inline-flex;
     align-items: center;
-  }
-  .app-header .form-check-input {
-    scale: 1.4;
-    margin: 0 0.15rem;
-  }
-  .app-header .btn {
+    justify-content: center;
     min-height: 44px;
+    min-width: 44px;
   }
-  /* W5/ADR-0024: the theme control becomes a full-width row under the title. */
-  .theme-group {
-    flex: 1 1 100%;
-    justify-content: space-between;
-  }
-  /* C7/W1 (ADR-0039): 4-line mobile header — 351 px line budget (375 − 2×12).
-     Line 1 logo/title/subtitle · line 2 theme row · line 3 first two layer
-     toggles · line 4 third toggle + Start-here button (40% widths force
-     exactly two items per line). Header nav links are hidden — the footer
-     already carries the same six; Source & Method shifts to the footer link
-     row (hidden there on desktop, so 1280 px stays pixel-unchanged). */
-  .app-header .app-title-row { width: 100%; }
-  .app-title-sub { font-size: 0.75rem; }
-  .app-header .form-check { width: 40%; }
-  .app-header .form-check-label { font-size: 0.875rem; }
-  .app-header .hf-start-here-toggle { display: inline-flex; width: 40%; }
-  .app-header .hf-source-method { display: none; }
   .site-nav-link { display: none; }
   .hf-footer-source { display: inline; }
+
+  /* Menu panel: floats above the FAB (2000) — ladder 1500 < 1600 < 1700
+     < 2000 < 2100 (Bootstrap's offcanvas backdrop ≈1040 stays below the
+     sheet scrim 1500). */
+  .hf-menu-panel {
+    z-index: 2100;
+    width: 100vw;
+  }
+  .hf-menu-panel .form-check { min-height: 44px; }
+  .hf-menu-panel .form-check-input { scale: 1.4; }
+  .hf-menu-panel .btn { min-height: 44px; }
+  .menu-theme { width: 100%; justify-content: space-between; margin-bottom: 0.75rem; }
+
+  /* "Start here" CTA row — deliberately NOT hidden while the bottom sheet
+     is open (reviewer R2: the old C7 invisible-state flip is not repeated). */
+  .hf-cta-row { display: block; }
+  .hf-start-here-cta {
+    width: 100%;
+    min-height: 48px;
+    border: 0;
+    border-radius: 0;
+    padding: 0.5rem 0;
+    background: var(--hf-primary);
+    color: var(--hf-primary-ink);
+    font-size: 1rem;
+    font-weight: 600;
+  }
 }
 
 .panel-item-active {
@@ -390,6 +409,8 @@ body,
 
   .sheet-fab {
     display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
     position: absolute;
     left: 50%;
     transform: translateX(-50%);
@@ -401,7 +422,7 @@ body,
     border: 0;
     background: var(--hf-primary);
     color: var(--hf-primary-ink);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.35);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
     font-size: 0.95rem;
     cursor: pointer;
   }

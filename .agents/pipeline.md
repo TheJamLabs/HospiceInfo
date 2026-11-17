@@ -2489,18 +2489,18 @@ Done when:
 
 | # | Stage | Agent / model | Artifact (cycle9) | Status |
 |---|-------|---------------|-------------------|--------|
-| 1 | Research | research / qwen-flash (plan) | `research-cycle9.md` | **running** |
-| 2 | Architecture | architect / qwen-dense | `architecture-cycle9.md` | pending |
-| 2B | Visual prototyping | designer / qwen-flash | `design-cycle9.md` | pending (UI feature — run parallel with PM) |
-| 3 | Review (pre-impl) | reviewer / qwen-dense (plan) | `review-cycle9.md` | pending |
-| 4 | Work breakdown | product-manager / qwen-dense | `requirements-cycle9.md` | pending |
-| 5 | Implementation | coder / qwen-dense | code + `implementation-cycle9.md` | pending |
-| 6 | QA | qa-engineer / qwen-dense | `qa-cycle9.md` | pending (∥ 7) |
-| 7 | Security | security / qwen-dense | `security-cycle9.md` | pending (∥ 6) |
-| 8 | DevOps | devops / qwen-dense | `ops-cycle9.md` | pending |
-| 9 | Documentation | documentation / qwen-flash | `docs/` | pending |
-| 10 | Hindsight integration | hindsight / qwen-flash | `hindsight-cycle9.md` | pending |
-| 11 | Report | reporter / qwen-flash (plan) | chat only | pending |
+| 1 | Research | in-lead (sub-sessions failed ×2 — see dispatch log) | `research-cycle9.md` (297 lines, 9/9 sections) | **done** |
+| 2 | Architecture | in-lead (sub-sessions failed ×3 — see dispatch log) | `architecture-cycle9.md` + ADR-0043 + GLOSSARY Cycle 9 section | **done** |
+| 2B | Visual prototyping | sub-session `d4b26171` (late completion — see dispatch log) | `design-cycle9.md` | **done** |
+| 3 | Review (pre-impl) | in-lead (sub-session `d2bfc376` timed out, zero artifact — see dispatch log) | `review-cycle9.md` | **done** |
+| 4 | Work breakdown | in-lead (sub-session `755f1036` timed out, zero artifact — see dispatch log) | `requirements-cycle9.md` | **done** |
+| 5 | Implementation | sub-session `ab8fe3d6` (late-landing + in-lead fallback — see dispatch log) | code + `implementation-cycle9.md` | **done** |
+| 6 | QA | qa-engineer subagent (2026-11-17, lead disk-verified) | `qa-cycle9.md` | **done** (PASS — 0 Blocking, 0 rework rounds; all 7 command gates green (tsc exit 0, node --test 26/26, check:layout OK, build green, double prerender BYTE-IDENTICAL, sitemap 215 `<loc>`, zero `hf-start-here-toggle`); all 8 done-when rows verified against final file state with line refs; invariants A–K intact (z-ladder, `--hf-sheet-h`, strict 3-line flex-direction set, no new `--hf-*` tokens). Risk-accepted (non-blocking, documented): CTA row visible during open sheet (R2, deliberate), owner-visual pass at 1280/768/375 (no browser tool — needs-owner-visual after publish), empty `.hf-cta-row` on content routes (zero-height, cosmetic). Artifact 11,588 B on disk) |
+| 7 | Security | security subagent (2026-11-17, lead disk-verified) | `security-cycle9.md` | **done** (PASS — 0 Blocking, 0 rework rounds; 3 risk-accepted items all pre-existing and untouched by the delta (same-origin JSON fetches, `mailto:` flow, inert StartHere form); no design-level changes → no Architect routing; duplicate-id check clean: `mobileMenu`/`mobileMenuLabel`/`methodologyModal`/`gpsToggle`/`childrenToggle` each once, panel copies id-less; artifact 5,104 B on disk) |
+| 8 | DevOps | devops / qwen-dense | `ops-cycle9.md` | **done** | sub-session completed 01:24 (5,124 B, 84 L): pre-push gate re-run (tsc, 26/26 tests, check:layout, build + double prerender byte-identity, sitemap 215); explicit 16-path commit list (no `git add -A`), message "Cycle 9: mobile menu panel, CTA row, footer fix", commit follows Hindsight (ops+hindsight land last); push = owner gate = production, post-publish curl verification (HTTP 200, `.hf-menu-panel` in built CSS, well-formed index, 215 locs); rollback `git revert <sha>` + push → Pages republishes in seconds (3-source-file checkout as conflict escape; docs/ADR/.agents/GLOSSARY = docs-only, no runtime concern); QA/Security risk-accepted carried forward untouched; open gates = owner-visual 1280/768/375 + commit/push approval (both owner's manual gates); 0 rounds 0/2 |
+| 9 | Documentation | documentation / qwen-flash | `docs/` | **done** | sub-session completed: `README.md` 2-line edit (Dots/Squares layer-toggle bullets now "toggle in the header; on mobile, in the menu panel"); `docs/build-log.md` inspected, no C9-surface content, unchanged; sub-session's writer was whole-file-only and it behaved differently on `MAINTENANCE.md` (477 L > per-turn budget) — drafted C7-supersession + full C9 section recorded verbatim in `documentation-cycle9.md`; **lead applied both edits in-lead** (Edit A: C9 supersession note after C7 design-rationale line 427; Edit B: appended "## Cycle 9 (C9) — mobile menu panel, CTA row, footer" section: scope / pre-push chain per ops-cycle9.md §1 / post-publish smoke / rollback / carried-debt table / ships-with-next-commit note — MAINTENANCE.md now 559 L); all text ADR-0043-consistent, verified against C9 source by the stage; pre-existing README "pill" drift noted, no action |
+| 10 | Hindsight integration | lead in-session (2026-11-17, tool-enabled) | `hindsight-cycle9.md` | **done** | Stage-10 artifact landed on disk while the row read pending (late-landing pattern, disk-first rule applied). Remap executed with the tools available in this session: duplicate-check search first (no pre-existing "Cycle 9 outcome" doc → ingest safe); `hindsight_capture_initiative` with `relates_to_page_id=kp-9836d585…` → returned the SAME page id (final state recorded on the existing initiative page, no second page); `hindsight_ingest_document` → doc `cycle-9-outcome-mobile-menu-panel-cta-row-footer`. Verification: 4 searches ("mobile header", "z-index ladder", "ADR-0043", "Cycle 9 final state ship-gated") all surface the C9 page at score 1.0/1.0/0.977/0.984 + Conventions/Key-decisions pages. **Documented debt (non-blocking):** the 5 page-refresh ops in the artifact's §1 table (component map, conventions, core concepts, decisions, initiatives index) need `hindsight_page_refresh`, which is ABSENT from this session's 8-tool hindsight toolset — no retry loop (C7 precedent); the artifact §1+§5 is the exact manual remap for a tool-enabled session, and page content is regenerated from memory by the Hindsight background process (bank synced, `surveyBaseline` b8e4958 = HEAD). |
+| 11 | Report | lead in-session (2026-11-17) | chat only | **done** — one-screen status report delivered in chat this turn. |
 
 **Dispatch log**
 
@@ -2512,6 +2512,136 @@ Done when:
   fire-and-forget) dispatched; lead polls disk for
   `research-cycle9.md` (bg poll `bg_5a4109a7`, 480 s budget).
   Disk remains ground truth: a verified artifact closes the row.
+- Stage 1 attempt 2 result (2026-11-16): bg poll `bg_5a4109a7` returned
+  ARTIFACT_NOT_FOUND after the 480 s budget — second zero-output
+  sub-session failure. Fallback: research performed **in-lead** (read-only
+  discipline kept — no working-tree changes from the research phase).
+  Full artifact written to `research-cycle9.md` (297 lines, 9/9 sections;
+  D1 root cause confirmed at `src/styles.css:80` `height:100%`; panel
+  mechanics via Bootstrap 5.3 offcanvas with data-attr open state; 8 risks
+  for the Architect). Row closed on the verified artifact.
+- Stage 2 attempt 1 (`architect-cycle9`, 2026-11-16, completion:
+  first-turn, sub-session `fa069c99`): timeout during input reading
+  (had discovered latest ADR on disk = ADR-0042); zero artifacts on disk
+  (ls + git status verified same day); NOT marked done.
+- Stage 2 attempt 2 (`architect-cycle9-retry`, 2026-11-16, completion:
+  first-turn, sub-session `8bbeda72`): completed every read, timed out
+  just before writing; zero artifacts on disk (verified same day); NOT
+  marked done. Pattern: qwen-dense sub-sessions time out over-reading
+  (pipeline.md alone is 2500+ lines). Fallback for attempt 3: minimal
+  read budget + "Done when" inlined in the prompt; if attempt 3 also
+  fails → in-lead Architect (read-only src; writes the same three
+  artifacts: architecture-cycle9.md, ADR-0043, GLOSSARY delta).
+- Stage 2 attempt 3 (`architect-cycle9-3`, 2026-11-16, completion:
+  first-turn, sub-session `ec05d9f7`, minimal read budget + inlined
+  "Done when"): timed out; zero artifacts on disk (ls + git status
+  verified same day); third consecutive qwen-dense sub-session failure
+  at this stage.
+- Stage 2 in-lead fallback executed (read-only discipline on src kept —
+  no working-tree changes from the architecture phase): three artifacts
+  written and disk-verified — `architecture-cycle9.md` (12,376 bytes;
+  7 sections incl. changed-files list, M1/M2 offcanvas design, M3 CTA +
+  FAB restyle, D1 one-line fix, 8 preserved invariants, risks 1-8
+  closed, 6-step Coder checklist), `docs/adr/0043-mobile-menu-panel-and
+  cta-row.md` (supersedes ADR-0039 for the header, kept for nav),
+  GLOSSARY.md Cycle 9 section appended (213 → 236 lines: hamburger
+  button, menu panel, CTA row, FAB restyle, footer overlap). Row closed
+  on the verified artifact.
+- Stage 2B dispatch (2026-11-16, completion: first-turn, sub-session
+  `d4b26171`, designer/qwen-flash, input `architecture-cycle9.md`):
+  the first-turn wait timed out, but the sub-session kept running
+  server-side and its artifact landed late on disk
+  (`design-cycle9.md`, 11,415 B; mtime 23:35). Verified on disk at
+  23:48 — all visual selection records present (LS-9-1..8, wireframes,
+  token/contrast tables, zero-deviation changelog). No in-lead
+  fallback needed; row closed on the verified artifact.
+- Stage 3 dispatch (2026-11-16, completion: first-turn, sub-session
+  `d2bfc376`, reviewer/qwen-dense plan): timed out; zero artifact on
+  disk at 23:48 (ls verified). In-lead fallback ran the full review
+  pass (read-only: AppShell.tsx, App.tsx, styles.css, tests/, all C9
+  artifacts): wrote `review-cycle9.md` (7,615 B) — verdict
+  PASS-WITH-CONDITIONS, 0 Blocking; conditions R1 (CTA-row-while-sheet
+  open = C7 parity, document don't change), R2 (hard guard:
+  check:layout flex-direction set stays exactly the 3 known
+  declarations), R3 (zero `hf-start-here-toggle` in src/ after removal),
+  R4 (panel toggle parity: ids/labels/titles preserved). Row closed on
+  the verified artifact.
+- Stage 4 dispatch (2026-11-17, completion: first-turn, sub-session
+  `755f1036`, product-manager/qwen-dense, minimal read budget): timed
+  out mid-read; zero artifact on disk after a ~6 min watch window (ls
+  verified). In-lead fallback ran the full work-breakdown pass (inputs:
+  architecture-cycle9.md, design-cycle9.md, review-cycle9.md, ADR-0043
+  — all previously read in full): wrote `requirements-cycle9.md`
+  (~201 lines — work list C9-1..C9-7 ordered per architecture §7 with
+  exact file/line deltas and design values LS-9-1..8, R1–R4 conditions
+  from the review, the 9 invariants, done-when). Row closed on the
+  verified artifact.
+- Stage 5 dispatch (2026-11-17, completion: first-turn, sub-session
+  `ab8fe3d6`, coder/qwen-dense): lead-side first-turn timeout; landed
+  partially (styles.css C9-1, AppShell.tsx C9-2), then landed the
+  complete remainder (App.tsx C9-3, styles.css C9-4) late at 00:52.
+  After a ~7 min watch window the lead verified the full tree on disk
+  (tsc green; node --test 26/26; check:layout OK; build 428.73 kB JS /
+  254.26 kB CSS; double prerender BYTE-IDENTICAL; sitemap 215 `<loc>`;
+  zero `hf-start-here-toggle`; DOM integrity clean). In-lead code
+  fallback NOT used. Wrote `implementation-cycle9.md`.
+- Stage 6 dispatch (2026-11-17, completion: first-turn, sub-session
+  `9eca6da7`, qa-engineer/qwen-dense, ran parallel with Stage 7):
+  **PASS — 0 Blocking**, 0 rework rounds. Re-ran all 7 command gates
+  live (tsc exit 0; node --test 26/26; check:layout OK; build
+  428.73 kB JS / 254.26 kB CSS; double prerender BYTE-IDENTICAL;
+  sitemap 215 `<loc>`; zero `hf-start-here-toggle`). Verified all 8
+  done-when rows against final file state with line refs; invariants
+  A–K intact. Risk-accepted: R2 CTA-visible-during-open-sheet
+  (deliberate, C7 parity), owner-visual pass at 1280/768/375 (no
+  browser tool → needs-owner-visual after publish), empty
+  `.hf-cta-row` on content routes (zero-height, cosmetic). Lead
+  disk-verified: `qa-cycle9.md` (11,588 B).
+- Stage 7 dispatch (2026-11-17, completion: first-turn, sub-session
+  `987db495`, security/qwen-dense, ran parallel with Stage 6 QA):
+  **PASS — 0 Blocking**, 0 rework rounds. Read `git diff` of the 3
+  source files + R-conditions from review-cycle9.md; grepped for
+  injection sinks (`dangerouslySetInnerHTML`/`innerHTML`/`eval` → 0),
+  secrets (0 false-positive-free hits), external origins (0 new),
+  dependency changes (0). Duplicate-id check clean. 3 risk-accepted
+  items, all pre-existing and untouched by the delta (same-origin JSON
+  fetches in useAppData/CorrectionsPage; `mailto:` flow; inert
+  `<form>` in StartHere). No design-level changes → no Architect
+  routing. Lead disk-verified: `security-cycle9.md` (5,104 B).
+- Stage 8 dispatch (2026-11-17, completion: first-turn, sub-session
+  `bca1dac2`, devops/qwen-dense): `.agents/ops-cycle9.md` (5,124 B,
+  84 L) — read-only pass, single file written. Pre-push gate re-run
+  list (tsc / 26-26 tests / check:layout / build + double prerender
+  byte-identity / sitemap 215); commit = explicit 16-file path list
+  (no `git add -A`), message "Cycle 9: mobile menu panel, CTA row,
+  footer fix"; commit ordered AFTER stage 10 (ops + hindsight
+  artifacts land last); push to main = owner gate = automatic
+  Cloudflare Pages publish; post-publish curl verification (HTTP 200,
+  `.hf-menu-panel` in built CSS, well-formed index HTML, 215 sitemap
+  locs). Rollback: `git revert <sha>` + push → Pages republishes in
+  seconds (edge CDN); `git checkout --` of the 3 source files as
+  conflict escape; ADR/.agents/GLOSSARY = docs-only, no runtime
+  rollback concern. QA/Security risk-accepted items (4 + 3) carried
+  forward untouched. Open gates = owner-visual pass 1280/768/375 +
+  commit/push approval, both owner's manual gates. Lead disk-verified
+  01:24.
+- Stage 9 dispatch (2026-11-17, completion: first-turn, sub-session
+  `95347e4b`, documentation/qwen-flash): `README.md` edited in place —
+  Dots + Squares layer-toggle bullets now read "toggle in the header;
+  on mobile, in the menu panel" (4+/2−); "Recent ships" untouched
+  (C9 unpushed). `docs/build-log.md` inspected, no C9-surface content,
+  unchanged. `MAINTENANCE.md`: sub-session's writer was whole-file-only
+  and was refused on the 477-line file (output budget) — text
+  (C7-supersession note + full C9 section) recorded verbatim in
+  `documentation-cycle9.md`; **lead applied both edits in-lead 02:04**
+  (Edit A after the C7 design-rationale line; Edit B appended the
+  "## Cycle 9 (C9) — mobile menu panel, CTA row, footer" section:
+  scope, pre-push chain per ops-cycle9.md §1, post-publish smoke,
+  rollback, carried-debt table, ships-with-next-commit note; file now
+  559 L, no other file corrupted). All written text ADR-0043-consistent
+  and verified against the C9 source. Pre-existing drift noted (README
+  "pill" text vs StartHere.tsx), out of C9 scope. Lead disk-verified
+  artifact (documentation-cycle9.md) + README diff.
 
 **Human gates**: owner design approval recorded above (M1/M2/M3 options,
 2026-11-16). Second gate: commit scope + push.

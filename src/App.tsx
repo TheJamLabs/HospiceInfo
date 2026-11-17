@@ -174,19 +174,51 @@ export default function App() {
           >
             Source &amp; Method
           </button>
-          {/* C7/W3 (ADR-0038 re-issued, option b): mobile "Start here"
-              disclosure toggle — always rendered (server/client first
-              renders match, R4/R6), CSS-hidden on desktop, shown on
-              mobile; aria-expanded mirrors the disclosure state. */}
-          <button
-            type="button"
-            className="hf-start-here-toggle btn btn-outline-secondary btn-sm"
-            aria-expanded={startHereMobileOpen}
-            onClick={() => setStartHereMobileOpen((open) => !open)}
-          >
-            Start here
-          </button>
         </>
+      }
+      mobilePanel={
+        <>
+          <label className="form-check form-switch m-0" title="Toggle charity shop markers on the map">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={showShops}
+              onChange={(e) => setShowShops(e.target.checked)}
+            />
+            <span className="form-check-label small ms-1">Charity shops</span>
+          </label>
+          <label className="form-check form-switch m-0" title="Toggle GP practice markers on the map">
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={showGps}
+              onChange={(e) => setShowGps(e.target.checked)}
+            />
+            <span className="form-check-label small ms-1">GP practices</span>
+          </label>
+          <label
+            className="form-check form-switch m-0"
+            title="Show children's hospices instead of adult hospices — the two sets, and their catchment areas, are completely separate"
+          >
+            <input
+              className="form-check-input"
+              type="checkbox"
+              checked={childrenMode}
+              onChange={(e) => toggleKind(e.target.checked)}
+            />
+            <span className="form-check-label small ms-1">Children's</span>
+          </label>
+        </>
+      }
+      headerCta={
+        <button
+          type="button"
+          className="hf-start-here-cta btn"
+          aria-expanded={startHereMobileOpen}
+          onClick={() => setStartHereMobileOpen((open) => !open)}
+        >
+          Start here
+        </button>
       }
     >
       <div className={`app${sheetOpen ? ' app-sheet-open' : ''}${startHereMobileOpen ? ' hf-start-here-open' : ''}`}>
@@ -282,6 +314,23 @@ export default function App() {
           aria-controls="appPanel"
           onClick={() => setSheetOpen(!sheetOpen)}
         >
+          <svg
+            width="18"
+            height="18"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={2}
+            strokeLinecap="round"
+            aria-hidden="true"
+          >
+            <line x1="8" y1="6" x2="20" y2="6" />
+            <line x1="8" y1="12" x2="20" y2="12" />
+            <line x1="8" y1="18" x2="20" y2="18" />
+            <line x1="4" y1="6" x2="4" y2="6" />
+            <line x1="4" y1="12" x2="4" y2="12" />
+            <line x1="4" y1="18" x2="4" y2="18" />
+          </svg>
           {sheetOpen ? 'Close list' : 'Open list'}
         </button>
         <button

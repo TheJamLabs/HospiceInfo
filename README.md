@@ -30,11 +30,13 @@ your mail client (nothing is collected by the site).
   the hospice id, so it is stable across rebuilds); visible on first load
   along with the catchment areas
 - **Dots** — each GP practice, coloured by the catchment it is assigned to
-  (off by default on first load — toggle in the header)
+  (off by default on first load — toggle in the header; on mobile, in
+  the menu panel)
 - **Areas** — each hospice's catchment: a Voronoi tessellation of the
   practice + hospice-site points over the UK
 - **Squares** — charity shops from the curated hospices' websites (off by
-  default on first load — toggle in the header)
+  default on first load — toggle in the header; on mobile, in the menu
+  panel)
 - **Grid-bucket markers** — low-zoom grid cells that reveal the underlying
   practice markers on click and fly at zoom level 11
 - **A→Z list** — the side panel lists hospices alphabetically by default,

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { SITE_FOOTER_TEXT } from '../lib/siteConfig';
 import {
@@ -33,10 +33,14 @@ type ThemeMode = (typeof THEME_MODES)[number]['value'];
 interface AppShellProps {
   /** Map-page-only header controls (shop toggle, Source & Method button). */
   headerExtras?: ReactNode;
+  /** Mobile menu panel content — map-route layer toggles; undefined on content routes. */
+  mobilePanel?: ReactNode;
+  /** Mobile CTA row content — the Start-here button; empty on content routes. */
+  headerCta?: ReactNode;
   children: ReactNode;
 }
 
-export default function AppShell({ headerExtras, children }: AppShellProps) {
+export default function AppShell({ headerExtras, mobilePanel, headerCta, children }: AppShellProps) {
   const [mode, setMode] = useState<ThemeMode>(() => getStoredMode());
   const pickMode = (m: ThemeMode) => {
     setStoredMode(m);
@@ -45,6 +49,24 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
     setBsTheme(effectiveTheme(m));
     setMode(m);
   };
+  // C9/ADR-0043: Bootstrap owns the offcanvas open state (data-bs-toggle);
+  // React only mirrors it onto the burger's aria-expanded. Initial DOM value
+  // `false` matches the initial static (closed) markup.
+  const burgerRef = useRef<HTMLButtonElement | null>(null);
+  const menuPanelRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const panel = menuPanelRef.current;
+    const burger = burgerRef.current;
+    if (!panel || !burger) return;
+    const onShown = () => burger.setAttribute('aria-expanded', 'true');
+    const onHidden = () => burger.setAttribute('aria-expanded', 'false');
+    panel.addEventListener('shown.bs.offcanvas', onShown);
+    panel.addEventListener('hidden.bs.offcanvas', onHidden);
+    return () => {
+      panel.removeEventListener('shown.bs.offcanvas', onShown);
+      panel.removeEventListener('hidden.bs.offcanvas', onHidden);
+    };
+  }, []);
   return (
     <div className="app">
       <a className="skip-link" href="#mainContent">
@@ -87,9 +109,76 @@ export default function AppShell({ headerExtras, children }: AppShellProps) {
                 </a>
               ))}
             </nav>
+            <button
+              ref={burgerRef}
+              type="button"
+              className="hf-burger btn"
+              aria-label="Open menu"
+              aria-expanded={false}
+              aria-controls="mobileMenu"
+              data-bs-toggle="offcanvas"
+              data-bs-target="#mobileMenu"
+            >
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
+              </svg>
+            </button>
           </div>
         </div>
       </header>
+      <div className="hf-cta-row">{headerCta}</div>
+      <div
+        ref={menuPanelRef}
+        className="offcanvas offcanvas-end hf-menu-panel"
+        tabIndex={-1}
+        id="mobileMenu"
+        aria-labelledby="mobileMenuLabel"
+      >
+        <div className="offcanvas-header">
+          <h2 className="offcanvas-title h5" id="mobileMenuLabel">Menu</h2>
+          <button
+            type="button"
+            className="btn-close"
+            data-bs-dismiss="offcanvas"
+            aria-label="Close menu"
+          />
+        </div>
+        <div className="offcanvas-body">
+          <div className="btn-group theme-group menu-theme" role="group" aria-label="Colour theme">
+            {THEME_MODES.map((t) => (
+              <button
+                key={t.value}
+                type="button"
+                className={'btn btn-outline-secondary btn-sm' + (mode === t.value ? ' active' : '')}
+                aria-pressed={mode === t.value}
+                onClick={() => pickMode(t.value)}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          {mobilePanel}
+          <button
+            type="button"
+            className="btn btn-outline-secondary hf-panel-source"
+            data-bs-toggle="modal"
+            data-bs-target="#methodologyModal"
+          >
+            Source &amp; Method
+          </button>
+        </div>
+      </div>
       <main id="mainContent" className="app-body">
         {children}
       </main>
