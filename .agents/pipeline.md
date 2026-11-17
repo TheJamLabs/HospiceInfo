@@ -2700,7 +2700,7 @@ exist, no open Blocking findings, Reporter delivered.
 | 1 | Research | research / qwen-flash (plan) | `research-cycle10.md` | **done — verified** |
 | 2 | Architecture | architect / qwen-dense | `architecture-cycle10.md` + GLOSSARY + ADR-0043..0045 | **done** (2026-11-17, lead disk-verified) |
 | 3 | Review (pre-impl) | reviewer / qwen-dense (plan) | `review-cycle10.md` | **done** (2026-11-17, lead disk-verified — PASS, 0 Blocking / 6 risk-accepted) |
-| 4 | Work breakdown | product-manager / qwen-dense | `requirements-cycle10.md` | pending |
+| 4 | Work breakdown | product-manager / qwen-dense | `requirements-cycle10.md` | **done** (2026-11-17, lead disk-verified — W1–W15 dependency-ordered, Component A first, 5 tests, crawl RUN item, F-1 + append-only carried) |
 | 5 | Implementation | coder / qwen-dense | code + `implementation-cycle10.md` | pending |
 | 6 | QA | qa-engineer / qwen-dense | `qa-cycle10.md` | pending (∥ 7) |
 | 7 | Security | security / qwen-dense | `security-cycle10.md` | pending (∥ 6) |
@@ -2785,6 +2785,48 @@ Stage 2B skipped: no visual surface (data tooling + committed data only).
   138+) is what enables A-05 byte-preservation. Reviewer read-only
   constraint held (git status matches expected set). No rework loop
   needed; Stage 4 (PM) is next.
+- **Stages 1–3 checkpoint committed (2026-11-17):** `871cf2e`
+  (9 files, +1278) — feature, research, architecture, review
+  artifacts, ADRs 0043–0045, GLOSSARY terms, ledger. Tree clean for
+  Stage 4.
+- **Stage 4 dispatched (2026-11-17):** product-manager sub-session
+  (qwen-dense) fired fire-and-forget with a self-contained brief —
+  reads all Stage 1–3 artifacts (esp. architecture components A–F,
+  G0–G6, D1–D12, testing strategy; review PASS + F-1 coding
+  requirement + append-only shop-id fact). Must write exactly
+  `.agents/requirements-cycle10.md`: an exhaustive, dependency-ordered
+  work list (W1…Wn) for the coder — each item with files touched,
+  acceptance criteria, and prerequisites; Component A (identity)
+  first per architecture order; carries F-1 (discovery transport
+  errors leave the row un-written) and the append-only write rule.
+  Read-only on everything else; no implementation. Lead polls disk,
+  lead-verifies on landing.
+- **Stage 4 landed (2026-11-17):** PM sub-session; first disk poll
+  (`bg_6bf33f5a`) caught the file mid-write at 78 L (ends W4) — a
+  `grep -c` stability check (`bg_0bf8457d`) was flawed (prints 0 without
+  matches) and passed early; corrected poll (`bg_84558ed8`, `grep -q`
+  final section + two stable samples) confirmed completion at ~570 s
+  later: **378 L, W1–W15 + out-of-scope restated + Notes for the Coder**.
+  Lead verification passed: Component A first (W2 helper, W3 test +
+  byte-identical fixture, W4 3-line `build-data.mjs` change fenced off the
+  `shop-${i}` id line and the L1082 hard-fail); all 5 tests as items (W3
+  shop-identity, W5 shop-byte-preserve prefix check, W6 shop-entry-shape
+  with exact key order, W7 shop-dedupe + new `scripts/shop-normalise.mjs`
+  as the shared normaliser carrier, W9 crawl-log with 8-value vocabulary +
+  confirm-row invariants + synthetic malformed row); W8 devDeps
+  `playwright` + `pdfjs-dist` (no binary install, runtime deps untouched);
+  W10 discovery + log with **F-1 carried verbatim** (transport failure →
+  row left unwritten, never terminal `not-found`; QA simulates 429); W11
+  per-site crawl with append-only entries (ids 138+); W12 confirm-only
+  18-site pass (invariants `shopsExtracted: 0` / `committed: false`); W13
+  no-network `unresolvedPostcodes` sync; **W14 the crawl RUN as its own
+  long, interruptible item** (§8 sequence, resumable via the log, G2–G6
+  inputs); W15 READMEs last. Notes carry append-only rule, F-1/F-2/F-3/
+  F-5/F-6, offline `npm test`, frozen fixture, no-blind-fallback identity.
+  PO: W10 exports `isWrapperDomain` / W12 `confirmDomains()` / W13
+  `unresolvedKeys()` as pure import-safe helpers (acceptance smoke
+  commands, no network). `git status --short`: only ledger + new
+  artifact — PM constraint held.
 
 **Lead integration notes (verified in code, 2026-11-16)**:
 
