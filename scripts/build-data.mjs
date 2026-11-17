@@ -24,6 +24,7 @@
 import fs from 'node:fs';
 import polygonClipping from 'polygon-clipping';
 import { CATCHMENTS } from './catchment-map.mjs';
+import { resolveShopId } from './shop-identity.mjs';
 import { loadMaskWithBBoxes, polysBBox, bboxesOverlap } from './land-mask.mjs';
 const { difference, intersection } = polygonClipping;
 
@@ -61,6 +62,7 @@ function hashToColor(id) {
 
 // ---- load inputs -----------------------------------------------------------
 const hospicesAll = JSON.parse(fs.readFileSync('data-raw/hospices-all.json', 'utf8'));
+const canonicalIds = new Set(hospicesAll.map((h) => h.id));
 const PRACTICE_FILES = {
   en: 'data-raw/gp-practices-en.json',
   sc: 'data-raw/gp-practices-sc.json',
@@ -1062,7 +1064,7 @@ const shopsOut = [];
 for (const [i, s] of shopRows.entries()) {
   const g = shopGeo[s.postcode ?? s.address.join(', ').toUpperCase()];
   if (!g?.lat) { shopGeoMissing++; continue; }
-  const hospiceId = SLUG_TO_ID[s.hospiceId];
+  const hospiceId = resolveShopId(s.hospiceId, canonicalIds, SLUG_TO_ID);
   if (!hospiceId) { shopsUnresolved++; continue; }
   const rings = catchmentRings.get(hospiceId) ?? [];
   shopsOut.push({

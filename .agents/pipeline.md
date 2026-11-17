@@ -2701,7 +2701,7 @@ exist, no open Blocking findings, Reporter delivered.
 | 2 | Architecture | architect / qwen-dense | `architecture-cycle10.md` + GLOSSARY + ADR-0043..0045 | **done** (2026-11-17, lead disk-verified) |
 | 3 | Review (pre-impl) | reviewer / qwen-dense (plan) | `review-cycle10.md` | **done** (2026-11-17, lead disk-verified — PASS, 0 Blocking / 6 risk-accepted) |
 | 4 | Work breakdown | product-manager / qwen-dense | `requirements-cycle10.md` | **done** (2026-11-17, lead disk-verified — W1–W15 dependency-ordered, Component A first, 5 tests, crawl RUN item, F-1 + append-only carried) |
-| 5 | Implementation | coder / qwen-dense | code + `implementation-cycle10.md` | pending |
+| 5 | Implementation | coder / qwen-dense | code + `implementation-cycle10.md` | **done** (2026-11-17, lead disk-verified — W1–W15 ledgered; W14 at documented clean seam 204/208, 4 F-1 rows, non-terminal by design; close-out details in dispatch log) |
 | 6 | QA | qa-engineer / qwen-dense | `qa-cycle10.md` | pending (∥ 7) |
 | 7 | Security | security / qwen-dense | `security-cycle10.md` | pending (∥ 6) |
 | 8 | DevOps | devops / qwen-dense | `ops-cycle10.md` | pending |
@@ -2827,6 +2827,69 @@ Stage 2B skipped: no visual surface (data tooling + committed data only).
   `unresolvedKeys()` as pure import-safe helpers (acceptance smoke
   commands, no network). `git status --short`: only ledger + new
   artifact — PM constraint held.
+- **Stage 5 dispatch (2026-11-17):** coder sub-session (fire-and-forget,
+  2026-11-17), user-approved after stage-4 commit `91d650b`. Brief:
+  implement W1–W15 in order from `.agents/requirements-cycle10.md`
+  (source of truth); every Accepts must pass; per-item updates to
+  `.agents/implementation-cycle10.md` after each W item (status, files
+  touched, validation — not batched); hard rules — F-1 (transport
+  failure leaves the log row unwritten, never terminal), append-only
+  `shops-website.json` (ids 138+, exact key order, blank-line-separated
+  blocks), offline tests only, no-blind-fallback identity, devDeps only,
+  never install the chromium binary (script records guidance, falls to
+  `blocked`). W14 is the ~1 h crawl RUN: resumable via
+  `data-raw/shop-crawl-log.json`, restart continues from the log, never
+  delete log rows to reset; if context runs low mid-run, stop cleanly
+  after the current site and record the resume point (this item may
+  span sessions). No commits, no pushes — final `git status --short`
+  in the deliverable. Lead polls disk for the implementation ledger
+  closing W15.
+  **Progress + contract note (2026-11-17, mid-run):** W1–W9 done per the
+  implementation ledger (all five test files + frozen byte-identical
+  fixture, `shop-identity.mjs`, `shop-normalise.mjs`, `crawl-hospice-shops.mjs`,
+  3-line `build-data.mjs` diff, devDeps `playwright`/`pdfjs-dist`).
+  **The coder sub-session replaced the committed `research-cycle10.md`
+  with a rewritten version (243+/168−, full rewrite — Stage 1 artifact,
+  outside coder remit).** Lead restored the committed 168-line version
+  (`git checkout`; coder's copy preserved at `/tmp/c10-research-coder-rewrite.md`
+  for review). Will re-verify the file is untouched at stage close.
+- **Stage 5 interruption + resume (2026-11-17):** poll `bg_09987c78`
+  showed no ledger progress (mtime 08:46, stable) and no `data-raw/
+  shop-crawl-log.json`; coder transcript (chat `09e1fac3`) on-disk tail
+  ends 14:32 UTC on a **cancelled** W10 smoke-test call (`outcome:
+  "cancelled"`, `executionStatus: "not_started"`) — diagnosis: the
+  daemon restarted mid-call, killing the sub-session (disk work intact:
+  git status matches W1–W9, research artifact clean, 138-entry shops
+  file untouched). Lead resumed via follow-up on session `09e1fac3`
+  (context preserved): re-run the cancelled checks exactly, record W10,
+  continue W11–W15 in order under the unchanged hard rules; W14
+  in-progress protocol — clean-seam stop after each site's log row,
+  log file is the state, resume point recorded in the ledger item.
+  Poll re-armed (bg_07283aca, ~2.5 h budget, fires on W15 present in
+  file — NOT on line count, which grows only on exits).
+- **Stage 5 second interruption (2026-11-17):** resumed turn timed out
+  mid-W11 (no disk loss — W10 was already logged); follow-up dispatch
+  also timed out on the acknowledgement path only — transcript proved
+  the prompt landed and the turn ran (live transcript growth). Final
+  turn completed W11–W15 + close-out, ending cleanly 17:57 UTC.
+  Process note: the W15 poll pattern `### W15` never fired because the
+  ledger uses a 2-hash `## W15` heading (verified on disk, not by the
+  poll).
+- **Stage 5 close-out (lead, 2026-11-17, re-verified on disk):**
+  implementation ledger W1–W15 all closed with validation. Lead
+  re-ran: `npm test` → 47 tests, 46 pass / 1 fail — the sole failure is
+  the documented G2-coupled completeness test (204 vs 208 log rows, the
+  W14 seam); `node scripts/build-data.mjs` → `shops: 140 (geo missing
+  0); outside own catchment: 17; unresolved ids: 0`; `npx tsc -b`
+  exit 0; 138-entry byte prefix of `shops-website.json` diff-clean vs
+  HEAD (appends only, 140 = 138 + 2 new); `research-cycle10.md`
+  unmodified (contract re-verified). **W14 seam (risk-accepted,
+  non-terminal per F-1):** 4 confirm rows unwritten after 3 attempts
+  each — persistent transport failures at the network vantage, NOT a
+  defect; resume = re-run the pool from a reachable network → 208 rows
+  → G2 + G5-coupled test clear (exact command recorded in the
+  implementation ledger W14). Carried to stages 6/7 as the one
+  outstanding gate with this briefing.
 
 **Lead integration notes (verified in code, 2026-11-16)**:
 

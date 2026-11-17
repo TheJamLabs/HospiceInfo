@@ -34,9 +34,9 @@ your mail client (nothing is collected by the site).
   the menu panel)
 - **Areas** — each hospice's catchment: a Voronoi tessellation of the
   practice + hospice-site points over the UK
-- **Squares** — charity shops from the curated hospices' websites (off by
-  default on first load — toggle in the header; on mobile, in the menu
-  panel)
+- **Squares** — charity shops from the hospices' websites (curated +
+  discovered; off by default on first load — toggle in the header; on
+  mobile, in the menu panel)
 - **Grid-bucket markers** — low-zoom grid cells that reveal the underlying
   practice markers on click and fly at zoom level 11
 - **A→Z list** — the side panel lists hospices alphabetically by default,
@@ -53,8 +53,9 @@ your mail client (nothing is collected by the site).
 
 ## Current data snapshot
 
-Counts from the committed `public/data/` as of 2026-11-14 (Cycle 6
-closeout on top of the 2026-11-08 data landing). Scotland is
+Counts from the committed `public/data/` as of 2026-11-17 (Cycle 10
+shop refresh on top of the 2026-11-14 Cycle 6 closeout and the
+2026-11-08 data landing). Scotland is
 complete: 911 practices, all geocoded and assigned. Wales practices are
 complete: 539, placed from the source's own coordinates (the DataMap layers
 carry no postcodes).
@@ -70,9 +71,14 @@ carry no postcodes).
 passes of `scripts/geocode-postcodes.mjs` at 1 req/s, outcode fallback — the
 2026-10-24 pass added the 729 Scottish practice postcodes, the 2026-10-27
 pass the 5 new NI hospice postcode units, and the 2026-11-08 pass the 15 new
-Wales hospice postcode units plus the Cycle 5 Scotland additions). 138
+Wales hospice postcode units plus the Cycle 5 Scotland additions). 140
 charity shops are geocoded, 17 of them outside their own catchment in the
-committed snapshot (recomputed on every build). Geocoding is complete:
+committed snapshot (recomputed on every build) — the Cycle 10 crawl
+(2026-11-17) refreshed the shop set from the 150 known hospice websites
+plus a DuckDuckGo discovery pool of the 190-row pool of hospices without a
+listed website, and an 18-site confirm-only pass, adding 2 (Dove Cottage's
+Canal Lane shop, LE14 4EX; Foyle Hospice's Fundraising Centre, BT48 8JE).
+Geocoding is complete:
 9,125 of the 9,134 in-scope postcodes are resolved. The remaining 9 (all
 NI practice postcodes) have no OSM/Nominatim coverage (units and outcodes
 both absent), so their 12 practices carry no assignment in the data and
@@ -155,7 +161,7 @@ without re-downloading anything.
 | 2. Hospices | `scripts/extract-hospices-{en,sc,ni,wales}.mjs` | CQC directory, Care Inspectorate, RQIA, CIW | `data-raw/hospices-<nation>.json` |
 | 3. Merge | `scripts/merge-hospices.mjs` | stage 2 + the 20 curated catchments | `data-raw/hospices-all.json` (208) |
 | 4. Geocode | `scripts/geocode-postcodes.mjs` | practice + hospice postcodes (9,134) | `data-raw/postcode-geo.csv` (OSM Nominatim, 1 req/s, resumable) |
-| 5. Shops | `data-raw/shops-website.json` + `scripts/geocode-shops.mjs` | the 20 curated websites | `data-raw/shops-geo.json` (138 shops) |
+| 5. Shops | `data-raw/shops-website.json` + `scripts/geocode-shops.mjs` | curated + discovered hospice websites (`scripts/crawl-hospice-shops.mjs`, Cycle 10, 2026-11-17) | `data-raw/shops-geo.json` (140 shops) |
 | 6. Build | `scripts/build-data.mjs` | stages 1–5 | `public/data/hospices.json`, `practices.json`, `catchments.json`, `shops.json` |
 | 7. Validate | `scripts/validate-tessellation.mjs` | `public/data/catchments.json` | no gaps, no overlap, in-bounds (exit 0) |
 

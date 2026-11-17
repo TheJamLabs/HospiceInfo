@@ -152,4 +152,10 @@
   {"hospiceId": "hahwestcumbria", "name": "Cockermouth", "address": ["6 Station Street", "Cockermouth"], "postcode": "CA13 9QW", "source": "https://hospiceathomewestcumbria.org.uk/our-shops"},
 
   {"hospiceId": "haltonhaven", "name": "Halton Haven Hospice", "address": ["23 Queens Avenue", "Widnes"], "postcode": "WA8 8HR", "source": "https://www.haltonhaven.org.uk/get-involved/shops/visit-our-shops/"}
+,
+
+{"hospiceId":"en-1-113514582","name":"Visit us Canal Lane","address":["Stathern","Melton Mowbray","LE14 4EX"],"postcode":"LE14 4EX","source":"https://dovecottage.org/shops/"}
+,
+
+{"hospiceId":"ni-r1","name":"Fundraising Centre 61 Culmore Road","address":["Derry~Londonderry","BT48 8JE. Monday to Friday","9am to 5pm. Pin badges are sold here only. Get directions"],"postcode":"BT48 8JE","source":"https://foylehospice.com/shop"}
 ]

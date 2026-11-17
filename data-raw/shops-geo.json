@@ -673,5 +673,15 @@
     "lat": 53.6601608,
     "lon": -2.9638257,
     "source": "address-retry"
+  },
+  "LE14 4EX": {
+    "lat": 52.8852876,
+    "lon": -0.8796991,
+    "source": "postcode"
+  },
+  "BT48 8JE": {
+    "lat": 55.0276241,
+    "lon": -7.2945414,
+    "source": "postcode"
   }
 }
