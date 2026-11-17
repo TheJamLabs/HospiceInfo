@@ -2656,3 +2656,152 @@ Post-publish curl green on first poll: HTTP 200, live CSS
 
 **Human gates**: owner design approval recorded above (M1/M2/M3 options,
 2026-11-16). Second gate: commit scope + push.
+
+---
+
+# Cycle 10: Charity-shop website crawl (2026-11-16, worktree
+`calm-pine-e94f57`)
+
+**Goal**: Extend charity-shop coverage from the 20 curated sites (138
+shops in `data-raw/shops-website.json`) to every hospice website that
+publishes a machine-readable shop list: the 150 hospices with a website
+URL in `data-raw/hospices-all.json` **plus** website discovery for the
+58 hospices without one (33 sc, 6 ni, 17 wales, 2 en).
+
+**Owner decisions (2026-11-16, coach)**:
+
+1. **Scope**: "150 + discovery" — crawl all 150 known sites AND
+   discover websites for the 58 missing hospices.
+2. **Machine-unreadable lists** (PDF / JS-heavy / embedded maps): use a
+   **headless browser** (dev-only dependency) for rendering — NOT the
+   log-and-skip path.
+3. **Data depth**: name + address + postcode only — the existing
+   `shops-website.json` schema (`{hospiceId, name, address[], postcode,
+   source}`); no hours/phone; no shops.json contract change.
+
+**Crawl policy (binding, all stages)**: explicit descriptive User-Agent
+identifying the project; robots.txt checked per site (disallowed paths
+skipped, site marked skipped where robots forbids crawling); ~1 req/s
+per site; public pages only (no forms, no logins); per-entry source URL
+committed in the raw file (reproducibility rule); the existing 138
+entries are preserved, never mutated.
+
+**Done when**: crawl raw committed (new shops appended with source URLs,
+existing 138 byte-preserved), new postcodes geocoded
+(`scripts/geocode-shops.mjs` pattern), `npm run build-data` green with
+every shop's `hospiceId` resolved (ADR-0002 remap extended if needed),
+`npm test` + `npx tsc -b` green, data/README.md + README.md counts and
+provenance updated, crawl log records per-site outcome (ok / no-shop-page
+/ unreadable / skipped-robots / no-website), all ten stage artifacts
+exist, no open Blocking findings, Reporter delivered.
+
+| # | Stage | Agent / model | Artifact (cycle10) | Status |
+|---|-------|---------------|-------------------|--------|
+| 1 | Research | research / qwen-flash (plan) | `research-cycle10.md` | **done — verified** |
+| 2 | Architecture | architect / qwen-dense | `architecture-cycle10.md` + GLOSSARY + ADR-0043..0045 | **done** (2026-11-17, lead disk-verified) |
+| 3 | Review (pre-impl) | reviewer / qwen-dense (plan) | `review-cycle10.md` | **done** (2026-11-17, lead disk-verified — PASS, 0 Blocking / 6 risk-accepted) |
+| 4 | Work breakdown | product-manager / qwen-dense | `requirements-cycle10.md` | pending |
+| 5 | Implementation | coder / qwen-dense | code + `implementation-cycle10.md` | pending |
+| 6 | QA | qa-engineer / qwen-dense | `qa-cycle10.md` | pending (∥ 7) |
+| 7 | Security | security / qwen-dense | `security-cycle10.md` | pending (∥ 6) |
+| 8 | DevOps | devops / qwen-dense | `ops-cycle10.md` | pending |
+| 9 | Documentation | documentation / qwen-flash | `docs/` | pending |
+| 10 | Hindsight integration | hindsight / qwen-flash | `hindsight-cycle10.md` | pending |
+| 11 | Report | reporter / qwen-flash (plan) | chat only | pending |
+
+Stage 2B skipped: no visual surface (data tooling + committed data only).
+
+**Dispatch log**
+
+- Stage 1 (sub-session `2b761f8e`, qwen-flash, completion: sent,
+  fire-and-forget, 2026-11-16): scope per `.agents/feature-cycle10.md`
+  + mandate covering data verification, site survey (curl sample,
+  robots-respecting), discovery-channel test for the 58, headless
+  browser evaluation (no downloads), schema/id rules, volume budget,
+  risks. Lead polls disk for `research-cycle10.md` (bg poll
+  `bg_f697f4ea`, 900 s budget) — NOT_FOUND after 900s (2026-11-16);
+  worktree confirmed untouched (read-only constraint held). Second
+  poll `bg_e8e9a433` (600 s) running. If still empty: lead falls back
+  to a time-boxed lead-side research pass (precedent: "Research: run
+  on the lead side") and writes the artifact itself; row closes on a
+  verified artifact either way.
+- **Stage 1 close-out (2026-11-16):** second poll `bg_e8e9a433`
+  NOT_FOUND; the sub-session had been writing between the two polling
+  windows and landed a complete 5-section artifact on disk. Lead
+  re-read it and independently re-probed every decisive fact (19 unique
+  hosts = 132 CQC / 18 real domains; CQC API 404; DDG `uddg` channel;
+  132+58=190 discovery pool) — all confirmed. Lead appended
+  `research-cycle10.md` §6 verification note with two corrections:
+  OSCR is ENOTFOUND from this environment (replace §3 "200/JS app" —
+  treat as HUMAN-FETCH/unreachable, sc rows go via search channel) and
+  trinity WAF intermittency (403 then 200 → attempt headless render
+  before logging `blocked`). No lead-side artifact needed; row closed
+  on the verified sub-session artifact.
+- **Stage 2 close-out (2026-11-17, resumed after compaction):** all
+  deliverables present and lead disk-verified in this session:
+  (a) `architecture-cycle10.md` 583 L — 16 sections (objective, platform
+  note, glance, components A–F, security, testing strategy,
+  certification gates G0–G6, decisions §13, alternatives §14, risks/Open
+  questions → Reviewer ×7 §15, references §16); every cited line verified
+  against the tree (build-data L33–36/L1056–1082, geocode-shops L6/14/32/
+  43/46, shops-website 138 entries, 208-row hospices-all, `xlsx` devDep
+  precedent). (b) ADR-0043 (identity pass-through), ADR-0044 (Playwright
+  headless, dev-only, human-installed binary), ADR-0045 (committed
+  `data-raw/shop-crawl-log.json` as record + state, 8-value outcome
+  vocabulary, per-site write cadence). (c) GLOSSARY.md 208→249 L
+  (Cycle 10 terms appended). **ADR numbering correction:** a prior
+  post-compaction summary claimed "ADR-0042 shop-crawling-policy" —
+  that file never landed; `docs/adr/0042-gpl-3-0-license.md` (pre-existing
+  from 2026-11-16 21:55) owns 0042 and is untouched. The binding crawl
+  policy (UA, robots, ~1 req/s, public pages, per-entry source, 138
+  byte-preservation) is an owner mandate, documented in this ledger's
+  "Crawl policy" section and `feature-cycle10.md` §binding — it is not an
+  architect design decision and needs no ADR; the architecture references
+  exactly 0043/0044/0045. No fourth ADR created.
+- **Stage 3 dispatched (2026-11-17):** reviewer sub-session (qwen-dense,
+  read-only/plan) fired fire-and-forget with a self-contained brief —
+  reads `feature-cycle10.md`, `research-cycle10.md` (incl. §6),
+  `architecture-cycle10.md` (all 16 sections), ADRs 0043–0045, GLOSSARY
+  terms, ledger Cycle 10 section; spot-checks `build-data.mjs` L25–40 /
+  L1055–1090, `shops-website.json` shape, geocoder resume, test
+  conventions. Must rule on architecture §15 open questions 1–7 (esp.
+  item 5: 138-shop floor reading) and issue a PASS/FAIL verdict with
+  Blocking / risk-accepted findings. Artifact:
+  `.agents/review-cycle10.md`. Lead polls disk, lead-verifies on landing.
+- **Stage 3 close-out (2026-11-17, sub-session `befb098e`, ~22 min, poll
+  `bg_e8b85874` FOUND at 1290 s):** `review-cycle10.md` 58 L —
+  **Verdict: PASS**; 0 Blocking, 6 risk-accepted (F-1 discovery
+  transport-error rows must stay un-written → G2 coverage gate
+  self-enforces, QA to verify via simulated 429; F-2 geocode no-match
+  dropouts logged, never block; F-3 Playwright binary = env risk, not
+  build/test dep; F-4 log size bounded 208 rows; F-5/F-7 external
+  endpoint drift → risk-accepted debt). All 7 §15 open questions
+  Confirmed — **item 5 (138-shop floor) reading upheld** (floor =
+  committed 138 byte-preserved + built count ≥ pre-crawl with dropouts
+  logged; strict "never drops" reading unenforceable vs geocode variance
+  at build L1063 — G4 byte-preservation is the real protection). New
+  code-level fact for the coder: `shops-website.json` ids are array-index
+  `shop-${i}` → **append-only write rule** (new entries at end, ids
+  138+) is what enables A-05 byte-preservation. Reviewer read-only
+  constraint held (git status matches expected set). No rework loop
+  needed; Stage 4 (PM) is next.
+
+**Lead integration notes (verified in code, 2026-11-16)**:
+
+1. `scripts/build-data.mjs` L33–36: `SLUG_TO_ID` maps the 20 legacy
+   slugs → `en-<cqcId>` (values only). New shop entries carrying
+   canonical ids do NOT resolve through it → `shopsUnresolved` →
+   `process.exit(1)` (L1065, L1082). The build MUST gain an identity
+   fallback, validated against the canonical hospice id set (manual
+   fix, not blind `?? s.hospiceId`).
+2. `scripts/geocode-shops.mjs`: resumable by key
+   (`postcode ?? UPPERCASE(address)`) — re-running after the crawl
+   geocodes only the new postcodes; existing 138 keys skipped. UA,
+   1100 ms pacing, and `shops-geo.json` shape already match policy.
+3. `shops-geo.json` keys are postcodes as scraped (mixed case tolerated
+   by the lookup `s.postcode` in build-data L1062 — verify case
+   sensitivity: build-data reads `shopGeo[s.postcode ?? …]` verbatim, so
+   geocode key and shops-website postcode must match EXACTLY incl.
+   case; the geocoder keys on the same field, so they do — keep the
+   crawl emitting postcodes normalised consistently (research to
+   confirm variants).

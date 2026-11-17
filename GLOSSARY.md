@@ -225,3 +225,40 @@ provenance, and documentation. New terms are formatted in *italics*.
   "Start here" button `.hf-start-here-cta` (≥48 px) rendered directly
   under the header, bound to the ADR-0038 `startHereMobileOpen`
   disclosure state (class on `.app`) (ADR-0043).
+
+## Cycle 10 (2026-11-16) — shop crawl
+
+- **shop crawl**: the Cycle 10 data operation, run by
+  `scripts/crawl-hospice-shops.mjs` — for each hospice without a verified
+  shop, the script visits its website, locates the shop listing page, and
+  extracts shop name, address, canonical-form postcode and entry-page URL,
+  appending entries to `data-raw/shops-website.json` (postcodes flow to the
+  unchanged `scripts/geocode-shops.mjs`); every attempt is recorded in the
+  crawl log, and the existing 18 curated sites get confirm-only, never
+  re-extracted (binding crawl policy: project UA, robots.txt, ~1 req/s, no
+  retry loops).
+- **crawl log**: the committed `data-raw/shop-crawl-log.json` — the durable
+  record of every crawl/discovery attempt with an 8-value outcome
+  vocabulary (`ok / no-shop-page / unreadable / skipped-robots / blocked /
+  not-found / no-website / discovery-found`), a per-row decision for
+  duplicate-identity or rejected candidates, and resume state (a
+  `discovery-found` row is the only non-terminal marker; the log is the
+  machine state, so a crashed run resumes from it) (ADR-0045).
+- **site discovery**: phase 1 of the shop crawl — for rows with no website
+  (190-pool: 132 CQC-profile-only + 58 explicit no-website), a DDG search
+  restricted to the registered name, with directory/wrapper domains
+  rejected; a candidate is "found" only on the hospice's own domain
+  (registered-name tokens in the second-level domain and root title/h1
+  containing the full name); the discovery source URL is recorded per row,
+  and rows whose candidate site belongs to a parent organisation are logged
+  (`no-website` + note) for human audit.
+- **shop-page locator** (*italic*): the in-page rule that finds a site's
+  shop listing page: `/shop|shop\w*|store|retail/i` matched against the
+  page's nav text and hrefs, first match wins, bounded by the 3-page
+  per-site cap; no match yields the `no-shop-page` outcome.
+- **identity pass-through**: the build-data shop-chain change by which a
+  shop entry's `hospiceId` first resolves through the 20-legacy slug table
+  (`SLUG_TO_ID`), then passes through unchanged when it matches a canonical
+  hospice id from the `hospices-all.json` id set (208); anything else is
+  unresolved and hard-fails the build, as before — the 138 legacy entries
+  resolve exactly as they did pre-cycle (ADR-0043).
