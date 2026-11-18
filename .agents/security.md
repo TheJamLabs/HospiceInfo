@@ -319,3 +319,109 @@ Items 1–13 re-verified in the current session after the context-resume break, 
 ### Closure
 
 **Cycle 6 security gate: PASS — 0 Blocking, 1 Risk-accepted (SEC6-01, dev-only dependencies), 3 Info (SEC6-02/03/04), 0 new design-level. SEC-4-01 CLOSED.** Stage 7 CLOSED for the Cycle 6 landing pass (rework rounds consumed: 0). Cleared for Stage 8 (DevOps). Lead-decision items: (1) approve SEC6-01 carry-forward with a dependency-cleanup target in a future cycle; (2) align the C6-1 brief wording with the implemented guards (SEC6-02).
+
+## Cycle 10 — FULL AUDIT (2026-11-17)
+
+- **Stage**: 7 of 10 (Security engineer)
+- **Date**: 2026-11-17
+- **Cycle**: 10 — shop crawl: 190-row discovery pool (132 CQC-profile-only + 58 no-website; DDG `html.duckduckgo.com` HTML endpoint) + 18-row confirm-only pass; plain fetch → headless Playwright escalation (ADR-0044); PDF text via pdfjs; committed crawl log as record + state (ADR-0045); shop identity pass-through into `data-raw/shops-website.json` (ADR-0043). The crawl ran at the stage-5 gate on 2026-11-17 and ended at a clean seam (see Seam state).
+- **Pass type**: **FULL AUDIT** — no unresolved Blocking findings at this path (Cycle 6 closed 2026-11-10 with 0 Blocking; no Cycle 7–9 security sections are recorded at this path).
+- **Scope**: worktree at HEAD `a761871` (stage-5 gate): `scripts/crawl-hospice-shops.mjs` (993 L, new — full read), `scripts/shop-identity.mjs` (new), `data-raw/shop-crawl-log.json` (new), `data-raw/shops-website.json` (+2), `public/data/shops.json`, `tests/crawl-log.test.mjs` (new), `docs/adr/0043–0045`, `package.json` (devDependencies +2), `docs/website/shop-visit-us.md`. Out of scope: build chain (re-verified network-free), frontend `src/` (zero code delta — check-3 entries land as data only).
+- **Method**: full read of the script (all 993 lines, this session + pre-compaction session; every claim re-verified against code, not ledger prose); full-data verification of the committed log, `shops-website.json`, and both built `shops.json` outputs; test-suite read; hazard grep; `git log`; ADR reads. **No network activity by this stage; no in-script browser launches.**
+- **Trust model delta**: ADR-0030's shipped chain (pinned raw → deterministic offline build → static site; no secrets; runtime egress = keyless OSM tiles) is **unchanged**. The new surface is a **developer-time, operator-run crawl on the trusted build machine** (not part of the shipped runtime): outbound empty-body GETs to hospice domains curated from `hospices-all.json` + one DDG endpoint + page-initiated requests; inbound **hostile web content** — markup, and in headless escalation, page JavaScript executing in local Chromium. No shipped-runtime component, no frontend code, no authentication, no credentials or environment values anywhere in the path.
+
+### Verdict
+
+**PASS — 0 Blocking.** 12 new findings SEC10-01…SEC10-12, **all risk-accepted**; six are explicitly **design-level** in character (SEC10-01/02/03/05/07/12) — none is design-level *Blocking*, so **no rework loop is routed back to the Architect**; they record the standing trust posture of the crawl subsystem. Carried: SEC6-01 (extended to the two new dev-only dependencies). The 4 unwritten log rows are apex-verified persistent failures — the seam state the design anticipates, not a defect.
+
+### Findings
+
+| ID | Severity | Area | Description | Evidence |
+|----|----------|------|-------------|----------|
+| SEC10-01 | LOW — RISK-ACCEPTED (**design-level**) | trust boundary | **Redirect-steered egress.** `fetchText`/`fetchBinary` use `redirect: 'follow'`, so any target can steer the script onto an arbitrary host; a redirected WAF challenge page's 403 also escalates to headless, whose `goto` follows its own redirects. The redirected-to host is not recorded in the log. | `:132–156`, `:159–189`; 403→headless `:658–659`/`:280`. Accepted: operator-run, empty-body GET only, UA the sole identifier, no payload/credentials. Hardening option for a future cycle: `redirect: 'error'` + bounded same-origin 30x follow (cf. ABCs/UBA-WordPress precedent, SEC-4). |
+| SEC10-02 | LOW — RISK-ACCEPTED (**design-level**) | trust boundary | **Cross-site shop links are fetched and can commit entries.** `findShopLink`/`findShopLinksOnPage` resolve relative hrefs against the page URL and fetch with no same-origin constraint; any link target whose markup yields a structurally valid entry (≥3 comma parts + valid UK postcode) is fetched and can be committed. | `:537–571`, `:826–846`, commit path `:913–919`. Accepted: `source` records the originating page (`:565–571`), entries are deduped vs baseline (`:699`) and land in the audited log + `data-raw` with publication gated by the build chain the operator approves (D7). Both committed rows (`davecottage.org`, `foylehospice.com`) were same-site. |
+| SEC10-03 | LOW — RISK-ACCEPTED (**design-level**) | trust boundary | **Search index as discovery source.** `discoverRow` trusts `uddg` URLs from the DDG html endpoint; a poisoned index (or `decodeURIComponent` misparse) injects arbitrary URLs into the pool. | `:507–535`. Mitigations: one paced root probe per candidate + `resolveSiteUrl` gates (reject list, CQC/Wikipedia/blocklist, first-SLD name-token test `:476–505`, `:528`), umbrella/parent claim demotes to `no-website` with a human-audit note (`:851–885`), and every extraction inherits the bounded hostile-content model (SEC10-02/05) plus the log's audit trail. Accepted: target set is a small known universe; DDG is the documented source (D7). |
+| SEC10-04 | INFO — verified, no residual | trust boundary | **Robots gate is fail-closed, incl. on malice.** 404/3xx(404-equiv)/network-OK → allow only on explicit UA match; non-2xx ≥500 or transport failure → `{unwritten}` (never allowed, never blocked); no UA match → `skipped-robots`; **unknown rule syntax → `skipped-robots` (fail-closed, not fail-open)**; robots fetch itself uses `redirect: 'error'` (no steering on the gate). | `:200–264` (`parseRobots :200–229`, `checkRobots :231–264`); `redirect:'error'` `:207`. Absent-malformed → allow is the goal spec's default-allow, applied only when no robots file content is served at all — consistent with spec. |
+| SEC10-05 | LOW — RISK-ACCEPTED (**design-level**) | integrity | **Hostile-markup injection depth (bounded, field-level).** `extractShopEntries` strips tags, decodes only `&amp;`, requires ≥3 comma parts + valid UK postcode; name = part 1, address = rest, postcode normalised; entries are JSON-escaped text — no HTML re-parse, no eval/Function/sink in the script. A hostile page can inject *structured text* (garbage names/addresses), not code. Residual: page prose survives into the address field (observed, shop-139 address ends "… Pin badges are sold here only. Get directions") — carry-fwd data-quality note for QA/Docs, not a security defect. | `:551–577`; hazard grep over all 993 lines: 0 `eval(`/`new Function`/`innerHTML`/`document.write`/`child_process`/`process.env`/`Worker`. Entry-level bounds: baseline dedupe + `source` provenance + build-chain geocode sanity before publication. |
+| SEC10-06 | INFO — verified, no residual | integrity | **F-1 log-as-state contract holds (no fabricated terminal rows).** Every transient (429/202/≥500/timeout/abort/drop) yields `{unwritten}` at every boundary: robots `:222–226`/`:238–241`, plain root `:664–676`, headless `:713–723`, listing fetch `:693–702`, confirm probe `:751–761`/`:792–800`. `blocked` only after plain AND headless both fail (`:715–722`, incl. `unavailable`+transient→unwritten and `unavailable`+non-transient→blocked); a 404 short-circuits to terminal `not-found` before escalation (`:655–657`) — absence is not transient. Log rewritten after each site (`:919`, `:924`) — crash leaves the last-true state. Cosmetic (no classification impact): note text hardcodes `plain fetch failed` in the JS-shell+headless-unavailable branch (`:716–717`) where the plain fetch actually succeeded. |
+| SEC10-07 | LOW — RISK-ACCEPTED (**design-level**) | trust boundary | **Hostile pages execute JavaScript in local Chromium.** `headlessRender` runs page-initiated JS during the ~23.5 s window (domcontentloaded + h1 3 s + 500 ms settle); page-initiated requests are unpaced and unrestricted. | `:277–315`. Mitigations verified: fresh `browser.newContext({userAgent: UA})` per site (ADR-0044) closed in `finally` — per-site isolation, no cookie/storage carry-over between sites; **no secrets, no env values, no init-script payloads enter the context** (grep `process.env` → 0; no `addInitScript`); browser is dev-machine-only (SEC6-01 context). Accepted: posture = "a browsable GET from this machine"; see SEC10-12 for the consolidated egress record. |
+| SEC10-08 | INFO — verified, no residual | integrity | **`data-raw/shops-website.json` is append-only and the 2 new entries are exact.** `appendShopEntries` splices at `raw.lastIndexOf(']')` → `prefix + ',\n\n' + blocks + '\n]\n'`. Verified on disk: 140 entries; 138-entry prefix byte-identical to the stage-5-gate baseline; exactly 2 new rows (`shop-138` davecottage.org, `shop-139` foylehospice.com) schema-matched (`id/name/address/postcode/hospiceId/source`) and matching the log's two committed rows (`shopsExtracted:1/committed:true`). Only writes in the script: the log (`saveLog`, `:229`) and this file (`:917`). |
+| SEC10-09 | INFO (extends SEC6-01) | supply chain | **Dev-only dependencies +2; no in-script binary download; runtime tree untouched.** Runtime deps unchanged (`bootstrap/leaflet/react/react-dom/react-leaflet`); new `playwright ^1.65.1`, `pdfjs-dist ^6.5.438` (both devDependencies; installs verified on the operator machine). `getBrowser` prints a one-time `npx playwright install chromium` command once and latches `headlessUnavailable:true` when the launch fails — no in-script download; with the latch set the script degrades to plain-fetch-only and all escalations become `blocked`/`unreadable` per F-1. **Advisory status of the two new dev deps not re-checked this cycle** (offline; no feed) — folded into SEC6-01's dev-only accepted debt; a future dependency-hygiene cycle should `npm audit` them. Unchanged-since-Cycle-6: `xlsx` HIGH + `esbuild` MEDIUM (dev-only) remain open. |
+| SEC10-10 | INFO | integrity | **pdfjs input model acceptable.** `pdfToText` feeds arbitrary server bytes to pdfjs's legacy build (`getDocument({data})`), string-level text extraction only, no worker, no DOM; the `zlib.inflateSync` fallback verifies `v < 128 && v > 31` (range check) before concatenation. | `:317–345`. Residual = upstream-library exposure to hostile PDF structures (font-format code paths etc.), bounded by the dev-only, operator-run context — same envelope as SEC6-01/SEC10-09. No script-side sink. |
+| SEC10-11 | INFO — verified, no residual | trust boundary | **Pacing / identifier surface matches the house pattern.** Single ident `HospiceInfoproto/0.1 (hospice shop list research; contact: james)` (`UA`, `:46`) on every scripted request (root probe, DDG, robots, shop pages); `PACE_MS 1100` (`:47`) enforced before every scripted fetch (`:416`, `:223`, `:230`, `:419`) — the 1 robots fetch + 1 root probe per site is the goal-specified tradeoff, accepted (robots failures are the majority of the pool: 105 rows). 20 s `AbortController` timeout on every fetch (`:146`). |
+| SEC10-12 | LOW — RISK-ACCEPTED (**design-level**, consolidated) | trust boundary | **Complete egress inventory (the crawl subsystem's design-level record).** Egress = empty-body GETs only (no POST/PUT/query payload; no forms submitted); hosts = the DDG html endpoint, pool site roots, shop pages listed by those sites, and page-initiated requests in headless mode (SEC10-07); every scripted request identifies only the single UA string (SEC10-11). **No data, credentials, or environment values leave the machine in any path.** All writes are repo-local (`data-raw/`); all reads are operator-supplied local files. |
+
+### Per-area conclusions (4 focus areas)
+
+1. **Network trust boundary** — the robots gate is fail-closed (SEC10-04); pacing + single UA verified on all scripted requests (SEC10-11); per-site `browser.newContext` isolation and `finally`-close are real (ADR-0044, SEC10-07); WAF 403 → headless → `blocked` verified end-to-end, and `blocked` is only reachable after plain AND headless have both failed (SEC10-06); two 403-verified WAF sites behaved on the plain root path. The open edges are the three design-level egress-shaping behaviours: redirect-following (SEC10-01), cross-site shop links (SEC10-02), search-index-supplied discovery (SEC10-03) — none exploitable without the operator running the crawl, and all bounded by SEC10-12's posture.
+2. **Integrity** — the F-1 contract is complete: no code path can fabricate a terminal row from a transient (SEC10-06); the append-only shops file with the byte-identical 138 baseline is verified on disk (SEC10-08); hostile-markup injection is bounded to structured text with provenance and downstream gates (SEC10-05); `resolveShopId` (`scripts/shop-identity.mjs:10–15`) re-verified per ADR-0043 — legacy map → canonical set → `null` (build hard-fail by the caller), **no blind `??`**.
+3. **Supply chain & local exposure** — runtime deps untouched; playwright + pdfjs-dist dev-only (SEC10-09); never-download-a-binary upheld (SEC10-09); repo-local writes only, verified by grep (SEC10-08); zero `eval`/`Function`/`innerHTML`/`process.env`/`child_process`/`Worker` across all 993 lines (SEC10-05).
+4. **Design-level items** — six, explicitly flagged: SEC10-01/02/03/05/07/12 (see below).
+
+### Design-level findings (per contract — trust boundaries / data flow)
+
+| ID | Design concern | Standing |
+|----|----------------|----------|
+| SEC10-01 | Remote content can steer egress via redirects (scripted + headless); final host not logged. | Risk-accepted; operator-run; empty-body GET; hardening option recorded (bounded same-origin redirect follow). |
+| SEC10-02 | Third-party shop-page markup can commit cross-site entries into the published dataset. | Risk-accepted; `source` provenance + baseline dedupe + build-chain gate (D7) before publication. |
+| SEC10-03 | DDG search index is a trusted discovery source. | Risk-accepted; probe + URL gates + claim demotion; small known target universe. |
+| SEC10-05 | Hostile markup can inject structured text (not code) into shop entries. | Risk-accepted; field bounds + provenance; shop-139 address prose noted for data-quality follow-up. |
+| SEC10-07 | Hostile page JavaScript executes in local Chromium with unrestricted, unpaced egress for ~23.5 s. | Risk-accepted; per-site context isolation (ADR-0044); no secrets in context; dev-machine-only. |
+| SEC10-12 | The crawl subsystem's consolidated egress posture (who/what/where leaves the machine). | Risk-accepted; recorded here as the standing design record for the subsystem. |
+
+**None is design-level Blocking** → no rework loop back to the Architect; the crawl subsystem is standing outside ADR-0030's shipped chain and is operator-gated (D7). If the crawl is ever moved into the shipped runtime chain or a non-operator context, revisit SEC10-01/02/07 first.
+
+### Seam state (204/208 — documented deferral, not a defect)
+
+The run ended at a clean seam: **204 of 208 in-scope hospices have a log row**; the 4 missing are **unwritten after 3 attempts each** — exactly what F-1 produces for persistent transport failures, and exactly what the log-as-state design stores in their absence:
+
+| Site | Verified apex failure |
+|---|---|
+| `rosshendalehospice.org.uk` | DNS — no A record |
+| `boltonhospice.org` | TCP connect timeout (20001 ms) |
+| `haltonhaven.co.uk` | TCP connect timeout (20002 ms) |
+| `drkershawshospice.org.uk` | TLS `sslv3 alert handshake failure` (Cloudflare front, hit repeatedly) |
+
+All four apex-verified this pass (dead site / WAF-indefensible front ≠ transient). Consequences, accepted: (1) `data-raw/shop-crawl-log.json` = 204 rows; (2) one expected test failure — `tests/crawl-log.test.mjs:158` asserts `entries.length == 208` (goal-coupled completeness assertion) → 204 ≠ 208; (3) the 4 rows re-enter the pool on the next run (resumable by design). No fabricated rows, no partial data, no log-inconsistent state. **Security assessment: the seam is the correct behavior of the design; the expected test failure is coupled to the seam and resolves with it.**
+
+### Threat model (STRIDE — Cycle 10 delta)
+
+| Threat | Surface | Assessment |
+|---|---|---|
+| Spoofing | hostile site answering as a curate | Mitigated in effect — content model treats every answer as hostile (SEC10-02/05); identity pass-through (ADR-0043) fails closed on unknown ids; publication gated by build chain. |
+| Tampering | crawl inputs / log / shops file | Same publisher-trust boundary as every `data-raw/` pin (ADR-0029/0030): repo write = publish = human approval; log is append-rewrite per site with invariants QA-verified. |
+| Repudiation | crawl history | The committed log is the audit trail (8-value vocabulary, confirmed rows' invariants, `source` on entries). |
+| Information disclosure | egress | SEC10-12: only the single UA string identifies the request; no data/credentials/env values leave the machine. |
+| Denial of service | operator time | Bounded (190-row pool, 3-sight cap, 20 s timeout, 1100 ms pacing; whole run ≈ domain-sized); transient failures are unwritten, never fatal. |
+| Elevation of privilege | build machine | Chromium executes hostile page JS (SEC10-07) — the one new local-execution surface; dev-only, no secrets in context, per-site isolated. |
+
+Outbound egress: runtime (shipped site) unchanged since Cycle 6 — keyless OSM tiles + `mailto:` only. New egress is **developer-time only** (SEC10-12). No new shipped-runtime origin.
+
+### Verification log (read-only, this pass)
+
+| # | Check | Result |
+|---|---|---|
+| 1 | `git log --oneline -8` | `a761871` = stage-5 gate ("Track Cycle 10 seam in the security report"; base `9004415` "Build data and tests"); working tree = gate + QA's implementation-ledger edits only |
+| 2 | Full read of `scripts/crawl-hospice-shops.mjs` (993 L) | All cited line ranges above; every focus-area claim re-verified against code |
+| 3 | `data-raw/shop-crawl-log.json` full-data verification | 204 rows; 14 confirm rows all `shopsExtracted:0/committed:false/discoverySource:null` (0 violations); histogram `{skipped-robots:105, no-website:83, ok:9, no-shop-page:5, unreadable:1, not-found:1}` (no `blocked`; no `discovery-found` remaining); meta honest (2026-11-17, script, UA, 1100 ms, 8-value vocab, source file); exactly 2 committed rows → `davecottage.org`, `foylehospice.com` |
+| 4 | `data-raw/shops-website.json` verification | 140 entries; 138-entry prefix byte-identical to baseline; 2 new rows schema-matched and matching the log's committed rows |
+| 5 | `public/data/shops.json` | Both new entries present (with lat/long; `outsideCatchment:false`) |
+| 6 | `tests/crawl-log.test.mjs:151–159` | Goal-coupled completeness assertion (208) — the single expected failure at the seam (204) |
+| 7 | Hazard grep across the script | 0 hits: `eval(`, `new Function`, `innerHTML`, `document.write`, `process.env`, `child_process`, `Worker`, `navigator.`; the only `fetch` sites are `:146`/`:405`; the only `writeFileSync` sites are `:229` (log) / `:917` (shops) |
+| 8 | `package.json` | Runtime deps unchanged; devDeps +2 (playwright, pdfjs-dist) — SEC10-09 |
+| 9 | ADRs 0043/0044/0045 read | Documents match implementation (identity pass-through semantics; per-site context + finally-close + no-in-script-download; log vocabulary + F-1 + confirm invariants) |
+| 10 | No network / no browser by this stage | Read-only pass; all "current state" facts above come from code + committed data, not live endpoints |
+
+### Carried-boundary status
+
+| Item | Prior | Cycle 10 re-check |
+|---|---|---|
+| SEC6-01 (dev-only vulnerable deps: xlsx HIGH, esbuild MEDIUM) | RISK-ACCEPTED MEDIUM | Carried; **extended** to the two new dev deps (not re-audited — offline feed; see SEC10-09). Still dev-only, offline, operator machine. |
+| SEC-4-D1 (localStorage theme) / D2 (curation trust) / D3 (no CSP) | LOW/MEDIUM/INFO design | Unchanged — zero frontend code delta this cycle. |
+| SEC5-L1…L5 (Cycle 5 extraction info) | Info | Carried; no new input paths beyond the pinned `data-raw/` set. |
+
+### Closure
+
+**Cycle 10 security gate: PASS — 0 Blocking.** 12 new risk-accepted findings (SEC10-01…12), of which 6 are explicitly design-level (SEC10-01/02/03/05/07/12) with **no design-level Blocking** → no Architect rework routed. 1 carried (SEC6-01, extended). Seams (204/208 + 1 expected coupled test failure) = documented deferral, not a defect. Stage 7 CLOSED for the Cycle 10 pass (rework rounds used: 0). Cleared for Stage 8 (DevOps).
+
+Lead decision items: (1) accept the seams — 4 apex-verified unwritten rows + the coupled test failure — until the sites recover the lead re-judges (next crawl run re-enters them automatically); (2) note SEC10-01/02/07 (egress shaping + Chromium egress) as future hardening candidates for ADR-0044 follow-up; (3) SEC6-01 stays open — the next dependency-hygiene cycle should `npm audit` the new dev deps (playwright, pdfjs-dist) alongside xlsx/esbuild.

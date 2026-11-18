@@ -409,3 +409,38 @@ item §8.6 below; no browser automation exists in this repo)
   count ≤2, footer contrast confirmation, marker/tile alignment, 320 px overflow, a11y
   order/aria/focus) = James's mobile-visual ship gate — manual, deliberately no
   browser-automation dependency added.
+---
+
+# Cycle 10 — QA (stage 6)
+
+Worktree `calm-pine-e94f57` @ `a761871` (stage-5 gate commit). All evidence on disk, not from ledger prose. Read-only on the working tree; no fixes applied.
+
+## Gates (requirements-cycle10.md)
+
+| Gate | Status | Evidence |
+|---|---|---|
+| G0 baseline | PASS | 138-entry `shops-website.json` at HEAD^; the byte-preservation test uses it as reference. |
+| G1 identity | PASS | `tests/shop-identity.test.mjs` green; `resolveShopId` = SLUG_TO_ID → canonical set → null, no blind `??` (shop-identity.mjs:15-19). |
+| G2 completeness | **OPEN** | Log has 204/208 rows; 4 confirm rows unwritten after 3 attempts each (documented clean seam, not a defect). |
+| G3 byte-preserve | PASS | First 28,782 bytes of `shops-website.json` == HEAD^ (cmp-clean); all 140 rows carry exact key order `hospiceId,name,address,postcode,source`; only 2 appended ids. |
+| G4 build | PASS | `node scripts/build-data.mjs` exit 0: `shops: 140 (geo missing 0); outside own catchment: 17; unresolved ids: 0`. |
+| G5 checks | PASS* | `npx tsc -b` exit 0; `npm test` 46/47 — the one failure is `tests/crawl-log.test.mjs:158` (204 ≠ 208), the G2-coupled completeness gate, expected at the seam. |
+| G6 A-05 | PASS | Two clean builds; sha256 of `public/data/*.json` identical across builds. |
+
+## Verified claims (all PASS on disk)
+
+- `crawl-hospice-shops.mjs`: 3 phases via argv (discovery/crawl/confirm + pool); `PACE_MS=1100`, single UA, DDG discovery, per-site `browser.newContext`, pdfjs-dist legacy (incl. `zlib.inflateSync` fallback); per-site try/catch with `unwritten` semantics in all three phases.
+- Crawl log (ADR-0045): 204 rows, exact 8-value vocabulary, 0 out-of-vocab outcomes, 0 non-terminal rows, per-entry source URL on all 107 discovered sites (`website` + `discoverySource:'ddg'`); all 14 confirm rows `shopsExtracted:0, committed:false`; exactly the 4 documented ids missing (en-1-122650868, en-1-106965965, en-1-134598723, en-1-123327578).
+- Raw data: 138 byte-preserved + 2 appends (en-1-113514582 "Visit us Canal Lane" LE14 4EX; ni-r1 "Fundraising Centre" BT48 8JE); `shops-geo.json` 137 keys = 135 + the 2 new postcodes (both `source:"postcode"`).
+- Build: `build-data.mjs` exactly +3 net lines (import, canonical id set, `resolveShopId` call); `public/data/shops.json` 140 / 17 outsideCatchment / 0 unresolved, ids end `shop-138`, `shop-139` (0-based).
+- Deps: `playwright@1.65.1` + `pdfjs-dist@6.5.438` in devDependencies only; runtime deps (bootstrap/leaflet/react/react-dom/react-leaflet) untouched. `geocode-shops.mjs` unchanged; component E `unresolvedPostcodes` sync gated on `fullRunComplete` (never now).
+- Pool shape: discovery 190 / confirm 18 (all real-domain `en-1-*`). ni-r1 legitimately appears in the **crawl** phase, not confirm: `hospices-all.json` has `ni-r1.website: ""` → discovery pool; DDG found foylehospice.com. No double-processing: 14 written + 4 unwritten = 18 confirm pool ✓.
+
+## Findings
+
+1. **G2 open seam — risk-accepted (the single open gate).** 4 confirm rows unwritten (transport-fail from this network's vantage at apex after 3 attempts each). Non-terminal by F-1 design (log-as-state); resume re-attempts only unwritten rows. Resume: `node scripts/crawl-hospice-shops.mjs confirm` from a reachable network, then re-run G2/G4/G5/G6.
+2. **F-1 429/5xx/timeout simulation absent from the suite — risk-accepted follow-up debt (per review-cycle10.md F-1).** `tests/crawl-log.test.mjs` covers schema/vocabulary/invariants/completeness but contains no transport-failure simulation (only reference to `not-found` is the vocabulary list). Behaviour verified two ways instead: (a) code read — `transportFailure` (L133) returns true for no-response/429/202/≥500; all three phases return `{unwritten:true}` on it and the caller loops `continue` without writing a row; 403 → terminal `blocked`, 404 → terminal `not-found`; (b) offline simulation — 429/500/503/202/null → true; 200/403/404 → false (8/8). Row is left unwritten, never terminal not-found. ✓ A standalone unit test should be appended to the suite as carried debt.
+
+## Verdict
+
+**PASS — 0 Blocking findings.** G2 open seam (1) and the F-1 test gap (2) are both risk-accepted and carried forward; neither blocks the pipeline.

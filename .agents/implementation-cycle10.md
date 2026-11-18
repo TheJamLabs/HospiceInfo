@@ -241,3 +241,9 @@ G0 passes: count 138, tests exit 0, build `unresolved ids: 0`.
 - **W15 status: done.** All work-list items W1–W15 are ledgered. W14 remains `in-progress` at the documented clean seam (204/208 log rows; the 4 F-1-unwritten confirm rows; resume point and exact command recorded above). No Blocking findings introduced by the Coding stage; the one outstanding gate (G2 + its G5-coupled test) is the documented resume-seam state, not a fixable defect — it resolves when the 4 rows are written from a reachable network.
 
 ---
+
+## Post-closeout verification (late background-task notification)
+
+A background crawl process (`node scripts/crawl-hospice-shops.mjs crawl`, task `bg_73423bea`) was reported cancelled after the closeout write-up. Its tail output (UNWRITTEN robots-transport rows in the crawl phase) prompted a re-verification of the on-disk state before reporting. Result — **no change, closeout figures hold**: log **204 rows**, meta.run `2026-11-17`, histogram identical to the ledgered one (`crawl/skipped-robots 93 · discovery/no-website 83 · crawl/ok 8 · crawl/no-shop-page 5 · crawl/unreadable 1 · confirm/skipped-robots 12 · confirm/not-found 1 · confirm/ok 1`); the 4 expected confirm rows (en-1-122650868, en-1-106965965, en-1-134598723, en-1-123327578) remain unwritten; `data-raw/shops-website.json` 140 entries; `public/data/shops.json` 140 / outsideCatchment 17. The cancelled run, by the log's rewrite-after-each-site design, committed nothing new beyond the already-recorded state.
+
+---

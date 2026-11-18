@@ -2702,8 +2702,8 @@ exist, no open Blocking findings, Reporter delivered.
 | 3 | Review (pre-impl) | reviewer / qwen-dense (plan) | `review-cycle10.md` | **done** (2026-11-17, lead disk-verified — PASS, 0 Blocking / 6 risk-accepted) |
 | 4 | Work breakdown | product-manager / qwen-dense | `requirements-cycle10.md` | **done** (2026-11-17, lead disk-verified — W1–W15 dependency-ordered, Component A first, 5 tests, crawl RUN item, F-1 + append-only carried) |
 | 5 | Implementation | coder / qwen-dense | code + `implementation-cycle10.md` | **done** (2026-11-17, lead disk-verified — W1–W15 ledgered; W14 at documented clean seam 204/208, 4 F-1 rows, non-terminal by design; close-out details in dispatch log) |
-| 6 | QA | qa-engineer / qwen-dense | `qa-cycle10.md` | pending (∥ 7) |
-| 7 | Security | security / qwen-dense | `security-cycle10.md` | pending (∥ 6) |
+| 6 | QA | qa-engineer / qwen-dense | `qa.md` (Cycle 10 §) | **done** (2026-11-17, lead disk-verified — **PASS, 0 Blocking**, 0 rework; G0–G4 + G6 PASS on fresh re-runs (G3 = 138-entry prefix cmp-clean vs `HEAD^`); G5 46/47, sole failure = documented G2-coupled completeness test; 2 risk-accepted: G2 open seam 204/208 (4 F-1 rows non-terminal by design) + F-1 simulation unit-test debt; lead repaired the stage's cumulative-file overwrite — see dispatch log) |
+| 7 | Security | security / qwen-dense | `security.md` (Cycle 10 §) | **done** (2026-11-17, lead disk-verified — **PASS, 0 Blocking**, 0 rework; FULL AUDIT: 12 findings SEC10-01…12 all risk-accepted, 6 design-level (none Blocking — no Architect rework routed); SEC6-01 carried + extended to the two new devDeps; one clean bottom append to the cumulative file; closure: cleared for Stage 8) |
 | 8 | DevOps | devops / qwen-dense | `ops-cycle10.md` | pending |
 | 9 | Documentation | documentation / qwen-flash | `docs/` | pending |
 | 10 | Hindsight integration | hindsight / qwen-flash | `hindsight-cycle10.md` | pending |
@@ -2890,6 +2890,78 @@ Stage 2B skipped: no visual surface (data tooling + committed data only).
   → G2 + G5-coupled test clear (exact command recorded in the
   implementation ledger W14). Carried to stages 6/7 as the one
   outstanding gate with this briefing.
+- **Stages 6 + 7 dispatched (2026-11-17, parallel, user-gate approved on
+  Stage 5 commit `a761871`):** qa-engineer + security sub-sessions (qwen-dense),
+  fire-and-forget, self-contained briefs; the W14 seam (204/208 rows; 4 F-1
+  confirm rows unwritten, non-terminal by design) briefed as the one
+  documented open item to classify, not a defect to chase. Both instructed
+  to append a Cycle 10 section at the BOTTOM of the cumulative artifact
+  (`qa.md` / `security.md`) — the supersede-vs-append convention misread
+  flagged in both briefs (same misread that produced the Stage 4-era
+  research rewrite). Read-only on code; no commits; exactly their own
+  artifact file. Lead disk poll `bg_133559ce` tracked both files minute by
+  minute and closed positively at 21:09 UTC ("BOTH CLOSED"): its log
+  timestamps the QA overwrite (36,989 B → 4,318 B at 20:37 UTC — the condition
+  armed for the stage was then unsatisfiable and was only met by the lead
+  repair) and the SEC bottom append settling at 62,125 B (20:31–20:46 UTC).
+  Artifacts verified directly on disk when both sessions tore down (QA
+  20:40:38 UTC, SEC 21:03–21:05 UTC).
+- **Stage 6 QA landed (2026-11-17) — Verdict PASS, 0 Blocking, 0 rework.**
+  G0–G4 + G6 PASS on fresh re-runs (G3 = first 28,782 bytes of
+  `shops-website.json` cmp-clean vs `HEAD^` — the 138-entry preservation
+  gate; G6 A-05 = two clean builds byte-identical). G5 = 46/47 — the sole
+  failure is the documented G2-coupled completeness test
+  (`tests/crawl-log.test.mjs:158`, 204 vs 208 log rows) — expected at the
+  seam. G2 recorded OPEN = documented clean seam, not a finding: the 4 F-1
+  confirm rows unwritten after 3 attempts each (apex-verified persistent
+  transport failures from this network's vantage). 2 risk-accepted: (1) the
+  seam itself — resume = `node scripts/crawl-hospice-shops.mjs confirm` from
+  a reachable network → 208 rows → G2/G4/G5/G6 re-run; (2) F-1
+  429/5xx/timeout simulation coverage verified by code-read (L133
+  `transportFailure`) + offline simulation (429/500/503/202/null → true,
+  200/403/404 → false) but no standalone unit test — carried debt.
+  **Lead file-state repair (provenance):** the QA sub-session OVERWROTE the
+  cumulative `qa.md` (36,989 B → 4,318 B; Cycles 4–7 sections dropped) and
+  headed it "Supersedes the Cycle 4 report previously in this file" — the
+  anticipated convention misread. The session was already dead (teardown
+  20:40:38 UTC), so the lead repaired directly from disk: committed blob
+  `a761871:.agents/qa.md` as base + the same Cycle 10 section re-appended
+  (content 100% stage-authored; only the supersede line stripped). State on
+  disk: 41,258 B, Cycle 10 section at line 414.
+- **Stage 7 Security landed (2026-11-17) — Verdict PASS, 0 Blocking, 0
+  rework.** FULL AUDIT pass (read-only; no network, no browser): 12
+  findings SEC10-01…12, all risk-accepted; 6 design-level (01
+  redirect-steered egress, 02 cross-site shop-link fetch can commit
+  entries, 03 DDG index as discovery source, 05 hostile-markup depth into
+  fields, 07 hostile JS in local Chromium, 12 consolidated egress record)
+  — none design-level Blocking → no Architect rework routed; 01/02/07
+  noted as future hardening candidates for an ADR-0044 follow-up. SEC6-01
+  carried + extended (next dependency-hygiene cycle: `npm audit`
+  playwright/pdfjs-dist alongside xlsx HIGH / esbuild MEDIUM). Data-quality
+  carry-fwd to Docs/QA (not a security defect): shop-139's address field
+  ends with page prose ("… Pin badges are sold here only. Get directions").
+  Appended correctly at the BOTTOM of the cumulative file (62,125 B / 428
+  L; Cycles 4/5/6 preserved) — the lead's redundant correction arrived
+  after the clean append had already landed. Process note: the follow-up
+  dispatch reported "failed (timeout)" on the acknowledgement path only —
+  the transcript proves the prompt landed and the turn ran to completion
+  (final message 21:03:07 UTC: Stage 7 CLOSED, rework rounds 0, cleared for
+  Stage 8). **Both gates closed → Stage 6/7 checkpoint commit next, then
+  Stage 8 (DevOps).**
+- **Stage 6/7 checkpoint committed + Stage 8 DevOps dispatched (2026-11-17,
+  user-gated):** checkpoint commit carries `qa.md` (lead-repaired cumulative),
+  `security.md`, `implementation-cycle10.md` (coder post-closeout section),
+  `pipeline.md`. DevOps sub-session (qwen-dense) fire-and-forget: writes
+  exactly `.agents/ops-cycle10.md` — §1 build story (exact commands, dist
+  inventory, determinism), §2 gate checklist (G0–G6 evidence, fresh re-runs),
+  §3 deploy + pre-push checklist (data-only cycle: shops 140/17/0, no
+  frontend delta; worktree branch → main → push auto-publishes), §4 rollback
+  (revert chain over the cycle commits), §5 observability (static smoke
+  checks), §6 risk-accepted with ops consequence (204/208 seam + resume
+  command, F-1 sim library debt, SEC10-01…12, SEC6-01 npm-audit debt incl.
+  the two new devDeps), §7 carry-forward. Read-only outside the artifact;
+  may run offline validation (build ×2, npm test, build-data). No commits.
+  Lead polls disk for `ops-cycle10.md`.
 
 **Lead integration notes (verified in code, 2026-11-16)**:
 
