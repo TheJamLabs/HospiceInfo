@@ -2436,7 +2436,7 @@ round-2 verification is authoritative.
 
 ---
 
-## Cycle 9 — 2026-11-16 (working)
+## Cycle 9 — Mobile menu panel, CTA row, footer fix (opened 2026-11-16; shipped 2026-11-17, commit 914e3a4)
 
 Owner batch, four items; design decisions confirmed by the owner
 2026-11-16 (terse answers to the lead's two questions). Hindsight
@@ -2486,6 +2486,17 @@ Done when:
 - `npm test`, `npx tsc -b`, `check:layout`, double `prerender:2win`
   byte-identical, sitemap 215 `<loc>` — all green.
 - Owner gate: commit scope + push (publish) approval.
+
+**SHIPPED 2026-11-17** — owner approved commit + push (18 files:
+ops' 16-file list + `README.md` + `.agents/documentation-cycle9.md`);
+full ops §1 pre-push gate chain re-run green at commit time (tsc,
+26/26 tests, check:layout, build, double prerender byte-identical,
+sitemap 215). Commit `914e3a4` ("Cycle 9: mobile menu panel, CTA
+row, footer fix") pushed to `origin/main` — production published.
+Post-publish curl green on first poll: HTTP 200, live CSS
+`index-CRSzoIUL.css` (same hash as local build) carries
+`hf-menu-panel`, index well-formed (`<html>`/`</html>` = 2), sitemap
+215. One owner action remains: visual pass at 1280/768/375 (risk-accepted, carried from QA).
 
 | # | Stage | Agent / model | Artifact (cycle9) | Status |
 |---|-------|---------------|-------------------|--------|
