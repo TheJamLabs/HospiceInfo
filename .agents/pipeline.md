@@ -2704,7 +2704,7 @@ exist, no open Blocking findings, Reporter delivered.
 | 5 | Implementation | coder / qwen-dense | code + `implementation-cycle10.md` | **done** (2026-11-17, lead disk-verified — W1–W15 ledgered; W14 at documented clean seam 204/208, 4 F-1 rows, non-terminal by design; close-out details in dispatch log) |
 | 6 | QA | qa-engineer / qwen-dense | `qa.md` (Cycle 10 §) | **done** (2026-11-17, lead disk-verified — **PASS, 0 Blocking**, 0 rework; G0–G4 + G6 PASS on fresh re-runs (G3 = 138-entry prefix cmp-clean vs `HEAD^`); G5 46/47, sole failure = documented G2-coupled completeness test; 2 risk-accepted: G2 open seam 204/208 (4 F-1 rows non-terminal by design) + F-1 simulation unit-test debt; lead repaired the stage's cumulative-file overwrite — see dispatch log) |
 | 7 | Security | security / qwen-dense | `security.md` (Cycle 10 §) | **done** (2026-11-17, lead disk-verified — **PASS, 0 Blocking**, 0 rework; FULL AUDIT: 12 findings SEC10-01…12 all risk-accepted, 6 design-level (none Blocking — no Architect rework routed); SEC6-01 carried + extended to the two new devDeps; one clean bottom append to the cumulative file; closure: cleared for Stage 8) |
-| 8 | DevOps | devops / qwen-dense | `ops-cycle10.md` | pending |
+| 8 | DevOps | devops / qwen-dense | `ops-cycle10.md` | **done** (2026-11-18, lead disk-verified — 16,890 B, pinned `Stage 8 CLOSED` final line, all §1–§7 on-brief; tree effect = `?? .agents/ops-cycle10.md` only, no git write; stage re-ran the chain offline: build green, 46/47 (sole failure = seam test `crawl-log.test.mjs:158`), A-05 double-build byte-identical (231-file dist tree hash `4c5efcd3…`, 5 `public/data` hashes match QA G6); gates G0–G1/G3–G6 PASS, G2 OPEN documented (204/208 + 4 ids + resume); deploy = ADR-0014 git-connected Pages, data-only delta 138→140 / 16→17 / 0 unresolved; 6-item owner pre-push checklist incl. seam disposition (a)/(b); rollback = Pages restore + revert chain; 8 production probes; 5 ops risk-accepted; 6 carry-forward) |
 | 9 | Documentation | documentation / qwen-flash | `docs/` | pending |
 | 10 | Hindsight integration | hindsight / qwen-flash | `hindsight-cycle10.md` | pending |
 | 11 | Report | reporter / qwen-flash (plan) | chat only | pending |
@@ -2962,6 +2962,35 @@ Stage 2B skipped: no visual surface (data tooling + committed data only).
   the two new devDeps), §7 carry-forward. Read-only outside the artifact;
   may run offline validation (build ×2, npm test, build-data). No commits.
   Lead polls disk for `ops-cycle10.md`.
+- **Stage 8 DevOps landed (2026-11-18; lead disk-verified):** poll
+  `bg_2be9fc26` closed positively 07:59:01Z (STABLE, 16,890 B; pinned final
+  line `Stage 8 CLOSED — cleared for Stage 9 (Docs)` verbatim). Lead verified:
+  `git status --short` = `?? .agents/ops-cycle10.md` only, no git write by the
+  stage, all §1–§7 on-brief. Stage re-ran the chain offline: build green
+  (231-file dist, 12M), 46/47 (sole failure = documented seam test
+  `crawl-log.test.mjs:158`, 204 vs 208), A-05 first-party double-build
+  byte-identical (dist tree hash `4c5efcd3…`), five `public/data` hashes match
+  QA G6. Ops artifact: data-only publish (138→140 shops, 16→17
+  outside-catchment; page set unchanged — 208 pages / 215 sitemap locs),
+  6-item owner pre-push checklist (seam disposition (a) publish at 204/208
+  vs (b) resume to 208 first — owner's choice to be recorded here at that
+  time), 4-commit revert rollback chain, production probes P1–P8, 5 ops
+  risk-accepted (incl. SEC10-01/02/07 owner decision before next crawl round),
+  6 carry-forward items (Docs note for shop-139's verbatim address). Ledger
+  row 8 = done. Next: owner gate → Stage 8 commit, then Stages 9+10 (Docs ∥
+  Hindsight, independent artifacts) and Stage 11 (Reporter); after close the
+  owner runs the §3 push per the ops checklist.
+- **Owner gate PASSED (2026-11-18) — "Merge, commit, push":** merge to main
+  executed as 4 cherry-picks (worktree branch predates main's rewritten
+  Cycle 9 lineage; no common ancestor): `71729bd` (Stages 1–3), `488a79a`
+  (Stage 4), `f627632` (Stage 5), `a29d846` (Stages 6–7) — conflicts:
+  GLOSSARY C9/C10 tails (both kept, chronological) + README Squares bullet
+  (C10 wording, C9 mobile clause kept). Seam disposition per ops checklist
+  item: **(a) publish at 204/208** — G2 open seam (4 non-terminal F-1
+  confirm-only rows) carried as documented debt; resume later from a
+  reachable network (`node scripts/crawl-hospice-shops.mjs confirm` → 208
+  rows). Production publish triggered by push to main (ADR-0014: `npm ci &&
+  npm run build` → `dist/`); no `wrangler deploy`.
 
 **Lead integration notes (verified in code, 2026-11-16)**:
 
